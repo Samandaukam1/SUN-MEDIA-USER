@@ -1,14 +1,13 @@
 import { StyleSheet, View } from 'react-native';
 
-import { Badge, Card, Text } from '@/components/ui';
+import { Badge, Card, Text , KeyValue as InfoRow } from '@/components/ui';
 import { contentFormat, SHOOTING_STATUS } from '@/constants/labels';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { formatTime } from '@/lib/time';
 import type { TodayContent, TodayShooting } from '../api';
-import { InfoRow } from './InfoRow';
 
-const names = (people: Array<{ person: { full_name: string } | null }>) =>
+const names = (people: { person: { full_name: string } | null }[]) =>
   people.map((p) => p.person?.full_name).filter(Boolean).join(', ') || null;
 
 /** One shooting of the day with everything the client needs to know about it. */
@@ -23,8 +22,8 @@ export function TodayPlanCard({ shooting, contents }: { shooting: TodayShooting;
   return (
     <Card>
       <View style={styles.header}>
-        <View style={[styles.time, { backgroundColor: colors.accentSoft }]}>
-          <Text variant="heading" tone="accent">
+        <View style={[styles.time, { backgroundColor: colors.brand }]}>
+          <Text variant="heading" style={{ color: colors.onBrand }}>
             {formatTime(shooting.starts_at)}
           </Text>
         </View>

@@ -1,84 +1,126 @@
 import { useQuery } from '@tanstack/react-query';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import { Badge, Card, EmptyState, ErrorState, Screen, Section, SkeletonCards, Text } from '@/components/ui';
-import { SHOOTING_STATUS, TEAM_ROLE_LABEL } from '@/constants/labels';
-import { radius, spacing } from '@/constants/theme';
+import { Badge, Card, Counters, EmptyState, Icon, ItemRow, QueryView, Screen, ScreenHeader, Section, Text } from '@/components/ui';
+import { ATTENDANCE_STATUS, CONTENT_STATUS, CONTENT_TYPE, TEAM_ROLE_LABEL } from '@/constants/labels';
+import { spacing } from '@/constants/theme';
 import { useMe } from '@/features/auth/AuthProvider';
+import { ShootingCard } from '@/features/shootings/components/ShootingCard';
+import { TaskCard } from '@/features/tasks/components/TaskCard';
 import { useTheme } from '@/hooks/useTheme';
-import { agencyDateKey, agencyDayRange, formatDateKeyLong, formatTime, greetingForNow } from '@/lib/time';
-import { fetchEmployeeToday, type EmployeeToday } from './api';
-import { InfoRow } from './components/InfoRow';
-import { TaskRow } from './components/TaskRow';
+import { agencyDateKey, formatDateKeyLong, formatShortDateTime, greetingForNow } from '@/lib/time';
+import type { Database } from '@/types/database';
+import { fetchEmployeeHome, type EmployeeHome as EmployeeHomeData } from './api';
+import { useAgencyDate } from './useAgencyDate';
+
+type Enums = Database['public']['Enums'];
 
 export function EmployeeHome() {
   const me = useMe();
-  const today = agencyDateKey();
-  const query = useQuery({
-    queryKey: ['home', 'employee', me.userId, today],
-    queryFn: () => fetchEmployeeToday(me.userId, today),
-  });
+  const today = useAgencyDate();
+  const query = useQuery({ queryKey: ['home', 'employee', me.userId, today], queryFn: fetchEmployeeHome, refetchInterval: 60_000 });
   const firstName = me.profile?.full_name.split(' ')[0] ?? '';
 
   return (
     <Screen refreshing={query.isRefetching} onRefresh={() => query.refetch()}>
-      <View style={styles.greeting}>
-        <Text variant="caption" tone="tertiary">
-          {formatDateKeyLong(today)}
-        </Text>
-        <Text variant="display">
-          {greetingForNow()}, {firstName}
-        </Text>
-      </View>
-      {query.isPending ? (
-        <SkeletonCards count={3} />
-      ) : query.isError ? (
-        <ErrorState error={query.error} onRetry={() => query.refetch()} />
-      ) : (
-        <EmployeeAgenda data={query.data} today={today} />
-      )}
+      <ScreenHeader
+        eyebrow={formatDateKeyLong(today)}
+        title={`${greetingForNow()}, ${firstName}`}
+        subtitle={me.employee?.job_title ?? me.roles[0]?.name}
+      />
+      <QueryView query={query}>{(data) => <Agenda data={data} userId={me.userId} />}</QueryView>
     </Screen>
   );
 }
 
-function EmployeeAgenda({ data, today }: { data: EmployeeToday; today: string }) {
-  const { to } = agencyDayRange(today);
-  const now = Date.now();
-  const overdue = data.tasks.filter((t) => t.due_at && new Date(t.due_at).getTime() < now);
-  const dueToday = data.tasks.filter((t) => t.due_at && new Date(t.due_at).getTime() >= now && t.due_at < to);
-  const later = data.tasks.filter((t) => !t.due_at || t.due_at >= to);
-
-  if (data.shootings.length === 0 && data.tasks.length === 0) {
-    return <EmptyState icon="check-circle" title="Bugun uchun vazifa yo‘q" description="Yangi vazifa biriktirilganda bildirishnoma olasiz." />;
-  }
+function Agenda({ data, userId }: { data: EmployeeHomeData; userId: string }) {
+  const { colors } = useTheme();
+  const today = data.date;
+  const shootingsToday = data.shootings.filter((s) => agencyDateKey(s.starts_at) === today);
+  const shootingsTomorrow = data.shootings.filter((s) => agencyDateKey(s.starts_at) !== today);
+  const attendance = data.attendance ? ATTENDANCE_STATUS[data.attendance.status as Enums['attendance_status']] : null;
 
   return (
     <>
-      {data.shootings.length > 0 ? (
+      <Card variant="hero" style={styles.hero}>
+        <Text variant="label" tone="heroSecondary">
+          Bugungi fokus
+        </Text>
+        <Counters
+          onHero
+          items={[
+            { label: 'Bugun muddat', value: data.task_stats.due_today },
+            { label: 'Muddati o‘tgan', value: data.task_stats.overdue, tone: data.task_stats.overdue ? 'danger' : 'hero' },
+            { label: 'Jarayonda', value: data.task_stats.in_progress },
+            { label: 'Bajarildi', value: data.task_stats.done_today, tone: data.task_stats.done_today ? 'brand' : 'hero' },
+          ]}
+        />
+      </Card>
+
+      {/* Attendance is marked by the office (owner / admin / manager); employees only see the result. */}
+      <Card variant="sunken" style={styles.attendance} accessibilityLabel="Bugungi davomat">
+        <Icon name={attendance?.icon ?? 'clock'} size={16} color={colors.textSecondary} />
+        <Text variant="caption" tone="secondary" style={styles.flex}>
+          Bugungi davomat
+        </Text>
+        {attendance ? (
+          <Badge
+            label={`${attendance.label}${data.attendance?.arrived_at ? ` · ${data.attendance.arrived_at.slice(0, 5)}` : ''}${data.attendance?.late_minutes ? ` · ${data.attendance.late_minutes} daq` : ''}`}
+            tone={attendance.tone}
+          />
+        ) : (
+          <Text variant="caption" tone="tertiary">
+            Administrator belgilaydi
+          </Text>
+        )}
+      </Card>
+
+      {shootingsToday.length > 0 ? (
         <Section title="Bugungi syomkalar">
-          {data.shootings.map((s) => (
-            <ShootingCard key={s.id} shooting={s} />
+          {shootingsToday.map((s) => (
+            <ShootingCard key={s.id} shooting={{ ...s, members: s.crew.map((c) => ({ ...c, attendance: c.user_id === userId ? s.my_attendance : null })) }} />
           ))}
         </Section>
       ) : null}
-      {overdue.length > 0 ? (
-        <Section title={`Muddati o‘tgan · ${overdue.length}`}>
-          {overdue.map((t) => (
-            <TaskRow key={t.id} task={t} />
-          ))}
+
+      <Section title={`Vazifalarim · ${data.task_stats.open}`}>
+        {data.tasks.length === 0 ? (
+          <EmptyState icon="check-circle" title="Yaqin kunlarga vazifa yo‘q" description="Yangi vazifa biriktirilganda bildirishnoma olasiz." />
+        ) : (
+          data.tasks.map((t) => <TaskCard key={t.id} task={t} />)
+        )}
+      </Section>
+
+      {data.content.length > 0 ? (
+        <Section title="Ishlayotgan kontentlarim">
+          <Card padded={false}>
+            {data.content.map((c, i) => {
+              const status = CONTENT_STATUS[c.status as Enums['content_status']];
+              return (
+                <ItemRow
+                  key={c.id}
+                  first={i === 0}
+                  icon={CONTENT_TYPE[c.content_type as Enums['content_type']]?.icon ?? 'film'}
+                  title={c.title}
+                  subtitle={[
+                    c.client_name,
+                    c.my_role ? TEAM_ROLE_LABEL[c.my_role as Enums['team_role']] ?? c.my_role : null,
+                    c.due_at ? formatShortDateTime(c.due_at) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  right={<Badge label={status.label} tone={status.tone} />}
+                />
+              );
+            })}
+          </Card>
         </Section>
       ) : null}
-      {dueToday.length > 0 ? (
-        <Section title="Bugun topshiriladi">
-          {dueToday.map((t) => (
-            <TaskRow key={t.id} task={t} />
-          ))}
-        </Section>
-      ) : null}
-      {later.length > 0 ? (
-        <Section title="Keyingi vazifalar">
-          {later.map((t) => (
-            <TaskRow key={t.id} task={t} />
+
+      {shootingsTomorrow.length > 0 ? (
+        <Section title="Ertangi syomkalar">
+          {shootingsTomorrow.map((s) => (
+            <ShootingCard key={s.id} shooting={{ ...s, members: s.crew }} />
           ))}
         </Section>
       ) : null}
@@ -86,44 +128,8 @@ function EmployeeAgenda({ data, today }: { data: EmployeeToday; today: string })
   );
 }
 
-function ShootingCard({ shooting }: { shooting: EmployeeToday['shootings'][number] }) {
-  const { colors } = useTheme();
-  const status = SHOOTING_STATUS[shooting.status];
-  const myRole = shooting.mine[0]?.role;
-  return (
-    <Card>
-      <View style={styles.shootingHeader}>
-        <View style={[styles.time, { backgroundColor: colors.accentSoft }]}>
-          <Text variant="heading" tone="accent">
-            {formatTime(shooting.starts_at)}
-          </Text>
-        </View>
-        <View style={styles.flex}>
-          <View style={styles.labelRow}>
-            <Text variant="label" tone="tertiary">
-              {shooting.client?.name}
-            </Text>
-            <Badge label={status.label} tone={status.tone} />
-          </View>
-          <Text variant="heading" numberOfLines={2}>
-            {shooting.title}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.rows}>
-        <InfoRow icon="map-pin" label="Lokatsiya" value={shooting.location_name ?? shooting.location_address} />
-        <InfoRow icon="clock" label="Vaqt" value={`${formatTime(shooting.starts_at)} – ${formatTime(shooting.ends_at)}`} />
-        <InfoRow icon="user" label="Rolingiz" value={myRole ? TEAM_ROLE_LABEL[myRole] : null} />
-      </View>
-    </Card>
-  );
-}
-
 const styles = StyleSheet.create({
-  greeting: { gap: spacing.xs },
-  shootingHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  time: { borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  flex: { flex: 1, gap: 4 },
-  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  rows: { gap: spacing.sm + 2, marginTop: spacing.lg },
+  hero: { gap: spacing.lg, padding: spacing.xl },
+  attendance: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
+  flex: { flex: 1 },
 });
