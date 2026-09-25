@@ -26,6 +26,9 @@ import { WeekStrip } from './components/WeekStrip';
 
 type View_ = 'day' | 'week' | 'month';
 
+// get_calendar_events rows whose entity is a task (not content).
+const TASK_EVENTS = new Set(['editing_deadline', 'design_deadline', 'task_deadline', 'meeting']);
+
 const GROUPS: { key: EventGroup; label: string; staffOnly?: boolean }[] = [
   { key: 'all', label: 'Barchasi' },
   { key: 'shooting', label: 'Syomka' },
@@ -82,6 +85,8 @@ export function CalendarScreen() {
   const open = (e: CalendarRow) => {
     if (e.event_type === 'shooting') return () => nav.shooting(e.entity_id);
     if (e.event_type.startsWith('company_')) return () => nav.go('/events');
+    // Task deadlines (staff only) open the task; content milestones open the content.
+    if (TASK_EVENTS.has(e.event_type)) return () => nav.task(e.entity_id);
     if (e.content_id) return () => nav.content(e.content_id!);
     return undefined;
   };

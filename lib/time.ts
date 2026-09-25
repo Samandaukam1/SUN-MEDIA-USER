@@ -90,9 +90,11 @@ export function formatRelativeDeadline(deadline: string | null | undefined, now:
   if (!deadline) return null;
   const diffMin = Math.round((new Date(deadline).getTime() - now.getTime()) / 60_000);
   const abs = Math.abs(diffMin);
-  const h = Math.floor(abs / 60);
+  const d = Math.floor(abs / 1440);
+  const h = Math.floor((abs % 1440) / 60);
   const m = abs % 60;
-  const text = h > 0 ? `${h} soat${m ? ` ${m} daq` : ''}` : `${m} daq`;
+  // Beyond a day, minutes are noise: "2 kun 18 soat".
+  const text = d > 0 ? `${d} kun${h ? ` ${h} soat` : ''}` : h > 0 ? `${h} soat${m ? ` ${m} daq` : ''}` : `${m} daq`;
   return diffMin >= 0 ? `${text} qoldi` : `${text} kechikdi`;
 }
 

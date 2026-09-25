@@ -88,11 +88,11 @@ function Agenda({ data, userId }: { data: EmployeeHomeData; userId: string }) {
         </Section>
       ) : null}
 
-      <Section title={`Vazifalarim · ${data.task_stats.open}`}>
+      <Section title={`Vazifalarim · ${data.task_stats.open}`} actionLabel="Barchasi" onAction={() => nav.go('/tasks')}>
         {data.tasks.length === 0 ? (
           <EmptyState icon="check-circle" title="Yaqin kunlarga vazifa yo‘q" description="Yangi vazifa biriktirilganda bildirishnoma olasiz." />
         ) : (
-          data.tasks.map((t) => <TaskCard key={t.id} task={t} />)
+          data.tasks.map((t) => <TaskCard key={t.id} task={t} onPress={() => nav.task(t.id)} />)
         )}
       </Section>
 

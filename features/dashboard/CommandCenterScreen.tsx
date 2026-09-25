@@ -73,7 +73,7 @@ function Body({ data }: { data: CommandCenter }) {
       </Section>
 
       <Section title="Yaqin muddatlar">
-        <DeadlineRadar deadlines={data.deadlines} onOpenTask={(taskId) => { const d = data.deadlines.items.find((x) => x.task_id === taskId); if (d?.content_id) nav.content(d.content_id); }} />
+        <DeadlineRadar deadlines={data.deadlines} onOpenTask={nav.task} />
       </Section>
 
       <Section title="Tasdiqlash">
