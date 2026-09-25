@@ -24,6 +24,8 @@ import { CONTENT_TYPE, TEAM_ROLE_LABEL } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
 import { useMe } from '@/features/auth/AuthProvider';
 import { formatAgo, formatDateKeyLong, formatShortDateTime, formatMonthYear } from '@/lib/time';
+import { useNav } from '@/lib/routes';
+import type { CalendarEvent } from '@/lib/schemas';
 import type { Database } from '@/types/database';
 import { fetchClientHome, fetchClientToday, type ClientHome as ClientHomeData, type ClientToday } from './api';
 import { EventTimeline } from './components/EventTimeline';
@@ -85,6 +87,8 @@ export function ClientHome() {
 }
 
 function Body({ data, shootings }: { data: ClientHomeData; shootings: UseQueryResult<ClientToday> }) {
+  const nav = useNav();
+  const openEvent = (e: CalendarEvent) => (e.event_type === 'shooting' ? nav.shooting(e.entity_id) : e.content_id ? nav.content(e.content_id) : undefined);
   const delivered = Object.entries(data.month_delivered).sort((a, b) => b[1] - a[1]);
 
   return (
@@ -95,7 +99,7 @@ function Body({ data, shootings }: { data: ClientHomeData; shootings: UseQueryRe
         {data.today.length === 0 ? (
           <EmptyState icon="sun" title="Bugun rejalashtirilgan ish yo‘q" description="Syomka, montaj, tasdiqlash va nashrlar shu yerda vaqti bilan ko‘rinadi." />
         ) : (
-          <EventTimeline events={data.today} />
+          <EventTimeline events={data.today} onPress={openEvent} />
         )}
       </Section>
 
@@ -128,6 +132,7 @@ function Body({ data, shootings }: { data: ClientHomeData; shootings: UseQueryRe
                   .filter(Boolean)
                   .join(' · ')}
                 right={<Badge label="Ko‘rib chiqing" tone="warning" />}
+                onPress={() => nav.content(item.content_id)}
               />
             ))}
           </Card>
@@ -168,7 +173,7 @@ function Body({ data, shootings }: { data: ClientHomeData; shootings: UseQueryRe
 
       {data.upcoming.length > 0 ? (
         <Section title="Yaqin kunlarda">
-          <EventTimeline events={data.upcoming} withDate />
+          <EventTimeline events={data.upcoming} withDate onPress={openEvent} />
         </Section>
       ) : null}
 

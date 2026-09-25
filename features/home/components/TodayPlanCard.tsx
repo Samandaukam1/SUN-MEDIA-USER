@@ -11,7 +11,7 @@ const names = (people: { person: { full_name: string } | null }[]) =>
   people.map((p) => p.person?.full_name).filter(Boolean).join(', ') || null;
 
 /** One shooting of the day with everything the client needs to know about it. */
-export function TodayPlanCard({ shooting, contents }: { shooting: TodayShooting; contents: TodayContent[] }) {
+export function TodayPlanCard({ shooting, contents, onPress }: { shooting: TodayShooting; contents: TodayContent[]; onPress?: () => void }) {
   const { colors } = useTheme();
   const status = SHOOTING_STATUS[shooting.status];
   const primary = contents[0];
@@ -20,7 +20,7 @@ export function TodayPlanCard({ shooting, contents }: { shooting: TodayShooting;
   const operators = shooting.crew.filter((c) => c.role === 'operator');
 
   return (
-    <Card>
+    <Card onPress={onPress} accessibilityLabel={`${formatTime(shooting.starts_at)} ${shooting.title}`}>
       <View style={styles.header}>
         <View style={[styles.time, { backgroundColor: colors.brand }]}>
           <Text variant="heading" style={{ color: colors.onBrand }}>

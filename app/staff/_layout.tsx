@@ -9,6 +9,8 @@ export default function InterfaceStack() {
       <Stack.Screen name="content/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="content/edit/[id]" options={{ presentation: 'modal' }} />
       <Stack.Screen name="projects/new" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="shooting/new" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="shooting/edit/[id]" options={{ presentation: 'modal' }} />
       <Stack.Screen name="projects/edit/[id]" options={{ presentation: 'modal' }} />
     </Stack>
   );

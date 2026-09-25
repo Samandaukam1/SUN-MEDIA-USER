@@ -5,6 +5,7 @@ import { EmptyState, ErrorState, QueryView, Screen, ScreenHeader, Section, Skele
 import { spacing } from '@/constants/theme';
 import { ActivityList } from '@/features/activity/ActivityList';
 import { useMe } from '@/features/auth/AuthProvider';
+import { useNav } from '@/lib/routes';
 import { WorkspaceHomeSection } from '@/features/workspace/components/WorkspaceHomeSection';
 import { useAgencyDate } from '@/features/home/useAgencyDate';
 import { formatDateKeyLong } from '@/lib/time';
@@ -52,6 +53,7 @@ export function CommandCenterScreen() {
 
 function Body({ data }: { data: CommandCenter }) {
   const me = useMe();
+  const nav = useNav();
   return (
     <>
       <DashboardHero data={data} />
@@ -66,20 +68,20 @@ function Body({ data }: { data: CommandCenter }) {
         {data.shootings.length === 0 ? (
           <EmptyState icon="video-off" title="Bugun syomka yo‘q" description="Rejalashtirilgan syomkalar shu yerda ko‘rinadi." />
         ) : (
-          data.shootings.map((s) => <ShootingCard key={s.id} shooting={s} />)
+          data.shootings.map((s) => <ShootingCard key={s.id} shooting={s} onPress={() => nav.shooting(s.id)} />)
         )}
       </Section>
 
       <Section title="Yaqin muddatlar">
-        <DeadlineRadar deadlines={data.deadlines} />
+        <DeadlineRadar deadlines={data.deadlines} onOpenTask={(taskId) => { const d = data.deadlines.items.find((x) => x.task_id === taskId); if (d?.content_id) nav.content(d.content_id); }} />
       </Section>
 
       <Section title="Tasdiqlash">
-        <ApprovalsCard approvals={data.approvals} />
+        <ApprovalsCard approvals={data.approvals} onOpenContent={nav.content} />
       </Section>
 
       <Section title="Bugungi nashrlar">
-        <PublicationsCard publications={data.publications} />
+        <PublicationsCard publications={data.publications} onOpenContent={nav.content} />
       </Section>
 
       {data.clients.length > 0 ? (
