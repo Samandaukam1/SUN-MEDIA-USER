@@ -23,6 +23,8 @@ export function Screen({ children, scroll = true, refreshing = false, onRefresh,
         <ScrollView
           contentContainerStyle={[styles.content, contentStyle]}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
           refreshControl={
             onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} /> : undefined
           }

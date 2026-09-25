@@ -4,6 +4,7 @@ import { Alert, Platform, StyleSheet, View } from 'react-native';
 
 import { Avatar, Badge, Button, Card, Icon, ListGroup, ListRow, Screen, ScreenHeader, Section, Text } from '@/components/ui';
 import { spacing } from '@/constants/theme';
+import { fetchApprovalCounts } from '@/features/approvals/api';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
 import { fetchAnnouncements } from '@/features/workspace/api';
 import { useTheme } from '@/hooks/useTheme';
@@ -38,6 +39,8 @@ export function AccountScreen() {
     enabled: isStaff,
   });
   const unread = announcements.data?.filter((a) => !a.read).length ?? 0;
+  const approvals = useQuery({ queryKey: ['approvals', 'counts'], queryFn: fetchApprovalCounts });
+  const pendingApprovals = (approvals.data?.to_review ?? 0) + (approvals.data?.my_revisions ?? 0);
 
   return (
     <Screen>
@@ -70,10 +73,19 @@ export function AccountScreen() {
         ) : null}
       </Card>
 
+      {!isStaff ? (
+        <Section title="Tasdiqlash">
+          <ListGroup>
+            <ListRow icon="check-circle" iconTone="brand" title="Tasdiqlash markazi" subtitle="Video va dizaynlarni ko‘rib chiqing" value={pendingApprovals ? `${pendingApprovals} kutmoqda` : null} onPress={nav.approvals} />
+          </ListGroup>
+        </Section>
+      ) : null}
+
       {isStaff ? (
         <Section title="Ish">
           <ListGroup>
             <ListRow icon="check-square" iconTone="brand" title="Vazifalar" subtitle="Mening va jamoa vazifalari, muddatlar" onPress={() => nav.go('/tasks')} />
+            <ListRow icon="check-circle" title="Tasdiqlash markazi" subtitle="Versiyalar, revisionlar, vaqtli izohlar" value={pendingApprovals ? `${pendingApprovals} kutmoqda` : null} onPress={nav.approvals} />
             <ListRow icon="folder" title="Loyihalar" subtitle="Mijoz loyihalari, jamoa va jarayon" onPress={() => nav.go('/projects')} />
             <ListRow icon="trending-up" title="Mening natijalarim" subtitle="KPI, o‘z vaqtida bajarish, davomat" onPress={() => nav.go('/my-performance')} />
             {can('attendance.read') ? <ListRow icon="user-check" title="Davomat" subtitle="Kim keldi, kechikdi, kelmadi" onPress={() => nav.go('/attendance')} /> : null}

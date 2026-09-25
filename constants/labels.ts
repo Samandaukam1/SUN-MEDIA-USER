@@ -177,6 +177,21 @@ export const PUBLICATION_STATUS: Record<Enums['publication_status'], Labelled> =
 };
 
 /** Calendar event types from get_calendar_events: told apart by icon + label, not colour alone. */
+export const VERSION_STATUS: Record<Enums['version_status'], Labelled & { icon: IconName }> = {
+  internal_review: { label: 'Ichki tekshiruvda', tone: 'info', icon: 'eye' },
+  client_review: { label: 'Mijozda', tone: 'warning', icon: 'user-check' },
+  changes_requested: { label: 'O‘zgartirish so‘raldi', tone: 'danger', icon: 'rotate-ccw' },
+  approved: { label: 'Tasdiqlandi', tone: 'success', icon: 'check-circle' },
+  superseded: { label: 'Almashtirilgan', tone: 'neutral', icon: 'layers' },
+};
+
+export const REVISION_STATUS: Record<Enums['revision_status'], Labelled> = {
+  open: { label: 'Ochiq', tone: 'danger' },
+  in_progress: { label: 'Bajarilmoqda', tone: 'accent' },
+  resolved: { label: 'Hal qilindi', tone: 'success' },
+  cancelled: { label: 'Bekor', tone: 'neutral' },
+};
+
 export const EVENT_TYPE: Record<string, { label: string; icon: IconName; tone: BadgeTone }> = {
   shooting: { label: 'Syomka', icon: 'video', tone: 'violet' },
   publication: { label: 'Nashr', icon: 'send', tone: 'success' },

@@ -76,7 +76,7 @@ function Body({ data }: { data: CommandCenter }) {
         <DeadlineRadar deadlines={data.deadlines} onOpenTask={nav.task} />
       </Section>
 
-      <Section title="Tasdiqlash">
+      <Section title="Tasdiqlash" actionLabel="Markaz" onAction={nav.approvals}>
         <ApprovalsCard approvals={data.approvals} onOpenContent={nav.content} />
       </Section>
 

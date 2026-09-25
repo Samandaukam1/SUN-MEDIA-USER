@@ -117,7 +117,7 @@ function Body({ data, shootings }: { data: ClientHomeData; shootings: UseQueryRe
       </Section>
 
       {data.awaiting_approval.length > 0 ? (
-        <Section title={`Tasdiq kutmoqda · ${data.stats.waiting_approval}`}>
+        <Section title={`Tasdiq kutmoqda · ${data.stats.waiting_approval}`} actionLabel="Hammasi" onAction={nav.approvals}>
           <Card padded={false}>
             {data.awaiting_approval.map((item, i) => (
               <ItemRow
@@ -132,7 +132,7 @@ function Body({ data, shootings }: { data: ClientHomeData; shootings: UseQueryRe
                   .filter(Boolean)
                   .join(' · ')}
                 right={<Badge label="Ko‘rib chiqing" tone="warning" />}
-                onPress={() => nav.content(item.content_id)}
+                onPress={() => (item.version ? nav.review(item.version.id) : nav.content(item.content_id))}
               />
             ))}
           </Card>

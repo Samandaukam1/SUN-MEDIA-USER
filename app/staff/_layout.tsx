@@ -8,6 +8,7 @@ export default function InterfaceStack() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="content/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="content/edit/[id]" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="content/submit/[id]" options={{ presentation: 'modal' }} />
       <Stack.Screen name="projects/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="shooting/new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="task/new" options={{ presentation: 'modal' }} />

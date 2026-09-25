@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Avatar, Badge, Button, Card, EmptyState, ItemRow, QueryView, SegmentedControl, Sheet, Text, TextArea, TextField, useToast } from '@/components/ui';
-import { PLATFORM, PUBLICATION_STATUS } from '@/constants/labels';
+import { PLATFORM, PUBLICATION_STATUS, REVISION_STATUS, VERSION_STATUS } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
+import { useNav } from '@/lib/routes';
 import { signedUrl } from '@/lib/storage';
+import { formatBytes } from '@/lib/upload';
 import { formatAgo, formatShortDateTime } from '@/lib/time';
 import type { Database } from '@/types/database';
 import { addComment, fetchComments, fetchContentFiles, updatePublication, type ContentDetail } from '../api';
@@ -24,17 +26,6 @@ const FILE_ICON: Record<string, 'film' | 'image' | 'music' | 'file-text' | 'arch
   other: 'file',
 };
 
-function formatBytes(bytes: number | null | undefined): string {
-  if (!bytes) return '';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let v = bytes;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i += 1;
-  }
-  return `${v.toFixed(v >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
-}
 
 export function MediaSection({ contentId }: { contentId: string }) {
   const toast = useToast();
@@ -67,49 +58,49 @@ export function MediaSection({ contentId }: { contentId: string }) {
   );
 }
 
-const VERSION_STATUS: Record<Enums['version_status'], { label: string; tone: 'info' | 'warning' | 'danger' | 'success' | 'neutral' }> = {
-  internal_review: { label: 'Ichki tekshiruvda', tone: 'info' },
-  client_review: { label: 'Mijozda', tone: 'warning' },
-  changes_requested: { label: 'O‘zgartirish so‘raldi', tone: 'danger' },
-  approved: { label: 'Tasdiqlandi', tone: 'success' },
-  superseded: { label: 'Almashtirilgan', tone: 'neutral' },
-};
+
+const CLOSED: Enums['content_status'][] = ['approved', 'scheduled', 'published', 'cancelled'];
 
 export function ApprovalSection({ c }: { c: ContentDetail }) {
+  const nav = useNav();
+  const { can, appInterface } = useAuth();
   const versions = [...c.versions].sort((a, b) => b.version_number - a.version_number);
-  if (versions.length === 0) {
-    return <EmptyState icon="check-circle" title="Hali versiya yuborilmagan" description="Montajyor birinchi versiyani yuborganda tasdiqlash jarayoni shu yerda boshlanadi." />;
-  }
+  const canUpload = appInterface !== 'client' && can('files.upload') && !CLOSED.includes(c.status);
   return (
-    <Card padded={false}>
-      {versions.map((v, i) => (
-        <ItemRow
-          key={v.id}
-          first={i === 0}
-          icon="film"
-          title={`Versiya v${v.version_number}`}
-          subtitle={[
-            v.sent_to_client_at ? `Mijozga: ${formatShortDateTime(v.sent_to_client_at)}` : `Yuborilgan: ${formatShortDateTime(v.submitted_at)}`,
-            v.decided_at ? `Qaror: ${formatShortDateTime(v.decided_at)}` : null,
-            v.notes,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-          right={<Badge label={VERSION_STATUS[v.status].label} tone={VERSION_STATUS[v.status].tone} />}
-        />
-      ))}
-    </Card>
+    <>
+      {versions.length === 0 ? (
+        <EmptyState icon="check-circle" title="Hali versiya yuborilmagan" description="Montajyor birinchi versiyani yuborganda tasdiqlash jarayoni shu yerda boshlanadi." />
+      ) : (
+        <Card padded={false}>
+          {versions.map((v, i) => {
+            const status = VERSION_STATUS[v.status];
+            return (
+              <ItemRow
+                key={v.id}
+                first={i === 0}
+                icon={status.icon}
+                title={`Versiya v${v.version_number}`}
+                subtitle={[
+                  v.sent_to_client_at ? `Mijozga: ${formatShortDateTime(v.sent_to_client_at)}` : `Yuborilgan: ${formatShortDateTime(v.submitted_at)}`,
+                  v.decided_at ? `Qaror: ${formatShortDateTime(v.decided_at)}` : null,
+                  v.notes,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+                right={<Badge label={status.label} tone={status.tone} />}
+                onPress={() => nav.review(v.id)}
+              />
+            );
+          })}
+        </Card>
+      )}
+      {canUpload ? <Button title={versions.length ? 'Yangi versiya yuklash' : 'Birinchi versiyani yuklash'} icon="upload" variant="secondary" onPress={() => nav.go(`/content/submit/${c.id}`)} /> : null}
+    </>
   );
 }
 
-const REVISION_STATUS: Record<Enums['revision_status'], { label: string; tone: 'danger' | 'accent' | 'success' | 'neutral' }> = {
-  open: { label: 'Ochiq', tone: 'danger' },
-  in_progress: { label: 'Bajarilmoqda', tone: 'accent' },
-  resolved: { label: 'Hal qilindi', tone: 'success' },
-  cancelled: { label: 'Bekor', tone: 'neutral' },
-};
-
 export function RevisionSection({ c }: { c: ContentDetail }) {
+  const nav = useNav();
   const revisions = [...c.revisions].sort((a, b) => b.revision_number - a.revision_number);
   if (revisions.length === 0) return <EmptyState icon="rotate-ccw" title="Revision yo‘q" description="Mijoz yoki ichki tekshiruv o‘zgartirish so‘rasa, shu yerda ko‘rinadi." />;
   return (
@@ -122,6 +113,7 @@ export function RevisionSection({ c }: { c: ContentDetail }) {
           title={`Revision #${r.revision_number}${r.stage === 'client' ? ' · mijoz' : ' · ichki'}`}
           subtitle={[r.summary, formatShortDateTime(r.requested_at)].filter(Boolean).join(' · ')}
           right={<Badge label={REVISION_STATUS[r.status].label} tone={REVISION_STATUS[r.status].tone} />}
+          onPress={r.version_id ? () => nav.review(r.version_id!) : undefined}
         />
       ))}
     </Card>

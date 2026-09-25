@@ -122,7 +122,7 @@ export async function fetchContent(id: string) {
        team:content_assignments(role, person:profiles!content_assignments_user_id_fkey(${PERSON})),
        publications:content_publications(id, platform, scheduled_at, published_at, status, post_url),
        versions:content_versions(id, version_number, status, notes, submitted_at, sent_to_client_at, decided_at, file_id),
-       revisions(id, revision_number, status, summary, stage, requested_at, resolved_at),
+       revisions(id, revision_number, status, summary, stage, requested_at, resolved_at, version_id),
        history:content_status_history(id, from_status, to_status, changed_at, note, actor:profiles!content_status_history_changed_by_fkey(full_name))`,
     )
     .eq('id', id)

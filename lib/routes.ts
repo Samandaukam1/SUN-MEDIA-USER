@@ -35,7 +35,8 @@ export function useNav() {
       employee: (id: string) => go(`/employee/${id}`),
       client: (id: string) => go(`/clients/${id}`),
       chat: (roomId: string) => go(`/chat/${roomId}`),
-      review: (versionId: string) => go(`/review/${versionId}`),
+      review: (versionId: string) => go(`/approvals/${versionId}`),
+      approvals: () => go('/approvals'),
       report: (id: string) => go(`/report/${id}`),
     };
   }, [router, base]);

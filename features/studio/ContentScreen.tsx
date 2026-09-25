@@ -33,7 +33,7 @@ type SectionKey = (typeof SECTIONS)[number]['key'];
 
 export function ContentScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { can } = useAuth();
+  const { can, appInterface } = useAuth();
   const nav = useNav();
   const query = useQuery({ queryKey: ['content', 'detail', id], queryFn: () => fetchContent(id), enabled: !!id });
   const transitions = useQuery({
@@ -46,6 +46,16 @@ export function ContentScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const canMove = (transitions.data?.length ?? 0) > 0;
+  const c = query.data;
+  const latest = c ? [...c.versions].sort((a, b) => b.version_number - a.version_number)[0] : undefined;
+  const reviewable = !!latest && (latest.status === 'internal_review' || latest.status === 'client_review');
+  const canUpload = !!c && appInterface !== 'client' && can('files.upload') && (c.status === 'editing' || c.status === 'revision' || c.status === 'shot');
+  const primary = canUpload
+    ? { title: c!.status === 'revision' ? 'Tuzatilgan versiyani yuklash' : 'Versiya yuklash', icon: 'upload' as const, onPress: () => nav.go(`/content/submit/${c!.id}`) }
+    : reviewable
+      ? { title: `v${latest!.version_number} ni ko‘rish`, icon: 'play-circle' as const, onPress: () => nav.review(latest!.id) }
+      : null;
+  const bar = canMove || !!primary;
 
   return (
     <View style={[styles.fill, { backgroundColor: colors.background }]}>
@@ -55,7 +65,7 @@ export function ContentScreen() {
           headerRight: can('content.manage') && query.data ? () => <HeaderButton icon="edit-2" label="Tahrirlash" onPress={() => nav.go(`/content/edit/${id}`)} /> : undefined,
         }}
       />
-      <Screen edges={[]} refreshing={query.isRefetching} onRefresh={() => query.refetch()} contentStyle={canMove ? { paddingBottom: 120 } : undefined}>
+      <Screen edges={[]} refreshing={query.isRefetching} onRefresh={() => query.refetch()} contentStyle={bar ? { paddingBottom: 120 } : undefined}>
         <QueryView query={query}>
           {(c) => (
             <>
@@ -79,10 +89,20 @@ export function ContentScreen() {
           )}
         </QueryView>
       </Screen>
-      {canMove && query.data ? (
-        // One-hand primary action stays within thumb reach.
+      {bar && query.data ? (
+        // One-hand primary actions stay within thumb reach.
         <View style={[styles.sticky, { paddingBottom: Math.max(insets.bottom, spacing.lg), backgroundColor: colors.background, borderTopColor: colors.border }]}>
-          <Button title="Holatni o‘zgartirish" icon="git-commit" onPress={() => setChanging(true)} />
+          {canMove ? (
+            <Button
+              title={primary ? 'Holat' : 'Holatni o‘zgartirish'}
+              icon="git-commit"
+              variant={primary ? 'secondary' : 'primary'}
+              fullWidth={false}
+              style={primary ? styles.side : styles.flex}
+              onPress={() => setChanging(true)}
+            />
+          ) : null}
+          {primary ? <Button title={primary.title} icon={primary.icon} fullWidth={false} style={canMove ? styles.main : styles.flex} onPress={primary.onPress} /> : null}
         </View>
       ) : null}
       {query.data ? <StatusSheet visible={changing} onClose={() => setChanging(false)} contentId={query.data.id} current={query.data.status} /> : null}
@@ -123,5 +143,8 @@ const styles = StyleSheet.create({
   headRow: { flexDirection: 'row', gap: spacing.md },
   headText: { flex: 1, gap: 4 },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs + 2, marginTop: 2 },
-  sticky: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.xl, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
+  sticky: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xl, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
+  side: { flex: 2 },
+  flex: { flex: 1 },
+  main: { flex: 3 },
 });
