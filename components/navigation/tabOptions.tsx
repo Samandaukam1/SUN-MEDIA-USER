@@ -1,23 +1,29 @@
-import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarProps, BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 
 import { Icon, type IconName } from '@/components/ui';
-import { fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { BrandTabBar } from './BrandTabBar';
 
 export function useTabScreenOptions(): BottomTabNavigationOptions {
   const { colors } = useTheme();
   return {
     headerShown: false,
-    tabBarActiveTintColor: colors.accent,
-    tabBarInactiveTintColor: colors.textTertiary,
-    tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-    tabBarLabelStyle: { fontFamily: fonts.medium, fontSize: 11 },
     sceneStyle: { backgroundColor: colors.background },
+    animation: 'shift',
   };
 }
 
+export function renderTabBar(props: BottomTabBarProps) {
+  return <BrandTabBar {...props} />;
+}
+
 export function tabIcon(name: IconName) {
-  return function TabIcon({ color }: { color: string }) {
-    return <Icon name={name} size={21} color={color} />;
+  return function TabIcon({ color, size }: { color: string; size: number }) {
+    return <Icon name={name} size={size} color={color} />;
   };
+}
+
+/** Options for one tab: title, icon and an optional unread badge. */
+export function tab(title: string, icon: IconName, badge?: number): BottomTabNavigationOptions {
+  return { title, tabBarIcon: tabIcon(icon), tabBarBadge: badge && badge > 0 ? badge : undefined };
 }

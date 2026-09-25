@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AnimatedSplash } from '@/components/brand/AnimatedSplash';
-import { OfflineBanner } from '@/components/ui';
+import { OfflineBanner, ToastProvider } from '@/components/ui';
 import { ConfigErrorScreen } from '@/components/navigation/ConfigErrorScreen';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { RealtimeSync } from '@/features/auth/RealtimeSync';
@@ -35,7 +35,9 @@ export default function RootLayout() {
       {env ? (
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <RootNavigator />
+            <ToastProvider>
+              <RootNavigator />
+            </ToastProvider>
           </AuthProvider>
         </QueryClientProvider>
       ) : (

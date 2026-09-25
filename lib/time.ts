@@ -95,3 +95,91 @@ export function formatRelativeDeadline(deadline: string | null | undefined, now:
   const text = h > 0 ? `${h} soat${m ? ` ${m} daq` : ''}` : `${m} daq`;
   return diffMin >= 0 ? `${text} qoldi` : `${text} kechikdi`;
 }
+
+/** "HH:MM" wall-clock time in agency time. */
+export function agencyTimeKey(date: Date | string): string {
+  const p = local(date);
+  return `${pad(p.hours)}:${pad(p.minutes)}`;
+}
+
+/** Instant (ISO) for an agency-local date key and "HH:MM". */
+export function agencyDateTimeToIso(dateKey: string, time: string): string {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const [hh, mm] = time.split(':').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, hh, mm) - AGENCY_UTC_OFFSET_MINUTES * 60_000).toISOString();
+}
+
+/** First day of the month containing the key, e.g. "2026-09-01". */
+export function monthStartKey(dateKey: string = agencyDateKey()): string {
+  return `${dateKey.slice(0, 7)}-01`;
+}
+
+export function addMonthsToKey(dateKey: string, months: number): string {
+  const [y, m] = dateKey.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1 + months, 1));
+  return `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-01`;
+}
+
+/** Monday-first weekday index (0 = Monday … 6 = Sunday). */
+export function weekdayIndexMonFirst(dateKey: string): number {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+}
+
+/** Monday of the week containing the key. */
+export function weekStartKey(dateKey: string): string {
+  return addDaysToKey(dateKey, -weekdayIndexMonFirst(dateKey));
+}
+
+export function daysInMonth(dateKey: string): number {
+  const [y, m] = dateKey.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
+/** 6×7 grid of date keys for a month view, Monday first, padded with adjacent months. */
+export function monthGrid(monthKey: string): string[] {
+  const first = monthStartKey(monthKey);
+  const start = addDaysToKey(first, -weekdayIndexMonFirst(first));
+  return Array.from({ length: 42 }, (_, i) => addDaysToKey(start, i));
+}
+
+/** "Sentabr 2026" */
+export function formatMonthYear(dateKey: string): string {
+  const [y, m] = dateKey.split('-').map(Number);
+  const name = MONTHS[m - 1];
+  return `${name[0].toUpperCase()}${name.slice(1)} ${y}`;
+}
+
+/** "25 sentabr 2026" */
+export function formatDateKey(dateKey: string, withYear = false): string {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  return withYear ? `${d} ${MONTHS[m - 1]} ${y}` : `${d} ${MONTHS[m - 1]}`;
+}
+
+/** "25 sen" for compact lists */
+export function formatDateShort(date: Date | string | null | undefined): string {
+  if (!date) return '—';
+  const p = local(date);
+  return `${p.day} ${MONTHS_SHORT[p.month]}`;
+}
+
+/** Relative "hozirgina / 5 daq oldin / 3 soat oldin / 25 sen" for feeds and chat. */
+export function formatAgo(date: Date | string, now: Date = new Date()): string {
+  const diffMin = Math.floor((now.getTime() - new Date(date).getTime()) / 60_000);
+  if (diffMin < 1) return 'hozirgina';
+  if (diffMin < 60) return `${diffMin} daq oldin`;
+  if (agencyDateKey(date) === agencyDateKey(now)) return `${Math.floor(diffMin / 60)} soat oldin`;
+  if (agencyDateKey(date) === addDaysToKey(agencyDateKey(now), -1)) return `kecha, ${formatTime(date)}`;
+  return formatShortDateTime(date);
+}
+
+export const WEEKDAY_SHORT_MON_FIRST = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'];
+
+/** mm:ss or h:mm:ss for media timecodes. */
+export function formatTimecode(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}

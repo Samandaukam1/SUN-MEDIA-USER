@@ -2,15 +2,16 @@ import { StyleSheet, View } from 'react-native';
 
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { Icon, type IconName } from './Icon';
 import { Text } from './Text';
 
 export type BadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'violet';
 
-export function Badge({ label, tone = 'neutral', dot = false }: { label: string; tone?: BadgeTone; dot?: boolean }) {
+export function Badge({ label, tone = 'neutral', dot = false, icon }: { label: string; tone?: BadgeTone; dot?: boolean; icon?: IconName }) {
   const { colors } = useTheme();
   const map = {
     neutral: { bg: colors.surfaceSunken, fg: colors.textSecondary },
-    accent: { bg: colors.accentSoft, fg: colors.accent },
+    accent: { bg: colors.accentSoft, fg: colors.accentOnSoft },
     success: { bg: colors.successSoft, fg: colors.success },
     warning: { bg: colors.warningSoft, fg: colors.warning },
     danger: { bg: colors.dangerSoft, fg: colors.danger },
@@ -20,6 +21,7 @@ export function Badge({ label, tone = 'neutral', dot = false }: { label: string;
   return (
     <View style={[styles.badge, { backgroundColor: map.bg }]}>
       {dot ? <View style={[styles.dot, { backgroundColor: map.fg }]} /> : null}
+      {icon ? <Icon name={icon} size={12} color={map.fg} /> : null}
       <Text variant="captionMedium" style={{ color: map.fg, fontSize: 12 }}>
         {label}
       </Text>

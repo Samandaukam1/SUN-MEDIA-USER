@@ -18,7 +18,7 @@ export function Avatar({ name, url, size = 36 }: { name?: string | null; url?: s
   }
   return (
     <View style={[styles.fallback, dimension, { backgroundColor: colors.accentSoft }]}>
-      <Text variant="captionMedium" tone="accent" style={{ fontSize: size * 0.36 }}>
+      <Text variant="captionMedium" style={{ fontSize: size * 0.36, color: colors.accentOnSoft }}>
         {initials(name)}
       </Text>
     </View>

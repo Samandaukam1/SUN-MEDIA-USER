@@ -1,12 +1,11 @@
-import { Tabs } from 'expo-router';
+import { Stack } from 'expo-router';
 
-import { tabIcon, useTabScreenOptions } from '@/components/navigation/tabOptions';
+import { useStackScreenOptions } from '@/components/navigation/stackOptions';
 
-export default function ManagementTabs() {
+export default function InterfaceStack() {
   return (
-    <Tabs screenOptions={useTabScreenOptions()}>
-      <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: tabIcon('activity') }} />
-      <Tabs.Screen name="more" options={{ title: 'Yana', tabBarIcon: tabIcon('menu') }} />
-    </Tabs>
+    <Stack screenOptions={useStackScreenOptions()}>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    </Stack>
   );
 }

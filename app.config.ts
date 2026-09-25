@@ -1,6 +1,8 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
-const BACKGROUND = '#0B0D12';
+// Launch surfaces use the brand's ink; the in-app splash (components/brand/AnimatedSplash.tsx) matches it.
+const BACKGROUND = '#0A0A0B';
+const ICON_BACKGROUND = '#EDEDEF';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -22,7 +24,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: 'com.sunmedia.user',
     edgeToEdgeEnabled: true,
-    adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: BACKGROUND },
+    adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: ICON_BACKGROUND },
   },
   web: { bundler: 'metro', output: 'single', favicon: './assets/favicon.png' },
   plugins: [
@@ -31,8 +33,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-font',
     'expo-web-browser',
     'expo-apple-authentication',
-    ['expo-splash-screen', { image: './assets/splash-icon.png', imageWidth: 140, backgroundColor: BACKGROUND }],
-    ['expo-notifications', { color: '#F5A524' }],
+    ['expo-splash-screen', { image: './assets/splash-icon.png', imageWidth: 220, backgroundColor: BACKGROUND }],
+    ['expo-notifications', { color: '#0B0B0C' }],
+    'expo-video',
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'SUN MEDIA kontent, fayl va chat uchun galereyadan rasm va video tanlashga ruxsat so‘raydi.',
+        cameraPermission: 'SUN MEDIA syomka materiallari va profil rasmi uchun kameradan foydalanishga ruxsat so‘raydi.',
+        microphonePermission: 'SUN MEDIA kamerada video yozishda ovoz yozish uchun mikrofonga ruxsat so‘raydi.',
+      },
+    ],
+    'expo-document-picker',
+    './plugins/withQuotedBundleScript',
   ],
   experiments: { typedRoutes: true },
   extra: {

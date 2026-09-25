@@ -3,7 +3,20 @@ import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
 import { typography, type ThemeColors, type TypographyVariant } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
-export type TextTone = 'primary' | 'secondary' | 'tertiary' | 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'inverse';
+export type TextTone =
+  | 'primary'
+  | 'secondary'
+  | 'tertiary'
+  | 'accent'
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'info'
+  | 'violet'
+  | 'inverse'
+  | 'hero'
+  | 'heroSecondary'
+  | 'brand';
 
 const toneToColor: Record<TextTone, keyof ThemeColors> = {
   primary: 'text',
@@ -14,7 +27,11 @@ const toneToColor: Record<TextTone, keyof ThemeColors> = {
   warning: 'warning',
   danger: 'danger',
   info: 'info',
+  violet: 'violet',
   inverse: 'accentText',
+  hero: 'heroText',
+  heroSecondary: 'heroTextSecondary',
+  brand: 'brand',
 };
 
 export type TextProps = RNTextProps & {
