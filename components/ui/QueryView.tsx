@@ -1,4 +1,3 @@
-import type { UseQueryResult } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
 import { SkeletonCards } from './Skeleton';
@@ -8,7 +7,8 @@ import type { IconName } from './Icon';
 type Empty = { icon?: IconName; title: string; description?: string; actionLabel?: string; onAction?: () => void };
 
 type Props<T> = {
-  query: Pick<UseQueryResult<T>, 'data' | 'error' | 'isPending' | 'refetch'>;
+  /** Any query-like result (useQuery, useInfiniteQuery flattened, combined queries). */
+  query: { data: T | undefined; error: unknown; isPending: boolean; refetch: () => unknown };
   children: (data: T) => ReactNode;
   /** Returns true when the loaded data should show the empty state. */
   isEmpty?: (data: T) => boolean;

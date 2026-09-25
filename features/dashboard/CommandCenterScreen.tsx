@@ -61,7 +61,7 @@ function Body({ data }: { data: CommandCenter }) {
       <WorkspaceHomeSection userId={me.userId} />
 
       <Section title={`Davomat · ${data.attendance.employees} xodim`}>
-        <AttendanceCard attendance={data.attendance} />
+        <AttendanceCard attendance={data.attendance} onPress={() => nav.go('/attendance')} />
       </Section>
 
       <Section title={`Bugungi syomkalar · ${data.shootings.length}`}>
