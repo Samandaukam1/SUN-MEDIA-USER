@@ -7,6 +7,7 @@ import { spacing } from '@/constants/theme';
 import { useMe } from '@/features/auth/AuthProvider';
 import { ShootingCard } from '@/features/shootings/components/ShootingCard';
 import { TaskCard } from '@/features/tasks/components/TaskCard';
+import { WorkspaceHomeSection } from '@/features/workspace/components/WorkspaceHomeSection';
 import { useTheme } from '@/hooks/useTheme';
 import { agencyDateKey, formatDateKeyLong, formatShortDateTime, greetingForNow } from '@/lib/time';
 import type { Database } from '@/types/database';
@@ -74,6 +75,8 @@ function Agenda({ data, userId }: { data: EmployeeHomeData; userId: string }) {
           </Text>
         )}
       </Card>
+
+      <WorkspaceHomeSection userId={userId} />
 
       {shootingsToday.length > 0 ? (
         <Section title="Bugungi syomkalar">

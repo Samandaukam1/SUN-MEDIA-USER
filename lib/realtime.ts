@@ -21,7 +21,8 @@ export type QueryDomain =
   | 'reports'
   | 'team'
   | 'clients'
-  | 'projects';
+  | 'projects'
+  | 'workspace';
 
 const TABLE_DOMAINS: Record<string, QueryDomain[]> = {
   clients: ['clients', 'home', 'dashboard', 'me'],
@@ -56,6 +57,9 @@ const TABLE_DOMAINS: Record<string, QueryDomain[]> = {
   monthly_reports: ['reports'],
   notifications: ['notifications', 'home'],
   chat_members: ['chat'],
+  announcements: ['workspace', 'home', 'dashboard'],
+  company_events: ['workspace', 'calendar', 'home', 'dashboard'],
+  shared_documents: ['workspace'],
 };
 
 type ChangeSignal = { table?: string };

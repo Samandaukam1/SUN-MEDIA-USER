@@ -8,7 +8,7 @@ export default function EmployeeTabs() {
   return (
     <Tabs screenOptions={useTabScreenOptions()} tabBar={renderTabBar}>
       <Tabs.Screen name="index" options={tab(s.nav.home, 'home')} />
-      <Tabs.Screen name="profile" options={tab(s.nav.profile, 'user')} />
+      <Tabs.Screen name="account" options={tab(s.nav.account, 'user')} />
     </Tabs>
   );
 }

@@ -186,6 +186,30 @@ export const EVENT_TYPE: Record<string, { label: string; icon: IconName; tone: B
   design_deadline: { label: 'Dizayn muddati', icon: 'pen-tool', tone: 'info' },
   task_deadline: { label: 'Vazifa muddati', icon: 'check-square', tone: 'neutral' },
   meeting: { label: 'Uchrashuv', icon: 'users', tone: 'info' },
+  company_meeting: { label: 'Umumiy yig‘ilish', icon: 'users', tone: 'info' },
+  company_holiday: { label: 'Bayram', icon: 'gift', tone: 'success' },
+  company_day_off: { label: 'Dam olish kuni', icon: 'sun', tone: 'success' },
+  company_company_event: { label: 'Kompaniya tadbiri', icon: 'star', tone: 'violet' },
+  company_training: { label: 'Trening', icon: 'book-open', tone: 'info' },
+  company_birthday: { label: 'Tug‘ilgan kun', icon: 'gift', tone: 'accent' },
+};
+
+export const COMPANY_EVENT_KIND: Record<'meeting' | 'holiday' | 'day_off' | 'company_event' | 'training' | 'birthday', { label: string; icon: IconName }> = {
+  meeting: { label: 'Umumiy yig‘ilish', icon: 'users' },
+  holiday: { label: 'Bayram', icon: 'gift' },
+  day_off: { label: 'Dam olish kuni', icon: 'sun' },
+  company_event: { label: 'Kompaniya tadbiri', icon: 'star' },
+  training: { label: 'Trening', icon: 'book-open' },
+  birthday: { label: 'Tug‘ilgan kun', icon: 'gift' },
+};
+
+export const DOCUMENT_CATEGORY: Record<'sop' | 'guide' | 'brand' | 'policy' | 'template' | 'other', { label: string; icon: IconName }> = {
+  sop: { label: 'SOP', icon: 'list' },
+  guide: { label: 'Qo‘llanma', icon: 'book-open' },
+  brand: { label: 'Brend aktivlari', icon: 'award' },
+  policy: { label: 'Qoidalar', icon: 'shield' },
+  template: { label: 'Shablonlar', icon: 'copy' },
+  other: { label: 'Boshqa', icon: 'file-text' },
 };
 
 export function eventMeta(type: string) {

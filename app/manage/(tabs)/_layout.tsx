@@ -8,7 +8,7 @@ export default function ManagementTabs() {
   return (
     <Tabs screenOptions={useTabScreenOptions()} tabBar={renderTabBar}>
       <Tabs.Screen name="index" options={tab(s.nav.dashboard, 'activity')} />
-      <Tabs.Screen name="more" options={tab(s.nav.more, 'grid')} />
+      <Tabs.Screen name="account" options={tab(s.nav.account, 'user')} />
     </Tabs>
   );
 }

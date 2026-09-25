@@ -11,6 +11,9 @@ export const uz = {
     projects: 'Loyihalar',
     team: 'Jamoa',
     more: 'Yana',
+    studio: 'Studiya',
+    inbox: 'Xabarlar',
+    account: 'Akkaunt',
   },
   common: {
     save: 'Saqlash',

@@ -4,6 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import { EmptyState, ErrorState, QueryView, Screen, ScreenHeader, Section, Skeleton, SkeletonCards, Text } from '@/components/ui';
 import { spacing } from '@/constants/theme';
 import { ActivityList } from '@/features/activity/ActivityList';
+import { useMe } from '@/features/auth/AuthProvider';
+import { WorkspaceHomeSection } from '@/features/workspace/components/WorkspaceHomeSection';
 import { useAgencyDate } from '@/features/home/useAgencyDate';
 import { formatDateKeyLong } from '@/lib/time';
 import { fetchActivity, fetchCommandCenter, type CommandCenter } from './api';
@@ -49,9 +51,12 @@ export function CommandCenterScreen() {
 }
 
 function Body({ data }: { data: CommandCenter }) {
+  const me = useMe();
   return (
     <>
       <DashboardHero data={data} />
+
+      <WorkspaceHomeSection userId={me.userId} />
 
       <Section title={`Davomat · ${data.attendance.employees} xodim`}>
         <AttendanceCard attendance={data.attendance} />
