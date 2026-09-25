@@ -1,6 +1,9 @@
 import { AuthError, isAuthApiError } from '@supabase/supabase-js';
 
-type PostgrestLikeError = { code?: string; message?: string; details?: string | null; hint?: string | null };
+type ErrorFields = { code?: unknown; message?: unknown };
+
+const UNKNOWN_MESSAGE = 'Noma’lum xatolik yuz berdi. Qayta urinib ko‘ring.';
+const INVALID_VALUE_MESSAGE = 'Kiritilgan ma’lumotlarni tekshirib, qayta urinib ko‘ring.';
 
 const AUTH_MESSAGES: Record<string, string> = {
   invalid_credentials: 'Email yoki parol noto‘g‘ri.',
@@ -21,36 +24,90 @@ const SQLSTATE_MESSAGES: Record<string, string> = {
   '23505': 'Bunday yozuv allaqachon mavjud.',
   '23503': 'Bog‘liq ma’lumot topilmadi.',
   '23514': 'Kiritilgan qiymat qoidalarga mos emas.',
+  '23502': 'Majburiy maydonlarni to‘ldiring.',
+  '22P02': INVALID_VALUE_MESSAGE,
+  '22007': 'Sana yoki vaqt noto‘g‘ri kiritilgan.',
+  '22008': 'Sana yoki vaqt noto‘g‘ri kiritilgan.',
+  PGRST116: 'Ma’lumot topilmadi yoki sizga ko‘rinmaydi.',
   PGRST301: 'Sessiya muddati tugagan. Qaytadan kiring.',
 };
 
+// Only known RPC messages are translated. Database messages can contain private
+// row values, constraint names, SQL and storage paths, so never display them raw.
+const RPC_MESSAGES: Record<string, string> = {
+  'Invalid period': 'Davr boshlanishi va tugashini tekshiring.',
+  'Describe the requested changes': 'Kerakli o‘zgartirishlarni yozing.',
+  'Cannot report on a future month': 'Kelajak oy uchun hisobot tuzib bo‘lmaydi.',
+  'Report is already published; archive it before regenerating': 'Hisobot e’lon qilingan. Qayta tuzishdan oldin uni arxivlang.',
+  'Generate the report before publishing': 'E’lon qilishdan oldin hisobotni tuzing.',
+  'File must be an uploaded file of the same client': 'Shu mijozga yuklangan faylni tanlang.',
+  'client_id is required': 'Mijozni tanlang.',
+  'Content does not belong to this client': 'Kontent tanlangan mijozga tegishli emas.',
+  'Only https links are allowed': 'Havola https:// bilan boshlanishi kerak.',
+  'Only SUN MEDIA staff can be assigned here': 'Bu yerda faqat SUN MEDIA xodimini biriktirish mumkin.',
+  'Staff members cannot be client users': 'Xodimni mijoz foydalanuvchisi sifatida biriktirib bo‘lmaydi.',
+  'User already belongs to a client and cannot hold a staff role': 'Mijoz foydalanuvchisiga xodim rolini berib bo‘lmaydi.',
+  'Client roles are assigned through client_members': 'Mijoz rolini mijozning foydalanuvchilari orqali belgilang.',
+  'client_members accepts client roles only': 'Faqat mijoz rolini tanlang.',
+  'Extra permissions are for staff only': 'Qo‘shimcha ruxsatlar faqat xodimlarga beriladi.',
+};
+
+// These messages are already emitted by the frozen authentication flow.
+const LOCAL_MESSAGES = new Set([
+  'Kirish tugallanmadi. Qayta urinib ko‘ring.',
+  'Apple identifikatsiya tokeni olinmadi.',
+]);
+
+function fields(error: unknown): ErrorFields {
+  return typeof error === 'object' && error !== null ? error as ErrorFields : {};
+}
+
+function knownMessage(messages: Record<string, string>, key: unknown): string | undefined {
+  return typeof key === 'string' && Object.prototype.hasOwnProperty.call(messages, key)
+    ? messages[key]
+    : undefined;
+}
+
+/** Use only for a message written by the app, never for raw server responses. */
+export class UserFacingError extends Error {}
+
 export function isNetworkError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error ?? '');
+  const value = typeof error === 'string' ? error : fields(error).message;
+  const message = typeof value === 'string' ? value : '';
   return /network request failed|failed to fetch|networkerror|load failed|timeout/i.test(message);
 }
 
 /** Converts Supabase / network errors into a short Uzbek message for the UI. */
 export function toUserMessage(error: unknown): string {
-  if (!error) return 'Noma’lum xatolik yuz berdi.';
+  if (!error) return UNKNOWN_MESSAGE;
+  if (error instanceof UserFacingError) return error.message;
   if (isNetworkError(error)) return 'Internet aloqasi yo‘q. Ulanishni tekshirib, qayta urinib ko‘ring.';
 
   if (error instanceof AuthError || isAuthApiError(error)) {
-    const code = (error as AuthError).code;
-    if (code && AUTH_MESSAGES[code]) return AUTH_MESSAGES[code];
+    const message = knownMessage(AUTH_MESSAGES, error.code);
+    if (message) return message;
     if (/invalid login credentials/i.test(error.message)) return AUTH_MESSAGES.invalid_credentials;
-    return error.message;
+    return 'Kirishda xatolik yuz berdi. Qayta urinib ko‘ring.';
   }
 
-  const pg = error as PostgrestLikeError;
-  if (pg.code && SQLSTATE_MESSAGES[pg.code]) {
-    // 22023 / P0001 carry a meaningful message from our RPCs
-    return SQLSTATE_MESSAGES[pg.code];
+  const { code, message } = fields(error);
+  const sqlMessage = knownMessage(SQLSTATE_MESSAGES, code);
+  if (sqlMessage) return sqlMessage;
+  if (code === '22023' || code === 'P0001') {
+    const rpcMessage = knownMessage(RPC_MESSAGES, message);
+    if (rpcMessage) return rpcMessage;
+    if (typeof message === 'string') {
+      if (/^Content is already (published|cancelled)$/.test(message)) return 'Yakunlangan kontentni bu tarzda o‘zgartirib bo‘lmaydi.';
+      if (/^Version is not awaiting review \(status: [a-z_]+\)$/.test(message)) return 'Bu versiya hozir tasdiq kutmayapti. Ma’lumotni yangilang.';
+      if (/^File size must be between 1 byte and \d+ bytes$/.test(message)) return 'Fayl bo‘sh yoki ruxsat etilgan hajmdan katta.';
+      if (message.startsWith('Unsupported file type: ')) return 'Bu turdagi faylni yuklab bo‘lmaydi.';
+    }
+    return INVALID_VALUE_MESSAGE;
   }
-  if (pg.code === '22023' || pg.code === 'P0001') return pg.message ?? 'Noto‘g‘ri qiymat.';
-  if (error instanceof Error) return error.message;
-  return pg.message ?? 'Noma’lum xatolik yuz berdi.';
+  if (typeof message === 'string' && LOCAL_MESSAGES.has(message)) return message;
+  return UNKNOWN_MESSAGE;
 }
 
 export function isPermissionError(error: unknown): boolean {
-  return (error as PostgrestLikeError)?.code === '42501';
+  return fields(error).code === '42501';
 }
