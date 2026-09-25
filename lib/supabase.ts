@@ -1,8 +1,40 @@
 import 'react-native-url-polyfill/auto';
-import { createClient } from '@supabase/supabase-js';
-import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { AppState, Platform } from 'react-native';
 
-const url = Constants.expoConfig?.extra?.supabaseUrl as string | undefined;
-const key = Constants.expoConfig?.extra?.supabaseAnonKey as string | undefined;
-if (!url || !key) throw new Error('Supabase public konfiguratsiyasi topilmadi. .env faylini sozlang.');
-export const supabase = createClient(url, key);
+import type { Database } from '@/types/database';
+import { env } from './env';
+
+export type AppSupabaseClient = SupabaseClient<Database>;
+
+// null when the public configuration is missing; the root layout shows a configuration error instead of crashing.
+export const supabase: AppSupabaseClient | null = env
+  ? createClient<Database>(env.supabaseUrl, env.supabaseKey, {
+      auth: {
+        storage: AsyncStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: Platform.OS === 'web',
+        flowType: 'pkce',
+      },
+    })
+  : null;
+
+export function getSupabase(): AppSupabaseClient {
+  if (!supabase) {
+    throw new Error('Supabase is not configured');
+  }
+  return supabase;
+}
+
+// Refresh tokens only while the app is in the foreground (native).
+if (supabase && Platform.OS !== 'web') {
+  AppState.addEventListener('change', (state) => {
+    if (state === 'active') {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
+}

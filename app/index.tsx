@@ -1,5 +1,14 @@
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
-export default function Home() {
-  return <SafeAreaView style={styles.page}><View><Text style={styles.title}>SUN MEDIA</Text><Text style={styles.copy}>Musiqa va media ilovangiz tayyor.</Text></View></SafeAreaView>;
+import { Redirect } from 'expo-router';
+
+import { useAuth } from '@/features/auth/AuthProvider';
+
+const HOME = { client: '/client', employee: '/staff', management: '/manage' } as const;
+
+/** Single entry point: sends every user to the interface their role requires. */
+export default function Index() {
+  const { status, appInterface } = useAuth();
+  if (status === 'loading') return null;
+  if (status === 'signed_out') return <Redirect href="/sign-in" />;
+  if (status !== 'ready' || !appInterface) return <Redirect href="/pending" />;
+  return <Redirect href={HOME[appInterface]} />;
 }
-const styles = StyleSheet.create({ page: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#0B1020' }, title: { color: '#fff', fontSize: 32, fontWeight: '800' }, copy: { color: '#B9C2D0', marginTop: 8, fontSize: 16 } });
