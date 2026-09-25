@@ -1,7 +1,7 @@
 import { getSupabase } from '@/lib/supabase';
 import type { Database } from '@/types/database';
 
-export type TeamMember = Database['public']['Functions']['get_team_directory']['Returns'][number] & {
+export type TeamMember = Omit<Database['public']['Functions']['get_team_directory']['Returns'][number], 'roles'> & {
   roles: { key: string; name: string }[];
 };
 

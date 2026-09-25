@@ -6,6 +6,7 @@ export { Card } from './Card';
 export { Chip, ChipRow } from './Chip';
 export { Counters, type Counter } from './Counters';
 export { Divider } from './Divider';
+export { Fab } from './Fab';
 export { DateField, FormSection, MonthPicker, OptionSheet, SelectField, TimeField, ToggleRow, type SelectOption } from './FormFields';
 export { Icon, type IconName } from './Icon';
 export { HeaderButton } from './HeaderButton';

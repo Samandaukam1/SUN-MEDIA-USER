@@ -71,6 +71,14 @@ export function AccountScreen() {
       </Card>
 
       {isStaff ? (
+        <Section title="Ish">
+          <ListGroup>
+            <ListRow icon="folder" iconTone="brand" title="Loyihalar" subtitle="Mijoz loyihalari, jamoa va jarayon" onPress={() => nav.go('/projects')} />
+          </ListGroup>
+        </Section>
+      ) : null}
+
+      {isStaff ? (
         <Section title="Ish joyi">
           <ListGroup>
             <ListRow icon="volume-2" iconTone="brand" title="E’lonlar" subtitle="Kompaniya yangiliklari" value={unread ? `${unread} yangi` : null} onPress={() => nav.go('/announcements')} />

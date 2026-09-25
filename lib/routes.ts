@@ -31,7 +31,7 @@ export function useNav() {
       content: (id: string) => go(`/content/${id}`),
       shooting: (id: string) => go(`/shooting/${id}`),
       task: (id: string) => go(`/task/${id}`),
-      project: (id: string) => go(`/project/${id}`),
+      project: (id: string) => go(`/projects/${id}`),
       employee: (id: string) => go(`/employee/${id}`),
       client: (id: string) => go(`/clients/${id}`),
       chat: (roomId: string) => go(`/chat/${roomId}`),
