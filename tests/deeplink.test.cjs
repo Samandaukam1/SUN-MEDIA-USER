@@ -21,8 +21,14 @@ test('staff-only screens are never opened for clients', () => {
   assert.equal(notificationPath(`/announcements/${ID}`, 'staff'), `/announcements/${ID}`);
 });
 
+test('tariff notifications open the plan screen for clients only', () => {
+  assert.equal(notificationPath('/plan', 'client'), '/plan');
+  assert.equal(notificationPath(`/plans/requests/${ID}`, 'client'), '/plan');
+  assert.equal(notificationPath(`/plans/requests/${ID}`, 'staff'), null);
+});
+
 test('unknown or malformed routes open nothing', () => {
-  assert.equal(notificationPath('/plan', 'client'), null);
+  assert.equal(notificationPath('/reports', 'client'), null);
   assert.equal(notificationPath('/content/not-an-id', 'client'), null);
   assert.equal(notificationPath(undefined, 'staff'), null);
   assert.equal(notificationPath('https://evil.example/content/' + ID, 'staff'), null);

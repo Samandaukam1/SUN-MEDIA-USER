@@ -93,7 +93,7 @@ function Body({ data, shootings }: { data: ClientHomeData; shootings: UseQueryRe
 
   return (
     <>
-      <PlanHero home={data} />
+      <PlanHero home={data} onPress={() => nav.go('/plan')} />
 
       <Section title="Bugun">
         {data.today.length === 0 ? (
@@ -143,7 +143,7 @@ function Body({ data, shootings }: { data: ClientHomeData; shootings: UseQueryRe
       ) : null}
 
       {data.subscription ? (
-        <Section title="Tarif bo‘yicha foydalanish">
+        <Section title="Tarif bo‘yicha foydalanish" actionLabel="Batafsil" onAction={() => nav.go('/plan')}>
           <UsageList usage={data.usage} limit={5} />
         </Section>
       ) : null}

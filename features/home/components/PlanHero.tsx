@@ -7,11 +7,11 @@ import { formatDateKey } from '@/lib/time';
 import type { ClientHome } from '../api';
 
 /** Ink headline for the client: current plan and the three numbers of the day. */
-export function PlanHero({ home }: { home: ClientHome }) {
+export function PlanHero({ home, onPress }: { home: ClientHome; onPress?: () => void }) {
   const { colors } = useTheme();
   const sub = home.subscription;
   return (
-    <Card variant="hero" style={styles.card}>
+    <Card variant="hero" style={styles.card} onPress={onPress} accessibilityLabel="Tarif va foydalanish">
       <View style={styles.top}>
         <View style={styles.flex}>
           <Text variant="label" tone="heroSecondary">

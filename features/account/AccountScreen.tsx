@@ -79,6 +79,7 @@ export function AccountScreen() {
           <ListGroup>
             <ListRow icon="check-circle" iconTone="brand" title="Tasdiqlash markazi" subtitle="Video va dizaynlarni ko‘rib chiqing" value={pendingApprovals ? `${pendingApprovals} kutmoqda` : null} onPress={nav.approvals} />
             <ListRow icon="folder" title="Fayllar" subtitle="Brend fayllari va tasdiqlangan kontent" onPress={nav.files} />
+            {can('client.plan.view') ? <ListRow icon="credit-card" title="Tarif va foydalanish" subtitle="Reja, qoldiq va tarifni o‘zgartirish" onPress={() => nav.go('/plan')} /> : null}
           </ListGroup>
         </Section>
       ) : null}
