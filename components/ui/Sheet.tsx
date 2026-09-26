@@ -51,7 +51,7 @@ export function Sheet({ visible, onClose, title, children, actionLabel, onAction
         </View>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
           {scroll ? (
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
               {children}
             </ScrollView>
           ) : (

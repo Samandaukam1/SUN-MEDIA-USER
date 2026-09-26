@@ -31,7 +31,7 @@ export function ItemRow({ title, subtitle, icon, leading, right, onPress, first 
           {title}
         </Text>
         {subtitle ? (
-          <Text variant="caption" tone="tertiary" numberOfLines={1}>
+          <Text variant="caption" tone="tertiary" numberOfLines={2}>
             {subtitle}
           </Text>
         ) : null}

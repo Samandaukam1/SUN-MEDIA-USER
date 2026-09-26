@@ -9,6 +9,7 @@ const PATTERNS: { match: RegExp; to: (id: string) => string; staffOnly?: boolean
   { match: /^\/tasks?\/([0-9a-f-]{36})$/, to: (id) => `/task/${id}`, staffOnly: true },
   { match: /^\/announcements\/([0-9a-f-]{36})$/, to: (id) => `/announcements/${id}`, staffOnly: true },
   { match: /^\/files\/view\/([0-9a-f-]{36})$/, to: (id) => `/files/view/${id}` },
+  { match: /^\/reports?\/([0-9a-f-]{36})$/, to: (id) => `/report/${id}` },
 ];
 
 // Tariff notifications open the client's plan screen; staff handle requests in the admin panel.

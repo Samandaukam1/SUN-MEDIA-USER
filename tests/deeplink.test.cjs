@@ -27,6 +27,10 @@ test('tariff notifications open the plan screen for clients only', () => {
   assert.equal(notificationPath(`/plans/requests/${ID}`, 'staff'), null);
 });
 
+test('report notifications open the report', () => {
+  assert.equal(notificationPath(`/reports/${ID}`, 'client'), `/report/${ID}`);
+});
+
 test('unknown or malformed routes open nothing', () => {
   assert.equal(notificationPath('/reports', 'client'), null);
   assert.equal(notificationPath('/content/not-an-id', 'client'), null);
