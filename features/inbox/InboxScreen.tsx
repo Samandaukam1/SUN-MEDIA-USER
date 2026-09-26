@@ -9,6 +9,7 @@ import { radius, spacing } from '@/constants/theme';
 import { ApprovalsList } from '@/features/approvals/ApprovalsScreen';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
 import { useTheme } from '@/hooks/useTheme';
+import { enablePush, getPushState } from '@/features/notifications/push';
 import { notificationPath } from '@/lib/deeplink';
 import { useStrings } from '@/lib/i18n';
 import { useInterfaceBase, useNav } from '@/lib/routes';
@@ -194,6 +195,12 @@ function NotificationList({ header, unread, onRefresh }: { header: ReactElement;
     getNextPageParam: (last, all) => (last.length === NOTIFICATION_PAGE ? all.length : undefined),
   });
   const items = useMemo(() => query.data?.pages.flat() ?? [], [query.data]);
+  const push = useQuery({ queryKey: ['notifications', 'push-state'], queryFn: getPushState });
+  const enable = useMutation({
+    mutationFn: enablePush,
+    onSuccess: (state) => queryClient.setQueryData(['notifications', 'push-state'], state),
+    onError: toast.error,
+  });
   const markAll = useMutation({
     mutationFn: () => markNotificationsRead(null),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
@@ -226,6 +233,24 @@ function NotificationList({ header, unread, onRefresh }: { header: ReactElement;
       ListHeaderComponent={
         <View style={styles.header}>
           {header}
+          {push.data === 'undetermined' ? (
+            <View style={[styles.pushPrompt, { backgroundColor: colors.hero }]}>
+              <Icon name="bell" size={20} color={colors.brand} />
+              <View style={styles.flex}>
+                <Text variant="subheading" style={{ color: colors.heroText }}>
+                  Push bildirishnomalarni yoqing
+                </Text>
+                <Text variant="caption" style={{ color: colors.heroTextSecondary }}>
+                  Muddat, tasdiq va syomkalar haqida telefoningizga darhol xabar keladi.
+                </Text>
+              </View>
+              <Pressable accessibilityRole="button" onPress={() => enable.mutate()} style={[styles.pushButton, { backgroundColor: colors.brand }]}>
+                <Text variant="captionMedium" style={{ color: colors.onBrand }}>
+                  Yoqish
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
           {unread > 0 ? (
             <Pressable accessibilityRole="button" onPress={() => markAll.mutate()} style={styles.markAll} hitSlop={8}>
               <Icon name="check" size={14} color={colors.textSecondary} />
@@ -298,5 +323,7 @@ const styles = StyleSheet.create({
   groupIcon: { alignItems: 'center', justifyContent: 'center' },
   typeIcon: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5, marginTop: 6, borderWidth: 1 },
+  pushPrompt: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.lg },
+  pushButton: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill },
   markAll: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, alignSelf: 'flex-end' },
 });

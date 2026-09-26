@@ -5,6 +5,7 @@ import { Alert, Platform, StyleSheet, View } from 'react-native';
 import { Avatar, Badge, Button, Card, Icon, ListGroup, ListRow, Screen, ScreenHeader, Section, Text } from '@/components/ui';
 import { spacing } from '@/constants/theme';
 import { fetchApprovalCounts } from '@/features/approvals/api';
+import { unregisterDevice } from '@/features/notifications/push';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
 import { fetchAnnouncements } from '@/features/workspace/api';
 import { useTheme } from '@/hooks/useTheme';
@@ -116,13 +117,14 @@ export function AccountScreen() {
 
       <Section title="Ilova">
         <ListGroup>
+          <ListRow icon="bell" title="Bildirishnomalar" subtitle="Push va ilova ichidagi xabarlar" onPress={() => nav.go('/account/notifications')} />
           <ListRow icon="globe" title="Til" value="O‘zbekcha" />
           <ListRow icon={scheme === 'dark' ? 'moon' : 'sun'} title="Mavzu" value="Tizim sozlamasi bo‘yicha" />
           <ListRow icon="info" title="Versiya" value={Constants.expoConfig?.version ?? '—'} />
         </ListGroup>
       </Section>
 
-      <Button title={s.common.signOut} icon="log-out" variant="danger" onPress={() => confirmSignOut(signOut)} />
+      <Button title={s.common.signOut} icon="log-out" variant="danger" onPress={() => confirmSignOut(() => unregisterDevice().catch(() => undefined).finally(signOut))} />
     </Screen>
   );
 }

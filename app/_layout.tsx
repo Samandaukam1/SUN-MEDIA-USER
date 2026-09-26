@@ -13,6 +13,7 @@ import { ConfigErrorScreen } from '@/components/navigation/ConfigErrorScreen';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { RealtimeSync } from '@/features/auth/RealtimeSync';
 import { UploadWatcher } from '@/features/files/UploadWatcher';
+import { PushManager } from '@/features/notifications/PushManager';
 import { useTheme } from '@/hooks/useTheme';
 import { env } from '@/lib/env';
 import { queryClient } from '@/lib/query-client';
@@ -80,6 +81,7 @@ function RootNavigator() {
       </Stack>
       <RealtimeSync />
       <UploadWatcher />
+      <PushManager />
       <OfflineBanner />
       {splashVisible ? <AnimatedSplash ready={status !== 'loading'} onFinish={hideSplash} /> : null}
     </View>
