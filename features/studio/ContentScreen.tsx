@@ -77,7 +77,7 @@ export function ContentScreen() {
               </ChipRow>
               {section === 'overview' ? <OverviewSection c={c} /> : null}
               {section === 'script' ? <ScriptSection c={c} /> : null}
-              {section === 'media' ? <MediaSection contentId={c.id} /> : null}
+              {section === 'media' ? <MediaSection contentId={c.id} clientId={c.client_id} /> : null}
               {section === 'team' ? <TeamSection c={c} /> : null}
               {section === 'timeline' ? <TimelineSection c={c} /> : null}
               {section === 'approval' ? <ApprovalSection c={c} /> : null}

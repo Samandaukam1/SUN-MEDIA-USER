@@ -7,7 +7,8 @@ export function useNetworkStatus(): boolean | null {
   useEffect(
     () =>
       NetInfo.addEventListener((state) => {
-        setOnline(state.isConnected !== false && state.isInternetReachable !== false);
+        // Only a missing connection counts: the internet probe fails on some networks while our API works.
+        setOnline(state.isConnected !== false);
       }),
     [],
   );

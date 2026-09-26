@@ -8,56 +8,68 @@ import { PLATFORM, PUBLICATION_STATUS, REVISION_STATUS, VERSION_STATUS } from '@
 import { spacing } from '@/constants/theme';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
 import { useNav } from '@/lib/routes';
-import { signedUrl } from '@/lib/storage';
 import { formatBytes } from '@/lib/upload';
+import { uploads, useUploads } from '@/lib/uploadQueue';
+import { fetchSystemFolderId } from '@/features/files/api';
+import { UploadList } from '@/features/files/components/UploadList';
+import { FileThumb } from '@/features/files/FolderScreen';
+import { pickForUpload } from '@/features/files/pick';
 import { formatAgo, formatShortDateTime } from '@/lib/time';
 import type { Database } from '@/types/database';
 import { addComment, fetchComments, fetchContentFiles, updatePublication, type ContentDetail } from '../api';
 
 type Enums = Database['public']['Enums'];
 
-const FILE_ICON: Record<string, 'film' | 'image' | 'music' | 'file-text' | 'archive' | 'file'> = {
-  video: 'film',
-  image: 'image',
-  audio: 'music',
-  pdf: 'file-text',
-  document: 'file-text',
-  archive: 'archive',
-  other: 'file',
-};
 
 
-export function MediaSection({ contentId }: { contentId: string }) {
+export function MediaSection({ contentId, clientId }: { contentId: string; clientId: string }) {
+  const nav = useNav();
   const toast = useToast();
+  const { can, appInterface } = useAuth();
   const files = useQuery({ queryKey: ['files', 'content', contentId], queryFn: () => fetchContentFiles(contentId) });
+  const jobs = useUploads((t) => t.contentId === contentId && !!t.folderId);
+  const canUpload = appInterface !== 'client' && can('files.upload');
+  const upload = async () => {
+    try {
+      const picked = await pickForUpload();
+      if (!picked.length) return;
+      const folderId = await fetchSystemFolderId(clientId, 'raw');
+      picked.filter((p) => p.size).forEach((source) => uploads.enqueue(source, { clientId, folderId, contentId }));
+      if (picked.some((p) => !p.size)) toast.show('Ba’zi fayllar hajmi aniqlanmadi — “Fayllar” orqali tanlang', 'error');
+    } catch (e) {
+      toast.error(e);
+    }
+  };
   return (
-    <QueryView query={files} isEmpty={(d) => d.length === 0} empty={{ icon: 'image', title: 'Media hali yo‘q', description: 'Syomka materiallari, montaj versiyalari va dizaynlar shu yerda to‘planadi.' }}>
-      {(list) => (
-        <Card padded={false}>
-          {list.map((f, i) => (
-            <ItemRow
-              key={f.id}
-              first={i === 0}
-              icon={FILE_ICON[f.kind] ?? 'file'}
-              title={f.name}
-              subtitle={[formatBytes(f.size_bytes), f.uploader?.full_name, formatShortDateTime(f.created_at)].filter(Boolean).join(' · ')}
-              right={f.visibility === 'internal' ? <Badge label="Ichki" /> : undefined}
-              onPress={async () => {
-                try {
-                  const url = await signedUrl(f);
-                  if (url) await WebBrowser.openBrowserAsync(url);
-                } catch (e) {
-                  toast.error(e);
-                }
-              }}
-            />
-          ))}
-        </Card>
-      )}
-    </QueryView>
+    <>
+      <UploadList jobs={jobs} />
+      <QueryView
+        query={files}
+        isEmpty={(d) => d.length === 0 && jobs.length === 0}
+        empty={{ icon: 'image', title: 'Media hali yo‘q', description: 'Syomka materiallari, montaj versiyalari va dizaynlar shu yerda to‘planadi.' }}
+      >
+        {(list) =>
+          list.length ? (
+            <Card padded={false}>
+              {list.map((f, i) => (
+                <ItemRow
+                  key={f.id}
+                  first={i === 0}
+                  leading={<FileThumb file={f} size={36} />}
+                  title={f.name}
+                  subtitle={[formatBytes(f.size_bytes), f.uploader?.full_name, formatShortDateTime(f.created_at)].filter(Boolean).join(' · ')}
+                  right={f.visibility === 'internal' && appInterface !== 'client' ? <Badge label="Ichki" /> : undefined}
+                  onPress={() => nav.file(f.id)}
+                />
+              ))}
+            </Card>
+          ) : null
+        }
+      </QueryView>
+      {canUpload ? <Button title="Material yuklash (RAW)" icon="upload" variant="secondary" onPress={upload} /> : null}
+    </>
   );
 }
-
 
 const CLOSED: Enums['content_status'][] = ['approved', 'scheduled', 'published', 'cancelled'];
 

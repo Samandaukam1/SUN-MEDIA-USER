@@ -74,9 +74,10 @@ export function AccountScreen() {
       </Card>
 
       {!isStaff ? (
-        <Section title="Tasdiqlash">
+        <Section title="Kontent va fayllar">
           <ListGroup>
             <ListRow icon="check-circle" iconTone="brand" title="Tasdiqlash markazi" subtitle="Video va dizaynlarni ko‘rib chiqing" value={pendingApprovals ? `${pendingApprovals} kutmoqda` : null} onPress={nav.approvals} />
+            <ListRow icon="folder" title="Fayllar" subtitle="Brend fayllari va tasdiqlangan kontent" onPress={nav.files} />
           </ListGroup>
         </Section>
       ) : null}
@@ -86,6 +87,7 @@ export function AccountScreen() {
           <ListGroup>
             <ListRow icon="check-square" iconTone="brand" title="Vazifalar" subtitle="Mening va jamoa vazifalari, muddatlar" onPress={() => nav.go('/tasks')} />
             <ListRow icon="check-circle" title="Tasdiqlash markazi" subtitle="Versiyalar, revisionlar, vaqtli izohlar" value={pendingApprovals ? `${pendingApprovals} kutmoqda` : null} onPress={nav.approvals} />
+            <ListRow icon="folder" title="Fayllar" subtitle="Mijoz papkalari: RAW, EDITED, APPROVED…" onPress={nav.files} />
             <ListRow icon="folder" title="Loyihalar" subtitle="Mijoz loyihalari, jamoa va jarayon" onPress={() => nav.go('/projects')} />
             <ListRow icon="trending-up" title="Mening natijalarim" subtitle="KPI, o‘z vaqtida bajarish, davomat" onPress={() => nav.go('/my-performance')} />
             {can('attendance.read') ? <ListRow icon="user-check" title="Davomat" subtitle="Kim keldi, kechikdi, kelmadi" onPress={() => nav.go('/attendance')} /> : null}

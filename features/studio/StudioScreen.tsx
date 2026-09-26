@@ -80,7 +80,12 @@ export function StudioScreen() {
             <ScreenHeader
               title={s.nav.studio}
               subtitle={isStaff ? 'Kontent ishlab chiqarish markazi' : 'Sizning kontentingiz — g‘oyadan nashrgacha'}
-              right={<IconButton icon="sliders" label={`Filtr${filterCount ? `, ${filterCount} faol` : ''}`} onPress={() => setFiltering(true)} badge={filterCount} />}
+              right={
+                <View style={styles.headerActions}>
+                  <IconButton icon="folder" label="Fayllar" onPress={nav.files} />
+                  <IconButton icon="sliders" label={`Filtr${filterCount ? `, ${filterCount} faol` : ''}`} onPress={() => setFiltering(true)} badge={filterCount} />
+                </View>
+              }
             />
             <SearchField value={search} onChangeText={setSearch} placeholder="Kontent nomi" />
             <ChipRow>
@@ -115,6 +120,7 @@ export function StudioScreen() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   list: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: 120, gap: spacing.md },
+  headerActions: { flexDirection: 'row', gap: spacing.sm },
   header: { gap: spacing.lg, marginBottom: spacing.xs },
   more: { marginVertical: spacing.lg },
 });

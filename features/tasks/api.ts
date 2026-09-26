@@ -88,7 +88,13 @@ export async function fetchTask(id: string) {
       .select(`id, body, created_at, author:profiles!task_comments_author_id_fkey(${PERSON})`)
       .eq('task_id', id)
       .order('created_at'),
-    supabase.from('files').select('id, name, kind, size_bytes, bucket, storage_path, external_url, created_at').eq('task_id', id).eq('status', 'uploaded').is('deleted_at', null),
+    supabase
+      .from('files')
+      .select('id, name, kind, mime_type, size_bytes, bucket, storage_path, external_url, created_at, uploader:profiles!files_uploaded_by_fkey(full_name)')
+      .eq('task_id', id)
+      .eq('status', 'uploaded')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false }),
   ]);
   if (task.error) throw task.error;
   if (deps.error) throw deps.error;

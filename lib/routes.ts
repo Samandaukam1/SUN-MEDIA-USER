@@ -37,6 +37,10 @@ export function useNav() {
       chat: (roomId: string) => go(`/chat/${roomId}`),
       review: (versionId: string) => go(`/approvals/${versionId}`),
       approvals: () => go('/approvals'),
+      files: () => go('/files'),
+      clientFiles: (clientId: string) => go(`/files/${clientId}`),
+      folder: (folderId: string) => go(`/files/folder/${folderId}`),
+      file: (fileId: string) => go(`/files/view/${fileId}`),
       report: (id: string) => go(`/report/${id}`),
     };
   }, [router, base]);

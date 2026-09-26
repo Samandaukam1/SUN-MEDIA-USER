@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import * as WebBrowser from 'expo-web-browser';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -25,9 +24,13 @@ import {
 import { OVERDUE, PRIORITY, TASK_STATUS, TASK_TYPE } from '@/constants/labels';
 import { radius, spacing } from '@/constants/theme';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
+import { UploadList } from '@/features/files/components/UploadList';
+import { FileThumb } from '@/features/files/FolderScreen';
+import { pickForUpload } from '@/features/files/pick';
 import { useTheme } from '@/hooks/useTheme';
 import { useNav } from '@/lib/routes';
-import { signedUrl } from '@/lib/storage';
+import { formatBytes } from '@/lib/upload';
+import { uploads, useUploads } from '@/lib/uploadQueue';
 import { formatAgo, formatDateKeyLong, formatRelativeDeadline, formatShortDateTime, formatTime, agencyDateKey } from '@/lib/time';
 import { addTaskComment, fetchTask, fetchTaskAlertRules, setChecklistItem, setTaskStatus, type TaskDetail, type TaskStatus } from './api';
 import { isTaskOverdue } from './components/TaskCard';
@@ -85,6 +88,13 @@ function Body({ t, refresh, refreshing }: { t: TaskDetail; refresh: () => void; 
   const done = t.checklist.filter((c) => c.is_done).length;
   const actions = actionsFor(t.status, manager, assignee);
   const rules = useQuery({ queryKey: ['tasks', 'alert-rules'], queryFn: fetchTaskAlertRules, enabled: !!t.due_at && t.status !== 'done' });
+  const canAttach = manager || ((assignee || t.creator?.id === me.userId) && can('files.upload'));
+  const jobs = useUploads((target) => target.taskId === t.id);
+  const attach = async () => {
+    const picked = await pickForUpload();
+    picked.filter((p) => p.size).forEach((source) => uploads.enqueue(source, { taskId: t.id }));
+    if (picked.some((p) => !p.size)) toast.show('Ba’zi fayllar hajmi aniqlanmadi — “Fayllar” orqali tanlang', 'error');
+  };
 
   const invalidate = () => ['tasks', 'home', 'dashboard', 'calendar'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
   const move = useMutation({
@@ -240,27 +250,27 @@ function Body({ t, refresh, refreshing }: { t: TaskDetail; refresh: () => void; 
           </Section>
         ) : null}
 
-        {t.files.length ? (
-          <Section title={`Fayllar · ${t.files.length}`}>
-            <Card padded={false}>
-              {t.files.map((f, i) => (
-                <ItemRow
-                  key={f.id}
-                  first={i === 0}
-                  icon="paperclip"
-                  title={f.name}
-                  subtitle={formatShortDateTime(f.created_at)}
-                  onPress={async () => {
-                    try {
-                      const url = await signedUrl(f);
-                      if (url) await WebBrowser.openBrowserAsync(url);
-                    } catch (e) {
-                      toast.error(e);
-                    }
-                  }}
-                />
-              ))}
-            </Card>
+        {t.files.length || canAttach ? (
+          <Section title={`Fayllar${t.files.length ? ` · ${t.files.length}` : ''}`} actionLabel={canAttach ? 'Biriktirish' : undefined} onAction={canAttach ? attach : undefined}>
+            <UploadList jobs={jobs} />
+            {t.files.length ? (
+              <Card padded={false}>
+                {t.files.map((f, i) => (
+                  <ItemRow
+                    key={f.id}
+                    first={i === 0}
+                    leading={<FileThumb file={f} size={36} />}
+                    title={f.name}
+                    subtitle={[formatBytes(f.size_bytes), f.uploader?.full_name, formatShortDateTime(f.created_at)].filter(Boolean).join(' · ')}
+                    onPress={() => nav.file(f.id)}
+                  />
+                ))}
+              </Card>
+            ) : jobs.length ? null : (
+              <Text variant="caption" tone="tertiary">
+                Brif, ssenariy, referens yoki tayyor ishni shu yerga biriktiring.
+              </Text>
+            )}
           </Section>
         ) : null}
 

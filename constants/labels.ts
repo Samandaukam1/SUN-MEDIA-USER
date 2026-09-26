@@ -177,6 +177,19 @@ export const PUBLICATION_STATUS: Record<Enums['publication_status'], Labelled> =
 };
 
 /** Calendar event types from get_calendar_events: told apart by icon + label, not colour alone. */
+export const FOLDER_KIND: Record<Enums['folder_kind'], { label: string; hint: string; icon: IconName }> = {
+  raw: { label: 'RAW', hint: 'Syomka xom materiallari', icon: 'video' },
+  edited: { label: 'EDITED', hint: 'Montaj versiyalari', icon: 'scissors' },
+  approved: { label: 'APPROVED', hint: 'Tasdiqlangan yakuniy fayllar', icon: 'check-circle' },
+  logos: { label: 'LOGOS', hint: 'Logotiplar', icon: 'star' },
+  brandbook: { label: 'BRANDBOOK', hint: 'Brendbuk va gaydlar', icon: 'book' },
+  music: { label: 'MUSIC', hint: 'Musiqa va ovozlar', icon: 'music' },
+  photos: { label: 'PHOTOS', hint: 'Rasmlar', icon: 'image' },
+  documents: { label: 'DOCUMENTS', hint: 'Hujjatlar', icon: 'file-text' },
+  contracts: { label: 'CONTRACTS', hint: 'Shartnomalar', icon: 'briefcase' },
+  custom: { label: 'Papka', hint: 'Qo‘shimcha papka', icon: 'folder' },
+};
+
 export const VERSION_STATUS: Record<Enums['version_status'], Labelled & { icon: IconName }> = {
   internal_review: { label: 'Ichki tekshiruvda', tone: 'info', icon: 'eye' },
   client_review: { label: 'Mijozda', tone: 'warning', icon: 'user-check' },

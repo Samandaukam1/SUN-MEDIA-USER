@@ -15,6 +15,8 @@ export function OfflineBanner() {
   return (
     <View
       accessibilityRole="alert"
+      // Information only: taps reach the header (back button) underneath.
+      pointerEvents="none"
       style={[styles.banner, { backgroundColor: colors.warningSoft, borderColor: colors.border, paddingTop: insets.top + spacing.xs }]}
     >
       <Icon name="wifi-off" size={14} color={colors.warning} />

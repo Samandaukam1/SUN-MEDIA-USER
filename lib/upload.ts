@@ -13,7 +13,7 @@ export type UploadSource = {
   height?: number | null;
 };
 
-export type UploadTarget = { clientId?: string | null; folderId?: string | null; contentId?: string | null; chatRoomId?: string | null };
+export type UploadTarget = { clientId?: string | null; folderId?: string | null; contentId?: string | null; chatRoomId?: string | null; taskId?: string | null };
 
 export type UploadedFile = { id: string; name: string; kind: string; size_bytes: number | null };
 
@@ -85,6 +85,7 @@ export function startUpload(source: UploadSource, target: UploadTarget, onProgre
         p_folder_id: target.folderId ?? undefined,
         p_content_id: target.contentId ?? undefined,
         p_chat_room_id: target.chatRoomId ?? undefined,
+        p_task_id: target.taskId ?? undefined,
       });
       if (error) throw error;
       if (cancelled) throw new UploadCancelled();
