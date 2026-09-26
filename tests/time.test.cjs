@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
   agencyDateKey, agencyDayRange, agencyDateTimeToIso, agencyTimeKey,
-  addDaysToKey, monthGrid, weekStartKey, formatAgo, formatRelativeDeadline,
+  addDaysToKey, monthGrid, weekStartKey, formatAgo, formatRelativeDeadline, formatChatTime,
 } = require('../lib/time.ts');
 
 test('agency day changes at Tashkent midnight, including year rollover', () => {
@@ -52,4 +52,12 @@ test('relative deadlines read naturally in minutes, hours and days', () => {
   assert.equal(formatRelativeDeadline('2026-09-28T06:13:00.000Z', now), '2 kun 18 soat qoldi');
   assert.equal(formatRelativeDeadline('2026-09-25T06:18:00.000Z', now), '5 soat 42 daq kechikdi');
   assert.equal(formatRelativeDeadline(null, now), null);
+});
+
+test('chat times: clock today, "Kecha", weekday this week, date before', () => {
+  const now = new Date('2026-09-26T10:00:00Z'); // Saturday 15:00 in Tashkent
+  assert.equal(formatChatTime('2026-09-26T04:05:00Z', now), '09:05');
+  assert.equal(formatChatTime('2026-09-25T12:00:00Z', now), 'Kecha');
+  assert.equal(formatChatTime('2026-09-22T12:00:00Z', now), 'Se');
+  assert.equal(formatChatTime('2026-09-10T12:00:00Z', now), '10 sen');
 });

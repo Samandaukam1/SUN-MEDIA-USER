@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { PullRefreshControl } from './PullRefreshControl';
 
 type Props = {
   children: ReactNode;
@@ -26,7 +27,7 @@ export function Screen({ children, scroll = true, refreshing = false, onRefresh,
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets
           refreshControl={
-            onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} /> : undefined
+            onRefresh ? <PullRefreshControl busy={refreshing} onRefresh={onRefresh} /> : undefined
           }
         >
           {children}

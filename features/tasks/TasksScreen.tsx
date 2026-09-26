@@ -1,9 +1,9 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 
-import { Chip, ChipRow, EmptyState, ErrorState, Fab, SearchField, SegmentedControl, SkeletonCards } from '@/components/ui';
+import { Chip, ChipRow, EmptyState, ErrorState, Fab, SearchField, SegmentedControl, SkeletonCards, PullRefreshControl } from '@/components/ui';
 import { spacing } from '@/constants/theme';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
 import { useTheme } from '@/hooks/useTheme';
@@ -69,7 +69,7 @@ export function TasksScreen() {
         keyboardShouldPersistTaps="handled"
         onEndReachedThreshold={0.4}
         onEndReached={() => query.hasNextPage && !query.isFetchingNextPage && query.fetchNextPage()}
-        refreshControl={<RefreshControl refreshing={query.isRefetching && !query.isFetchingNextPage} onRefresh={() => query.refetch()} tintColor={colors.accent} />}
+        refreshControl={<PullRefreshControl busy={query.isRefetching && !query.isFetchingNextPage} onRefresh={() => query.refetch()} />}
         ListHeaderComponent={
           <View style={styles.header}>
             {canSeeAll ? (

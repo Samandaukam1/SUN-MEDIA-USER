@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
-import { Avatar, Badge, Card, EmptyState, ErrorState, SearchField, SkeletonCards, Text } from '@/components/ui';
+import { Avatar, Badge, Card, EmptyState, ErrorState, SearchField, SkeletonCards, Text, PullRefreshControl } from '@/components/ui';
 import { ATTENDANCE_STATUS } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -39,7 +39,7 @@ export function TeamDirectoryScreen() {
           keyExtractor={(p) => p.user_id}
           contentContainerStyle={styles.list}
           keyboardShouldPersistTaps="handled"
-          refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} tintColor={colors.accent} />}
+          refreshControl={<PullRefreshControl busy={query.isRefetching} onRefresh={() => query.refetch()} />}
           ListHeaderComponent={<SearchField value={q} onChangeText={setQ} placeholder="Ism, lavozim yoki rol" />}
           ListEmptyComponent={<EmptyState icon="users" title={q ? 'Hech kim topilmadi' : 'Jamoa bo‘sh'} />}
           renderItem={({ item }) => <MemberRow member={item} />}

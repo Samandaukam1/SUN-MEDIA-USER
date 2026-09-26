@@ -2,9 +2,9 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, FlatList, Platform, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import { Badge, Button, Chip, ChipRow, EmptyState, ErrorState, Fab, HeaderButton, Icon, SearchField, Sheet, SkeletonCards, Text, TextField, useToast } from '@/components/ui';
+import { Badge, Button, Chip, ChipRow, EmptyState, ErrorState, Fab, HeaderButton, Icon, SearchField, Sheet, SkeletonCards, Text, TextField, useToast, PullRefreshControl } from '@/components/ui';
 import { FOLDER_KIND } from '@/constants/labels';
 import { radius, spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -133,7 +133,7 @@ function FolderBody({ folder }: { folder: FolderDetail }) {
         keyboardDismissMode="on-drag"
         onEndReachedThreshold={0.4}
         onEndReached={() => query.hasNextPage && !query.isFetchingNextPage && query.fetchNextPage()}
-        refreshControl={<RefreshControl refreshing={query.isRefetching && !query.isFetchingNextPage} onRefresh={() => query.refetch()} tintColor={colors.accent} />}
+        refreshControl={<PullRefreshControl busy={query.isRefetching && !query.isFetchingNextPage} onRefresh={() => query.refetch()} />}
         ListHeaderComponent={
           <View style={styles.header}>
             <View style={styles.meta}>

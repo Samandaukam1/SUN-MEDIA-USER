@@ -175,6 +175,20 @@ export function formatAgo(date: Date | string, now: Date = new Date()): string {
   return formatShortDateTime(date);
 }
 
+/** Chat list time: "14:05" today, "Kecha", weekday within a week, otherwise "25 sen". */
+export function formatChatTime(date: Date | string, now: Date = new Date()): string {
+  const key = agencyDateKey(date);
+  const today = agencyDateKey(now);
+  if (key === today) return formatTime(date);
+  if (key === addDaysToKey(today, -1)) return 'Kecha';
+  if (key > addDaysToKey(today, -7)) {
+    const [y, m, d] = key.split('-').map(Number);
+    const weekday = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+    return WEEKDAY_SHORT_MON_FIRST[weekday];
+  }
+  return formatDateShort(date);
+}
+
 export const WEEKDAY_SHORT_MON_FIRST = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'];
 
 /** mm:ss or h:mm:ss for media timecodes. */

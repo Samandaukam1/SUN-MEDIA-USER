@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
-import { Avatar, AvatarStack, Badge, Card, EmptyState, ErrorState, HeaderButton, ProgressBar, SearchField, SegmentedControl, SkeletonCards, Text } from '@/components/ui';
+import { Avatar, AvatarStack, Badge, Card, EmptyState, ErrorState, HeaderButton, ProgressBar, SearchField, SegmentedControl, SkeletonCards, Text, PullRefreshControl } from '@/components/ui';
 import { PROJECT_KIND, PROJECT_STATUS } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -33,7 +33,7 @@ export function ProjectsScreen() {
         keyExtractor={(p) => p.id}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} tintColor={colors.accent} />}
+        refreshControl={<PullRefreshControl busy={query.isRefetching} onRefresh={() => query.refetch()} />}
         ListHeaderComponent={
           <View style={styles.header}>
             <SegmentedControl

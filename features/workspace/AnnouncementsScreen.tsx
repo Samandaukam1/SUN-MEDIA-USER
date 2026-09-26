@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
-import { Avatar, Badge, Card, EmptyState, ErrorState, HeaderButton, Icon, SkeletonCards, Text } from '@/components/ui';
+import { Avatar, Badge, Card, EmptyState, ErrorState, HeaderButton, Icon, SkeletonCards, Text, PullRefreshControl } from '@/components/ui';
 import { spacing } from '@/constants/theme';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
 import { useTheme } from '@/hooks/useTheme';
@@ -38,7 +38,7 @@ export function AnnouncementsScreen() {
           data={query.data}
           keyExtractor={(a) => a.id}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} tintColor={colors.accent} />}
+          refreshControl={<PullRefreshControl busy={query.isRefetching} onRefresh={() => query.refetch()} />}
           ListEmptyComponent={<EmptyState icon="volume-2" title="Hali e’lon yo‘q" description="Kompaniya yangiliklari va muhim xabarlar shu yerda chiqadi." />}
           renderItem={({ item }) => <AnnouncementRow item={item} />}
         />

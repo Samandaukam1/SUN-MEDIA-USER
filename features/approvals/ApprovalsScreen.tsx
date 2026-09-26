@@ -1,9 +1,9 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { useState, type ReactElement } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 
-import { Badge, Card, Chip, ChipRow, EmptyState, ErrorState, SkeletonCards, Text } from '@/components/ui';
+import { Badge, Card, Chip, ChipRow, EmptyState, ErrorState, SkeletonCards, Text, PullRefreshControl } from '@/components/ui';
 import { CONTENT_TYPE, REVISION_STATUS, VERSION_STATUS } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -45,6 +45,11 @@ function tabsFor(isClient: boolean, approver: boolean, counts: ApprovalCounts | 
 
 /** Everything waiting for a decision, per role: internal review, the client, revisions, history. */
 export function ApprovalsScreen() {
+  return <ApprovalsList />;
+}
+
+/** The approval queue; the INBOX tab embeds it under its own header. */
+export function ApprovalsList({ header, onRefreshAll }: { header?: ReactElement; onRefreshAll?: () => void }) {
   const { can, appInterface } = useAuth();
   const nav = useNav();
   const { colors } = useTheme();
@@ -65,7 +70,7 @@ export function ApprovalsScreen() {
 
   return (
     <View style={[styles.fill, { backgroundColor: colors.background }]}>
-      <Stack.Screen options={{ title: 'Tasdiqlash markazi' }} />
+      {header ? null : <Stack.Screen options={{ title: 'Tasdiqlash markazi' }} />}
       <FlatList
         data={rows}
         keyExtractor={(r) => `${r.kind}-${r.item.id}`}
@@ -73,17 +78,18 @@ export function ApprovalsScreen() {
         onEndReachedThreshold={0.4}
         onEndReached={() => query.hasNextPage && !query.isFetchingNextPage && query.fetchNextPage()}
         refreshControl={
-          <RefreshControl
-            refreshing={query.isRefetching && !query.isFetchingNextPage}
+          <PullRefreshControl
+            busy={query.isRefetching && !query.isFetchingNextPage}
             onRefresh={() => {
               query.refetch();
               counts.refetch();
+              onRefreshAll?.();
             }}
-            tintColor={colors.accent}
           />
         }
         ListHeaderComponent={
           <View style={styles.header}>
+            {header}
             <ChipRow>
               {tabsFor(isClient, approver, counts.data).map((t) => (
                 <Chip key={t.value} label={t.label} selected={tab === t.value} onPress={() => setTab(t.value)} />

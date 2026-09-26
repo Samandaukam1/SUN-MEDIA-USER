@@ -1,13 +1,14 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
-import { Avatar, Badge, Button, Card, Chip, ChipRow, Counters, EmptyState, ItemRow, QueryView, Screen, Section, Text } from '@/components/ui';
+import { Avatar, Badge, Button, Card, Chip, ChipRow, Counters, EmptyState, ItemRow, QueryView, Screen, Section, Text, useToast } from '@/components/ui';
 import { ATTENDANCE_STATUS } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
 import { fetchAttendanceMonth } from '@/features/attendance/api';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
+import { openDirectChat } from '@/features/inbox/api';
 import { fetchScorecards } from '@/features/performance/api';
 import { MonthSwitcher } from '@/features/performance/MonthSwitcher';
 import { monthRange } from '@/features/performance/PerformanceScreen';
@@ -96,9 +97,16 @@ function Header({ member }: { member: TeamMember }) {
 }
 
 function Overview({ member }: { member: TeamMember }) {
+  const me = useMe();
+  const nav = useNav();
+  const toast = useToast();
+  const message = useMutation({ mutationFn: () => openDirectChat(member.user_id), onSuccess: (roomId) => nav.chat(roomId), onError: toast.error });
   return (
     <>
       <View style={styles.actions}>
+        {me.kind === 'staff' && member.user_id !== me.userId ? (
+          <Button title="Xabar" icon="message-circle" size="md" fullWidth={false} style={styles.flex} loading={message.isPending} onPress={() => message.mutate()} />
+        ) : null}
         {member.phone ? <Button title="Qo‘ng‘iroq" icon="phone" variant="secondary" size="md" fullWidth={false} style={styles.flex} onPress={() => Linking.openURL(`tel:${member.phone}`)} /> : null}
         {member.email ? <Button title="Email" icon="mail" variant="secondary" size="md" fullWidth={false} style={styles.flex} onPress={() => Linking.openURL(`mailto:${member.email}`)} /> : null}
       </View>

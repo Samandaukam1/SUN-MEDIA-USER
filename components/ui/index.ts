@@ -31,3 +31,4 @@ export { TextArea } from './TextArea';
 export { TextField } from './TextField';
 export { Timeline, type TimelineItem } from './Timeline';
 export { ToastProvider, useToast } from './Toast';
+export { PullRefreshControl } from './PullRefreshControl';
