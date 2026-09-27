@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { StyleSheet, View } from 'react-native';
 
-import { EmptyState, ErrorState, QueryView, Screen, ScreenHeader, Section, Skeleton, SkeletonCards, Text } from '@/components/ui';
+import { EmptyState, ErrorState, IconButton, QueryView, Screen, ScreenHeader, Section, Skeleton, SkeletonCards, Text } from '@/components/ui';
+import { QuickCreateFab } from '@/components/navigation/QuickCreateFab';
 import { spacing } from '@/constants/theme';
 import { ActivityList } from '@/features/activity/ActivityList';
 import { useMe } from '@/features/auth/AuthProvider';
@@ -28,16 +29,23 @@ export function CommandCenterScreen() {
     refetchInterval: 60_000,
   });
   const activity = useQuery({ queryKey: ['dashboard', 'activity', 'recent'], queryFn: () => fetchActivity({ limit: 8 }) });
+  const nav = useNav();
 
   return (
+    <View style={styles.fill}>
     <Screen
       refreshing={query.isRefetching || activity.isRefetching}
       onRefresh={() => {
         query.refetch();
         activity.refetch();
       }}
+      contentStyle={styles.fabSpace}
     >
-      <ScreenHeader eyebrow={formatDateKeyLong(today)} title="Bugun agentlikda" />
+      <ScreenHeader
+        eyebrow={formatDateKeyLong(today)}
+        title="Bugun agentlikda"
+        right={<IconButton icon="search" label="Qidiruv" onPress={() => nav.go('/search')} />}
+      />
       <QueryView query={query} skeleton={<DashboardSkeleton />}>
         {(data) => <Body data={data} />}
       </QueryView>
@@ -48,6 +56,8 @@ export function CommandCenterScreen() {
         {activity.error && activity.data ? <ErrorState error={activity.error} onRetry={() => activity.refetch()} /> : null}
       </Section>
     </Screen>
+    <QuickCreateFab />
+    </View>
   );
 }
 
@@ -86,7 +96,7 @@ function Body({ data }: { data: CommandCenter }) {
 
       {data.clients.length > 0 ? (
         <Section title={`Mijozlar holati · ${data.clients.length}`}>
-          <ClientStatusList clients={data.clients} />
+          <ClientStatusList clients={data.clients} onOpenClient={nav.client} />
         </Section>
       ) : null}
     </>
@@ -102,4 +112,4 @@ function DashboardSkeleton() {
   );
 }
 
-const styles = StyleSheet.create({ skeleton: { gap: spacing.lg } });
+const styles = StyleSheet.create({ skeleton: { gap: spacing.lg }, fill: { flex: 1 }, fabSpace: { paddingBottom: 120 } });

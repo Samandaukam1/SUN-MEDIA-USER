@@ -92,6 +92,7 @@ export function AccountScreen() {
             <ListRow icon="check-circle" title="Tasdiqlash markazi" subtitle="Versiyalar, revisionlar, vaqtli izohlar" value={pendingApprovals ? `${pendingApprovals} kutmoqda` : null} onPress={nav.approvals} />
             <ListRow icon="folder" title="Fayllar" subtitle="Mijoz papkalari: RAW, EDITED, APPROVED…" onPress={nav.files} />
             {can('reports.read') || can('reports.manage') ? <ListRow icon="bar-chart-2" title="Oylik hisobotlar" subtitle="Mijozlar natijalari, PDF" onPress={() => nav.go('/reports')} /> : null}
+            <ListRow icon="briefcase" title="Mijozlar" subtitle="Tarif, jarayon, syomkalar, kontaktlar" onPress={() => nav.go('/clients')} />
             <ListRow icon="folder" title="Loyihalar" subtitle="Mijoz loyihalari, jamoa va jarayon" onPress={() => nav.go('/projects')} />
             <ListRow icon="trending-up" title="Mening natijalarim" subtitle="KPI, o‘z vaqtida bajarish, davomat" onPress={() => nav.go('/my-performance')} />
             {can('attendance.read') ? <ListRow icon="user-check" title="Davomat" subtitle="Kim keldi, kechikdi, kelmadi" onPress={() => nav.go('/attendance')} /> : null}

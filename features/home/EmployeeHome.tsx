@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { Badge, Card, Counters, EmptyState, Icon, ItemRow, QueryView, Screen, ScreenHeader, Section, Text } from '@/components/ui';
+import { Badge, Card, Counters, EmptyState, Icon, IconButton, ItemRow, QueryView, Screen, ScreenHeader, Section, Text } from '@/components/ui';
+import { QuickCreateFab } from '@/components/navigation/QuickCreateFab';
 import { ATTENDANCE_STATUS, CONTENT_STATUS, CONTENT_TYPE, TEAM_ROLE_LABEL } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
 import { useMe } from '@/features/auth/AuthProvider';
@@ -19,19 +20,24 @@ type Enums = Database['public']['Enums'];
 
 export function EmployeeHome() {
   const me = useMe();
+  const nav = useNav();
   const today = useAgencyDate();
   const query = useQuery({ queryKey: ['home', 'employee', me.userId, today], queryFn: fetchEmployeeHome, refetchInterval: 60_000 });
   const firstName = me.profile?.full_name.split(' ')[0] ?? '';
 
   return (
-    <Screen refreshing={query.isRefetching} onRefresh={() => query.refetch()}>
-      <ScreenHeader
-        eyebrow={formatDateKeyLong(today)}
-        title={`${greetingForNow()}, ${firstName}`}
-        subtitle={me.employee?.job_title ?? me.roles[0]?.name}
-      />
-      <QueryView query={query}>{(data) => <Agenda data={data} userId={me.userId} />}</QueryView>
-    </Screen>
+    <View style={styles.fill}>
+      <Screen refreshing={query.isRefetching} onRefresh={() => query.refetch()} contentStyle={styles.fabSpace}>
+        <ScreenHeader
+          eyebrow={formatDateKeyLong(today)}
+          title={`${greetingForNow()}, ${firstName}`}
+          subtitle={me.employee?.job_title ?? me.roles[0]?.name}
+          right={<IconButton icon="search" label="Qidiruv" onPress={() => nav.go('/search')} />}
+        />
+        <QueryView query={query}>{(data) => <Agenda data={data} userId={me.userId} />}</QueryView>
+      </Screen>
+      <QuickCreateFab />
+    </View>
   );
 }
 
@@ -135,6 +141,8 @@ function Agenda({ data, userId }: { data: EmployeeHomeData; userId: string }) {
 }
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
+  fabSpace: { paddingBottom: 120 },
   hero: { gap: spacing.lg, padding: spacing.xl },
   attendance: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
   flex: { flex: 1 },

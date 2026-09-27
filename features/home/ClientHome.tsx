@@ -15,6 +15,7 @@ import {
   QueryView,
   Screen,
   ScreenHeader,
+  IconButton,
   Section,
   Skeleton,
   SkeletonCards,
@@ -38,6 +39,7 @@ type Enums = Database['public']['Enums'];
 
 export function ClientHome() {
   const me = useMe();
+  const nav = useNav();
   const [clientId, setClientId] = useState(me.clients[0]?.id);
   const client = me.clients.find((c) => c.id === clientId) ?? me.clients[0];
   const today = useAgencyDate();
@@ -64,7 +66,7 @@ export function ClientHome() {
       <ScreenHeader
         eyebrow={formatDateKeyLong(today)}
         title={`Assalomu alaykum, ${client?.name ?? me.profile?.full_name ?? ''}`}
-        right={client ? <Avatar name={client.name} url={client.logo_url} size={40} /> : undefined}
+        right={<IconButton icon="search" label="Qidiruv" onPress={() => nav.go('/search')} />}
       />
 
       {me.clients.length > 1 ? (

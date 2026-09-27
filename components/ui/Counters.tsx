@@ -21,7 +21,14 @@ export function Counters({ items, onHero = false }: { items: Counter[]; onHero?:
           <Text variant="metricSmall" tone={item.tone ?? (onHero ? 'hero' : 'primary')}>
             {item.value}
           </Text>
-          <Text variant="micro" tone={onHero ? 'heroSecondary' : 'tertiary'} numberOfLines={2}>
+          {/* One-word labels shrink a little instead of breaking mid-word ("Masofad/a"). */}
+          <Text
+            variant="micro"
+            tone={onHero ? 'heroSecondary' : 'tertiary'}
+            numberOfLines={item.label.includes(' ') ? 2 : 1}
+            adjustsFontSizeToFit={!item.label.includes(' ')}
+            minimumFontScale={0.75}
+          >
             {item.label}
           </Text>
         </View>
