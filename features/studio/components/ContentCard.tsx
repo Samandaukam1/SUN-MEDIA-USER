@@ -9,6 +9,8 @@ import { isContentOverdue, type StudioItem } from '../api';
 import { ContentThumb } from './ContentThumb';
 
 /** Studio card: thumbnail, title, client, platform · type, status, pipeline progress, team, deadlines. */
+const FINISHED = ['approved', 'scheduled', 'published', 'cancelled'];
+
 export function ContentCard({ item, onPress, showClient = true }: { item: StudioItem; onPress: () => void; showClient?: boolean }) {
   const { colors } = useTheme();
   const status = CONTENT_STATUS[item.status];
@@ -60,7 +62,8 @@ export function ContentCard({ item, onPress, showClient = true }: { item: Studio
           <Text variant="captionMedium" tone={overdue ? 'danger' : 'secondary'}>
             {overdue ? 'Muddat o‘tdi · ' : 'Muddat · '}
             {formatShortDateTime(item.due_at)}
-            {!overdue && formatRelativeDeadline(item.due_at) ? ` · ${formatRelativeDeadline(item.due_at)}` : ''}
+            {/* Finished work has nothing left to count down to. */}
+            {!overdue && !FINISHED.includes(item.status) && formatRelativeDeadline(item.due_at) ? ` · ${formatRelativeDeadline(item.due_at)}` : ''}
           </Text>
         ) : null}
         {publication?.scheduled_at ? (

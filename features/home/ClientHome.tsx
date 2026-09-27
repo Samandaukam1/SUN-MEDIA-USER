@@ -27,6 +27,7 @@ import { useMe } from '@/features/auth/AuthProvider';
 import { formatAgo, formatDateKeyLong, formatShortDateTime, formatMonthYear } from '@/lib/time';
 import { useNav } from '@/lib/routes';
 import type { CalendarEvent } from '@/lib/schemas';
+import type { ClientMembership } from '@/types/app';
 import type { Database } from '@/types/database';
 import { fetchClientHome, fetchClientToday, type ClientHome as ClientHomeData, type ClientToday } from './api';
 import { EventTimeline } from './components/EventTimeline';
@@ -65,7 +66,8 @@ export function ClientHome() {
     >
       <ScreenHeader
         eyebrow={formatDateKeyLong(today)}
-        title={`Assalomu alaykum, ${client?.name ?? me.profile?.full_name ?? ''}`}
+        // Greet the person; the company account (named after the brand) gets the brand name.
+        title={`Assalomu alaykum, ${me.profile?.full_name?.split(' ')[0] || client?.name || ''}`}
         right={<IconButton icon="search" label="Qidiruv" onPress={() => nav.go('/search')} />}
       />
 
@@ -79,7 +81,7 @@ export function ClientHome() {
 
       {client ? (
         <QueryView query={home} skeleton={<HomeSkeleton />}>
-          {(data) => <Body data={data} shootings={shootings} />}
+          {(data) => <Body data={data} shootings={shootings} client={client} />}
         </QueryView>
       ) : (
         <EmptyState icon="briefcase" title="Kompaniya biriktirilmagan" description="Administrator kompaniyangizni biriktirgach, ish rejangiz shu yerda ko‘rinadi." />
@@ -88,14 +90,14 @@ export function ClientHome() {
   );
 }
 
-function Body({ data, shootings }: { data: ClientHomeData; shootings: UseQueryResult<ClientToday> }) {
+function Body({ data, shootings, client }: { data: ClientHomeData; shootings: UseQueryResult<ClientToday>; client?: ClientMembership }) {
   const nav = useNav();
   const openEvent = (e: CalendarEvent) => (e.event_type === 'shooting' ? nav.shooting(e.entity_id) : e.content_id ? nav.content(e.content_id) : undefined);
   const delivered = Object.entries(data.month_delivered).sort((a, b) => b[1] - a[1]);
 
   return (
     <>
-      <PlanHero home={data} onPress={() => nav.go('/plan')} />
+      <PlanHero home={data} onPress={() => nav.go('/plan')} canViewPlan={!!client?.permissions.includes('client.plan.view')} clientName={client?.name} />
 
       <Section title="Bugun">
         {data.today.length === 0 ? (

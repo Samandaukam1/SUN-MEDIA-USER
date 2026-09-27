@@ -7,20 +7,21 @@ import { formatDateKey } from '@/lib/time';
 import type { ClientHome } from '../api';
 
 /** Ink headline for the client: current plan and the three numbers of the day. */
-export function PlanHero({ home, onPress }: { home: ClientHome; onPress?: () => void }) {
+export function PlanHero({ home, onPress, canViewPlan = true, clientName }: { home: ClientHome; onPress?: () => void; canViewPlan?: boolean; clientName?: string }) {
   const { colors } = useTheme();
   const sub = home.subscription;
+  // People without plan access see their company, not a false "no plan".
   return (
-    <Card variant="hero" style={styles.card} onPress={onPress} accessibilityLabel="Tarif va foydalanish">
+    <Card variant="hero" style={styles.card} onPress={canViewPlan ? onPress : undefined} accessibilityLabel={canViewPlan ? 'Tarif va foydalanish' : clientName}>
       <View style={styles.top}>
         <View style={styles.flex}>
           <Text variant="label" tone="heroSecondary">
-            Joriy tarif
+            {canViewPlan ? 'Joriy tarif' : 'Kompaniya'}
           </Text>
           <Text variant="title" tone="hero" style={styles.plan}>
-            {sub ? sub.plan_name.toUpperCase() : 'Tarif biriktirilmagan'}
+            {canViewPlan ? (sub ? sub.plan_name.toUpperCase() : 'Tarif biriktirilmagan') : (clientName ?? '').toUpperCase()}
           </Text>
-          {sub ? (
+          {canViewPlan && sub ? (
             <Text variant="caption" tone="heroSecondary">
               {formatDateKey(sub.starts_on)} — {formatDateKey(sub.ends_on, true)}
             </Text>

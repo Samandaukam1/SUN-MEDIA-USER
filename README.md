@@ -11,7 +11,7 @@ npm run ios        # development build o‘rnatilgan simulator/qurilma
 npm run android
 ```
 
-Tekshiruvlar: `npm run typecheck`, `npm run export:web`.
+Tekshiruvlar: `npm run typecheck`, `npm run lint`, `npm test` (unit), `npx expo-doctor`, `npx expo export --platform ios` (production bundle).
 
 ## Muhit (env)
 
@@ -31,14 +31,17 @@ EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<supabase start chiqargan PUBLISHABLE_KEY>
 ```
 
-Lokal seed hisoblari (faqat lokal, parol `SunMedia2026!`): `owner@sunmedia.local`, `admin@…`, `pm@…`, `smm@…`, `operator@…`, `editor@…`, `designer@…`, `safi@client.local`, `wedrink@client.local`.
+Lokal seed hisoblari (faqat lokal, parol `SunMedia2026!`): `owner@sunmedia.local`, `admin@…`, `manager@…`, `pm@…`, `smm@…`, `operator@…`, `editor@…`, `designer@…`, `copywriter@…`, `safi@client.local`, `safi.employee@client.local`, `wedrink@client.local`. To‘liq jadval — ADMIN README.
+
+> `.env` (cloud) va `.env.local` (lokal) ikkalasi ham Git'ga kirmaydi. Lokalda `.env.local` ustun turadi.
 
 ## Tuzilma
 
 ```
 app/            expo-router marshrutlari: (auth), pending, client/, staff/, manage/
 components/     ui/ (dizayn tizimi), brand/ (logo, splash), navigation/
-features/       auth, home, dashboard, profile … (har biri: api.ts + komponentlar)
+features/       auth, home, dashboard, studio, calendar, shootings, tasks, approvals, files,
+                inbox (chat), notifications (push), plan, reports, clients, search, team, workspace …
 lib/            supabase, env (zod), query-client, realtime, errors, time
 constants/      theme, labels
 types/          database.ts (generatsiya: ADMIN'da `npm run db:types`), app.ts
@@ -54,3 +57,15 @@ npm run build:ios:dev      # yoki build:android:dev
 ```
 
 Push bildirishnomalar va Apple/Google kirish uchun development build kerak (Expo Go emas).
+
+### Production / preview build uchun env
+
+`.env` fayllari EAS build'ga yuklanmaydi, shuning uchun qiymatlar EAS muhit o‘zgaruvchilarida bo‘lishi kerak (`eas.json` profillari `environment` bilan bog‘langan):
+
+```bash
+npx eas-cli env:create --environment production --name EXPO_PUBLIC_SUPABASE_URL --value https://<ref>.supabase.co --visibility plaintext
+npx eas-cli env:create --environment production --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value <publishable key> --visibility plaintext
+npx eas-cli env:create --environment production --name EAS_PROJECT_ID --value <eas project id> --visibility plaintext
+```
+
+`EAS_PROJECT_ID` bo‘lmasa push token olinmaydi (ilovadagi Bildirishnomalar sozlamasi buni “sozlanmagan” deb ko‘rsatadi). Serverdagi push sozlamalari: ADMIN README → Push bildirishnomalar.
