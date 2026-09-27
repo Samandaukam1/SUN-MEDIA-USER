@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ComponentType } from 'react';
 import { StyleSheet, View, type TextInput } from 'react-native';
 
 import { Button, Text, TextField } from '@/components/ui';
@@ -10,6 +10,12 @@ import { SocialSignIn } from '@/features/auth/components/SocialSignIn';
 import { toUserMessage } from '@/lib/errors';
 
 type FieldErrors = Partial<Record<'email' | 'password', string>>;
+
+// DEV ONLY: required behind __DEV__, so production bundles contain neither the panel nor the test accounts.
+const DevQuickAccess: ComponentType<{ disabled?: boolean }> | null = __DEV__
+  ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('@/features/auth/dev/DevQuickAccess').DevQuickAccess
+  : null;
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
@@ -98,6 +104,7 @@ export default function SignInScreen() {
         <FormError message={formError} />
         <Button title="Kirish" onPress={submit} loading={busy === 'password'} disabled={busy !== null && busy !== 'password'} />
       </View>
+      {DevQuickAccess ? <DevQuickAccess disabled={busy !== null} /> : null}
     </AuthScaffold>
   );
 }

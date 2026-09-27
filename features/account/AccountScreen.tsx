@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import Constants from 'expo-constants';
+import type { ComponentType } from 'react';
 import { Alert, Platform, StyleSheet, View } from 'react-native';
 
 import { Avatar, Badge, Button, Card, Icon, ListGroup, ListRow, Screen, ScreenHeader, Section, Text } from '@/components/ui';
@@ -11,6 +12,12 @@ import { fetchAnnouncements } from '@/features/workspace/api';
 import { useTheme } from '@/hooks/useTheme';
 import { useStrings } from '@/lib/i18n';
 import { useNav } from '@/lib/routes';
+
+// DEV ONLY: required behind __DEV__, so production bundles contain neither the switch nor the test accounts.
+const DevRoleSwitch: ComponentType | null = __DEV__
+  ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('@/features/auth/dev/DevRoleSwitch').DevRoleSwitch
+  : null;
 
 function confirmSignOut(onConfirm: () => void) {
   if (Platform.OS === 'web') {
@@ -127,6 +134,8 @@ export function AccountScreen() {
           <ListRow icon="info" title="Versiya" value={Constants.expoConfig?.version ?? '—'} />
         </ListGroup>
       </Section>
+
+      {DevRoleSwitch ? <DevRoleSwitch /> : null}
 
       <Button title={s.common.signOut} icon="log-out" variant="danger" onPress={() => confirmSignOut(() => unregisterDevice().catch(() => undefined).finally(signOut))} />
     </Screen>
