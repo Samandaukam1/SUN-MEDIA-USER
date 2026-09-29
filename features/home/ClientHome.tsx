@@ -21,7 +21,9 @@ import {
 } from '@/components/ui';
 import { CONTENT_TYPE } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
+import { TemporaryPasswordNotice } from '@/features/account/TemporaryPasswordNotice';
 import { useMe } from '@/features/auth/AuthProvider';
+import { MonthResultCard } from '@/features/results/components/ResultsCards';
 import { formatDateKeyLong, formatMonthYear, formatShortDateTime } from '@/lib/time';
 import { useNav } from '@/lib/routes';
 import type { CalendarEvent } from '@/lib/schemas';
@@ -74,6 +76,8 @@ export function ClientHome() {
         title={`Assalomu alaykum, ${me.profile?.full_name?.split(' ')[0] || client?.name || ''}`}
         right={<IconButton icon="search" label="Qidiruv" onPress={() => nav.go('/search')} />}
       />
+
+      <TemporaryPasswordNotice />
 
       {me.clients.length > 1 ? (
         <ChipRow>
@@ -138,6 +142,8 @@ function Body({ data, shootings, client }: { data: ClientHomeData; shootings: Us
           </View>
         ) : null}
       </Card>
+
+      {client.permissions.includes('client.results.view') ? <MonthResultCard client={client} /> : null}
 
       <Section title="Bugun">
         {data.today.length === 0 ? (

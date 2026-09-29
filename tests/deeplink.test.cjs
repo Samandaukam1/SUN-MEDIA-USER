@@ -39,3 +39,10 @@ test('unknown or malformed routes open nothing', () => {
   assert.equal(notificationPath(undefined, 'staff'), null);
   assert.equal(notificationPath('https://evil.example/content/' + ID, 'staff'), null);
 });
+
+test('lead notifications open the CRM list and CRM reports', () => {
+  assert.equal(notificationPath('/crm', 'client'), '/crm');
+  assert.equal(notificationPath('/crm/', 'staff'), '/crm');
+  assert.equal(notificationPath(`/crm/report/${ID}`, 'client'), `/crm/report/${ID}`);
+  assert.equal(notificationPath('/crm/report/not-an-id', 'client'), null);
+});

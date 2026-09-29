@@ -11,6 +11,7 @@ const PATTERNS: { match: RegExp; to: (id: string) => string; staffOnly?: boolean
   { match: /^\/announcements\/([0-9a-f-]{36})$/, to: (id) => `/announcements/${id}`, staffOnly: true },
   { match: /^\/files\/view\/([0-9a-f-]{36})$/, to: (id) => `/files/view/${id}` },
   { match: /^\/reports?\/([0-9a-f-]{36})$/, to: (id) => `/report/${id}` },
+  { match: /^\/crm\/report\/([0-9a-f-]{36})$/, to: (id) => `/crm/report/${id}` },
 ];
 
 // Tariff notifications open the client's plan screen; staff handle requests in the admin panel.
@@ -23,6 +24,8 @@ const CLIENT_ONLY: RegExp[] = [/^\/plan$/, /^\/plans\/requests\/[0-9a-f-]{36}$/]
 export function notificationPath(route: unknown, kind: AppKind): string | null {
   if (typeof route !== 'string') return null;
   const clean = route.trim().replace(/\/+$/, '').toLowerCase();
+  // Leads: the admin's CRM list or the client's delivered leads (same path in both interfaces).
+  if (clean === '/crm') return '/crm';
   if (CLIENT_ONLY.some((r) => r.test(clean))) return kind === 'client' ? '/plan' : null;
   for (const p of PATTERNS) {
     const m = clean.match(p.match);

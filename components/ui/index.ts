@@ -1,6 +1,7 @@
 export { Avatar } from './Avatar';
 export { AvatarStack } from './AvatarStack';
 export { Badge, type BadgeTone } from './Badge';
+export { BreakdownBars, TrendBars } from './Bars';
 export { Button } from './Button';
 export { Card } from './Card';
 export { Chip, ChipRow } from './Chip';

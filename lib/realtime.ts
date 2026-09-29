@@ -22,7 +22,9 @@ export type QueryDomain =
   | 'team'
   | 'clients'
   | 'projects'
-  | 'workspace';
+  | 'workspace'
+  | 'crm'
+  | 'results';
 
 const TABLE_DOMAINS: Record<string, QueryDomain[]> = {
   clients: ['clients', 'home', 'dashboard', 'me'],
@@ -60,6 +62,13 @@ const TABLE_DOMAINS: Record<string, QueryDomain[]> = {
   announcements: ['workspace', 'home', 'dashboard'],
   company_events: ['workspace', 'calendar', 'home', 'dashboard'],
   shared_documents: ['workspace'],
+  leads: ['crm', 'results', 'home'],
+  lead_deliveries: ['crm', 'results', 'home'],
+  crm_reports: ['crm', 'reports'],
+  meta_assets: ['crm', 'results'],
+  client_crm_settings: ['crm'],
+  social_daily_snapshots: ['results', 'reports'],
+  social_media_items: ['results'],
 };
 
 type ChangeSignal = { table?: string };

@@ -11,6 +11,8 @@ import { useAgencyDate } from '@/features/home/useAgencyDate';
 import { ShootingCard } from '@/features/shootings/components/ShootingCard';
 import { WorkspaceHomeSection } from '@/features/workspace/components/WorkspaceHomeSection';
 import { useNav } from '@/lib/routes';
+import { TemporaryPasswordNotice } from '@/features/account/TemporaryPasswordNotice';
+import { fetchCrmSummary } from '@/features/crm/api';
 import { formatAgo, formatDateKeyLong, formatRelativeDeadline, formatShortDateTime } from '@/lib/time';
 import type { Database } from '@/types/database';
 import { fetchClientConversations } from '@/features/inbox/api';
@@ -45,6 +47,7 @@ export function CommandCenterScreen() {
         contentStyle={styles.fabSpace}
       >
         <ScreenHeader eyebrow={formatDateKeyLong(today)} title="Bugun agentlikda" right={<IconButton icon="search" label="Qidiruv" onPress={() => nav.go('/search')} />} />
+        <TemporaryPasswordNotice />
         <QueryView query={query} skeleton={<DashboardSkeleton />}>
           {(data) => <Body data={data} />}
         </QueryView>
@@ -104,6 +107,8 @@ function Body({ data }: { data: CommandCenter }) {
           />
         </ListGroup>
       ) : null}
+
+      {can('crm.read') ? <NewLeadsRow /> : null}
 
       {data.shootings.length > 0 ? (
         <Section title="Bugungi syomkalar">
@@ -177,6 +182,26 @@ function Body({ data }: { data: CommandCenter }) {
         <EmptyState icon="sun" title="Bugun hammasi joyida" description="Syomka, kechikkan ish yoki javob kutayotgan mijoz yo‘q." />
       ) : null}
     </>
+  );
+}
+
+/** Meta leads waiting for the admin: one row, only when there is something to send. */
+function NewLeadsRow() {
+  const nav = useNav();
+  const summary = useQuery({ queryKey: ['crm', 'summary'], queryFn: fetchCrmSummary, refetchInterval: 60_000 });
+  const s = summary.data;
+  if (!s || s.pending === 0) return null;
+  const clients = s.clients.filter((c) => c.pending > 0);
+  return (
+    <ListGroup>
+      <ListRow
+        icon="target"
+        iconTone="brand"
+        title={s.new > 0 ? `${s.new} ta yangi lid` : `${s.pending} ta lid yuborilmagan`}
+        subtitle={clients.map((c) => `${c.name}: ${c.pending}`).slice(0, 3).join(' · ')}
+        onPress={() => nav.go('/crm')}
+      />
+    </ListGroup>
   );
 }
 
