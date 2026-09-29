@@ -6,7 +6,7 @@ const ID = '3f29cd70-06ac-4d73-80a8-ac47ef410a6e';
 
 test('notification routes map to app screens', () => {
   assert.equal(notificationPath(`/content/${ID}`, 'client'), `/content/${ID}`);
-  assert.equal(notificationPath(`/approvals/${ID}`, 'client'), `/approvals/${ID}`);
+  assert.equal(notificationPath(`/approvals/${ID}`, 'staff'), `/approvals/${ID}`);
   assert.equal(notificationPath(`/chat/${ID}/`, 'staff'), `/chat/${ID}`);
 });
 
@@ -16,6 +16,8 @@ test('older plural paths still open the right screen', () => {
 });
 
 test('staff-only screens are never opened for clients', () => {
+  // Clients follow the work only; reviewing versions is internal (no client approve/reject).
+  assert.equal(notificationPath(`/approvals/${ID}`, 'client'), null);
   assert.equal(notificationPath(`/task/${ID}`, 'client'), null);
   assert.equal(notificationPath(`/announcements/${ID}`, 'client'), null);
   assert.equal(notificationPath(`/announcements/${ID}`, 'staff'), `/announcements/${ID}`);

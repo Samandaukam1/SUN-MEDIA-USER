@@ -52,7 +52,7 @@ export default function SignInScreen() {
   return (
     <AuthScaffold
       title="Tizimga kirish"
-      subtitle="Kontent reja, syomkalar, tasdiqlash va natijalar — bitta joyda."
+      subtitle="Kontent reja, syomkalar, lidlar va natijalar — bitta joyda."
       footer={
         <Text variant="caption" tone="tertiary" align="center">
           Hisobni SUN MEDIA administratori yaratadi.{'\n'}Kirishda muammo bo‘lsa, menejeringizga yozing.

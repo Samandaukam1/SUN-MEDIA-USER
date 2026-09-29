@@ -83,7 +83,7 @@ function ClientFolders({ clientId }: { clientId: string }) {
       <Stack.Screen options={{ title: client.data?.name ?? 'Fayllar' }} />
       {isClient ? (
         <Text variant="body" tone="secondary">
-          Brend fayllaringiz va tasdiqlangan kontent. Logotip, brendbuk, musiqa va rasmlarni o‘zingiz ham yuklashingiz mumkin.
+          Brend fayllaringiz va tayyor kontent. Logotip, brendbuk, musiqa va rasmlarni o‘zingiz ham yuklashingiz mumkin.
         </Text>
       ) : null}
       <QueryView query={folders} skeleton={<SkeletonCards count={4} />} isEmpty={(d) => d.length === 0} empty={{ icon: 'folder', title: 'Papka yo‘q' }}>

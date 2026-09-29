@@ -243,7 +243,7 @@ export const PUBLICATION_STATUS: Record<Enums['publication_status'], Labelled> =
 export const FOLDER_KIND: Record<Enums['folder_kind'], { label: string; hint: string; icon: IconName }> = {
   raw: { label: 'Xom materiallar', hint: 'Syomkadan kelgan video va rasmlar', icon: 'video' },
   edited: { label: 'Montaj versiyalari', hint: 'Montajdagi videolar', icon: 'scissors' },
-  approved: { label: 'Tasdiqlangan', hint: 'Mijoz tasdiqlagan tayyor fayllar', icon: 'check-circle' },
+  approved: { label: 'Tayyor (Final)', hint: 'Mijozga topshirilgan tayyor fayllar', icon: 'check-circle' },
   logos: { label: 'Logotiplar', hint: 'Logotiplar', icon: 'star' },
   brandbook: { label: 'Brendbuk', hint: 'Brendbuk va qo‘llanmalar', icon: 'book' },
   music: { label: 'Musiqa', hint: 'Musiqa va ovozlar', icon: 'music' },
