@@ -24,6 +24,8 @@ import { spacing } from '@/constants/theme';
 import { TemporaryPasswordNotice } from '@/features/account/TemporaryPasswordNotice';
 import { useMe } from '@/features/auth/AuthProvider';
 import { MonthResultCard } from '@/features/results/components/ResultsCards';
+import { fetchMyGames } from '@/features/games/api';
+import { GameCard } from '@/features/games/GamesScreen';
 import { formatDateKeyLong, formatMonthYear, formatShortDateTime } from '@/lib/time';
 import { useNav } from '@/lib/routes';
 import type { CalendarEvent } from '@/lib/schemas';
@@ -145,6 +147,8 @@ function Body({ data, shootings, client }: { data: ClientHomeData; shootings: Us
 
       {client.permissions.includes('client.results.view') ? <MonthResultCard client={client} /> : null}
 
+      <GameBanner clientId={client.id} />
+
       <Section title="Bugun">
         {data.today.length === 0 ? (
           <Text variant="caption" tone="tertiary">
@@ -187,6 +191,13 @@ function Body({ data, shootings, client }: { data: ClientHomeData; shootings: Us
       ) : null}
     </>
   );
+}
+
+/** A running campaign of this client ("SAFI Challenge — Pro yutib oling"), one compact card. */
+function GameBanner({ clientId }: { clientId: string }) {
+  const games = useQuery({ queryKey: ['games', 'mine'], queryFn: fetchMyGames });
+  const game = games.data?.find((g) => g.client_id === clientId);
+  return game ? <GameCard game={game} compact /> : null;
 }
 
 /** The newest unread message from SUN MEDIA, so nothing important is missed; opens the inbox. */
