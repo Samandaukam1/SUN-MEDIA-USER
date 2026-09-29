@@ -1,0 +1,10 @@
+# EAS environment: preview. Values must come from the actual Expo/Supabase projects.
+# Copy to an ignored file (e.g. .env.preview.upload), fill real values, then use eas env:push.
+APP_VARIANT=preview
+EXPO_NO_DOTENV=1
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+# Alternatively use the legacy anon key; NEVER use service_role / sb_secret_.
+# EXPO_PUBLIC_SUPABASE_ANON_KEY=
+EAS_PROJECT_ID=
+EXPO_OWNER=

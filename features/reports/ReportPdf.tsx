@@ -1,8 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { File, Paths } from 'expo-file-system';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { useState } from 'react';
+import { Platform } from 'react-native';
 
 import { Button, useToast } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -13,6 +11,7 @@ import { buildReportHtml } from './reportHtml';
 /**
  * Builds the client-facing PDF on the device. When a report manager does it, the file is also
  * stored with the report so the admin panel and the client can download the same document.
+ * On web: opens the HTML report in a new tab for browser printing.
  */
 export function ReportPdfButton({ report }: { report: Report }) {
   const { can, appInterface } = useAuth();
@@ -24,6 +23,27 @@ export function ReportPdfButton({ report }: { report: Report }) {
   const run = async () => {
     setBusy(true);
     try {
+      if (Platform.OS === 'web') {
+        // Web: open HTML in a new tab; user can Cmd+P / Ctrl+P to print/save as PDF.
+        const html = buildReportHtml(report);
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        // Store the report path via Supabase if manager
+        if (store) {
+          const supabase = getSupabase();
+          await supabase.from('monthly_reports').update({ pdf_generated_at: new Date().toISOString() }).eq('id', report.id);
+          queryClient.invalidateQueries({ queryKey: ['reports'] });
+        }
+        toast.show('Hisobot yangi tabda ochildi');
+        return;
+      }
+
+      // Native: use expo-print + expo-sharing
+      const { File, Paths } = await import('expo-file-system');
+      const Print = await import('expo-print');
+      const Sharing = await import('expo-sharing');
+
       // A4 in points; iOS ignores CSS @page margins, so they are set here.
       const printed = await Print.printToFileAsync({ html: buildReportHtml(report), width: 595, height: 842, margins: { left: 40, right: 40, top: 44, bottom: 44 } });
       const name = `SUNMEDIA-${report.client.code}-${report.period_month.slice(0, 7)}.pdf`;

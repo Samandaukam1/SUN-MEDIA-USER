@@ -10,7 +10,16 @@
     },
     "preview": {
       "distribution": "internal",
-      "environment": "preview"
+      "environment": "preview",
+      "developmentClient": false,
+      "channel": "preview",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "APP_VARIANT": "preview",
+        "EXPO_NO_DOTENV": "1"
+      }
     },
     "production": {
       "autoIncrement": true,

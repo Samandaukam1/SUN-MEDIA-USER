@@ -1,7 +1,7 @@
 import { useEventListener } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { forwardRef, useImperativeHandle, useState } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
+import { Platform, Pressable, StyleSheet, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 
 import { Text } from '@/components/ui';
 import { radius, spacing } from '@/constants/theme';
@@ -18,11 +18,40 @@ export type PlayerHandle = {
 
 type Props = { url: string; durationMs: number | null; aspect: number | null; markers: Marker[] };
 
+// Web: expo-video is not available, render a plain HTML <video> element.
+function ReviewPlayerWeb({ url, aspect }: Props, ref: React.ForwardedRef<PlayerHandle>) {
+  const { width } = useWindowDimensions();
+  const ratio = aspect && aspect > 0 ? aspect : 16 / 9;
+  const boxHeight = Math.min((width - spacing.xl * 2) / ratio, 400);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  useImperativeHandle(ref, () => ({
+    pauseAt: () => {
+      videoRef.current?.pause();
+      return Math.round((videoRef.current?.currentTime ?? 0) * 1000);
+    },
+    seek: (ms: number) => {
+      if (videoRef.current) { videoRef.current.pause(); videoRef.current.currentTime = ms / 1000; }
+    },
+  }), []);
+  return (
+    <View style={[styles.video, { height: boxHeight, backgroundColor: '#000' }]}>
+      <video ref={videoRef} src={url} controls style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+    </View>
+  );
+}
+
 /**
  * Native player (fullscreen, AirPlay, scrubbing) plus a comment track: every timecoded note is a
  * dot on the timeline, tapping one jumps the video to that moment.
  */
 export const ReviewPlayer = forwardRef<PlayerHandle, Props>(function ReviewPlayer({ url, durationMs, aspect, markers }, ref) {
+  if (Platform.OS === 'web') {
+    return ReviewPlayerWeb({ url, durationMs, aspect, markers }, ref);
+  }
+  return <ReviewPlayerNative url={url} durationMs={durationMs} aspect={aspect} markers={markers} ref={ref} />;
+});
+
+const ReviewPlayerNative = forwardRef<PlayerHandle, Props>(function ReviewPlayerNative({ url, durationMs, aspect, markers }, ref) {
   const { colors } = useTheme();
   const { width, height } = useWindowDimensions();
   const [position, setPosition] = useState(0);
@@ -57,6 +86,7 @@ export const ReviewPlayer = forwardRef<PlayerHandle, Props>(function ReviewPlaye
     }),
     [player],
   );
+
 
   // Vertical reels stay within half of the screen so comments remain visible below.
   const ratio = aspect && aspect > 0 ? aspect : 16 / 9;

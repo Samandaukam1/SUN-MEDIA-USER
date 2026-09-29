@@ -12,7 +12,9 @@ export type AppSupabaseClient = SupabaseClient<Database>;
 export const supabase: AppSupabaseClient | null = env
   ? createClient<Database>(env.supabaseUrl, env.supabaseKey, {
       auth: {
-        storage: AsyncStorage,
+        // Web: leave storage undefined so Supabase uses localStorage automatically.
+        // Native: AsyncStorage for cross-session persistence.
+        storage: Platform.OS === 'web' ? undefined : AsyncStorage,
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: Platform.OS === 'web',

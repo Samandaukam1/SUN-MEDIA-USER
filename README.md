@@ -1,5 +1,7 @@
 # SUN MEDIA — mobil ilova
 
+Jamoa iPhone preview build: [TEAM_PREVIEW.md](docs/TEAM_PREVIEW.md).
+
 Expo (SDK 54) + React Native + TypeScript strict. Mijozlar, xodimlar va rahbariyat uchun bitta ilova: kirgandan keyin rol bo‘yicha interfeys avtomatik ochiladi.
 
 ## Ishga tushirish

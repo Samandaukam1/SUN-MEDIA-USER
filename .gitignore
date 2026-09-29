@@ -21,3 +21,6 @@ dist/
 
 expo-env.d.ts
 # @end expo-cli
+
+# Netlify CLI local state
+.netlify/

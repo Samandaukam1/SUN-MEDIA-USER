@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 
 import { useAuth } from '@/features/auth/AuthProvider';
 import { markNotificationsRead } from '@/features/inbox/api';
@@ -13,7 +14,8 @@ import { getPushState, registerDevice, setAppBadge } from './push';
 /** Push wiring for a signed-in user: device registration, tap-to-open and the app icon badge. */
 export function PushManager() {
   const { status } = useAuth();
-  return status === 'ready' ? <ReadyPushManager /> : null;
+  // Push (tokens, tap-to-open, icon badge) exists only in the native app; the web preview skips it.
+  return status === 'ready' && Platform.OS !== 'web' ? <ReadyPushManager /> : null;
 }
 
 function ReadyPushManager() {
