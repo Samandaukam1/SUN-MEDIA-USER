@@ -20,7 +20,7 @@ export function describeActivity(item: ActivityItem): Described {
       if (insert) return { icon: 'plus-circle', text: `${who} yangi kontent yaratdi`, detail: label };
       const to = statusLabel(CONTENT_STATUS, status);
       if (status === 'approved') return { icon: 'check-circle', text: `${label ?? 'Kontent'} tasdiqlandi`, detail: who };
-      if (status === 'revision') return { icon: 'rotate-ccw', text: `${label ?? 'Kontent'} revisionga qaytdi`, detail: who };
+      if (status === 'revision') return { icon: 'rotate-ccw', text: `${label ?? 'Kontent'} o‘zgartirishga qaytdi`, detail: who };
       if (status === 'published') return { icon: 'send', text: `${label ?? 'Kontent'} joylandi`, detail: who };
       return {
         icon: 'git-commit',
@@ -30,7 +30,7 @@ export function describeActivity(item: ActivityItem): Described {
     }
     case 'content_publications':
       return insert
-        ? { icon: 'calendar', text: `${who} nashrni rejalashtirdi`, detail: label }
+        ? { icon: 'calendar', text: `${who} postni rejalashtirdi`, detail: label }
         : { icon: 'send', text: `Post: ${statusLabel(PUBLICATION_STATUS, status)}`, detail: label };
     case 'revisions':
       return { icon: 'rotate-ccw', text: `${who} o‘zgartirish so‘radi`, detail: label };

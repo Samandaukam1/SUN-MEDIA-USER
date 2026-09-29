@@ -10,18 +10,20 @@ Mobil ilova (Expo SDK 54) + admin panel (Next.js 15) + Supabase. Barcha 18 bosqi
 | Akkaunt yaratish, vaqtinchalik parol, holatlar | — | ✅ | RPC + audit |
 | Jamoa, rollar, ruxsatlar, sozlamalar | ✅ katalog | ✅ | RLS |
 | Ish joyi: e’lonlar, tadbirlar, hujjatlar | ✅ | ✅ | ✅ |
-| Studiya: kontent jarayoni, loyihalar | ✅ | — | atomik RPC |
-| Kalendar (kun/hafta/oy), syomkalar | ✅ | — | ✅ |
-| Vazifalar, checklist, bog‘liqlik, deadline eslatmalari | ✅ | ✅ qoidalar | pg_cron |
-| Davomat (faqat admin belgilaydi), KPI | ✅ | — | ✅ |
-| Tasdiqlash markazi, video, vaqtli izohlar, revisionlar | ✅ | — | ✅ |
-| Fayllar, papkalar, bo‘laklab yuklash, vazifa ilovalari | ✅ | — | Storage RLS |
+| Studiya: kontent jarayoni, loyihalar | ✅ | ✅ Ish jarayoni → Kontent, Mijozlar → Loyihalar | atomik RPC |
+| Kalendar (kun/hafta/oy), syomkalar | ✅ | ✅ hafta/oy, syomkalar | ✅ |
+| Vazifalar, checklist, bog‘liqlik, deadline eslatmalari | ✅ | ✅ ro‘yxat, yaratish, qoidalar | pg_cron |
+| Davomat (faqat admin belgilaydi), KPI | ✅ bir bosishda | ✅ bir bosishda, samaradorlik | ✅ |
+| Tasdiqlash markazi, video, vaqtli izohlar, o‘zgartirishlar | ✅ | ✅ navbat | ✅ |
+| Fayllar, papkalar, bo‘laklab yuklash, vazifa ilovalari | ✅ | ✅ ko‘rish, yuklab olish | Storage RLS |
 | Xabarlar: chat (shaxsiy/guruh/loyiha), tasdiqlar, bildirishnomalar | ✅ realtime | — | ✅ |
 | Push: ro‘yxatdan o‘tish, bosilganda ochish, sozlamalar | ✅ | — | Edge Function |
 | Tariflar, sarf, tarif so‘rovlari | ✅ mijoz | ✅ katalog + mijoz tabi | ✅ |
 | Statistika, oylik hisobot, PDF | ✅ | ✅ | ✅ |
-| Global qidiruv, mijoz ko‘rinishi, tezkor yaratish | ✅ | — | ✅ |
-| Audit log | — | ✅ | trigger’lar |
+| Global qidiruv, mijoz ko‘rinishi, tezkor yaratish | ✅ | ✅ qidiruv, “+ Yaratish” | ✅ |
+| Faoliyat tarixi (audit) | — | ✅ | trigger’lar |
+| Shartnomalar | — | ✅ | RLS |
+| UX soddalashtirish (docs/UX_AUDIT.md) | ✅ 5 tab | ✅ 6 bo‘lim | nomlar |
 
 ## Tekshiruv
 
