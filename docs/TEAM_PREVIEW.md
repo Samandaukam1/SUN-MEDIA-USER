@@ -1,15 +1,11 @@
 # SUN MEDIA Preview — jamoa iPhone’lari
 
-## Hozirgi holat (2026-09-29)
+## Hozirgi holat (2026-09-30)
 
-Build konfiguratsiyasi tayyor, lekin install build **BLOCKED**:
-
-- Expo CLI: `Not logged in`. EAS project ID/owner hali berilmagan; yangi project taxminan yaratilmagan.
-- Mavjud cloud: `https://vpxqviyacraeymgegvll.supabase.co`. Read-only tekshiruvda `public.roles`, `get_my_context()` va migration history topilmadi. SUN MEDIA test rollari cloud’da yo‘q. Mavjud bitta Auth akkauntiga tegilmadi.
-- Apple Developer membership/team, distribution signing va jamoa UDID’lari hali tasdiqlanmagan. Lokal Xcode signing sozlamasi remote EAS distribution credentiali degani emas.
-- `eas build --platform ios --profile preview --non-interactive` Expo login talabida to‘xtadi. Build ID, install URL yoki registration URL hali yo‘q.
-
-Business logic, rollar, UI oqimlari, CRM, Meta Ads va analytics o‘zgartirilmadi. ADMIN repoga o‘zgartirish kiritilmadi. Cloud migratsiya/seed bajarilmadi.
+- Web preview cloud bilan ishlaydi: https://samandaukam1.github.io/SUN-MEDIA-USER/ (Supabase “Sun Media”, 39/39 migratsiya).
+- Test rollari cloud’da: Admin, Rahbar, Montajyor, Mijoz (SAFI). Parolni jamoaga shaxsan bering; production’dan oldin almashtiring.
+- iOS/Android build: EAS profillari tayyor (development / preview / production); Apple Developer va Expo login kutilmoqda.
+- Google, Meta, Apple, Play, SMTP va admin panel hosting qadamlari: ADMIN repo → `docs/PRODUCTION_SETUP.md`.
 
 ## Saqlangan va qo‘shilgan config
 

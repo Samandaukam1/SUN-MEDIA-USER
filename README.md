@@ -33,7 +33,7 @@ EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<supabase start chiqargan PUBLISHABLE_KEY>
 ```
 
-Lokal seed hisoblari (faqat lokal, parol `SunMedia2026!`): `owner@sunmedia.local`, `admin@…`, `manager@…`, `pm@…`, `smm@…`, `operator@…`, `editor@…`, `designer@…`, `copywriter@…`, `safi@client.local`, `safi.employee@client.local`, `wedrink@client.local`. To‘liq jadval — ADMIN README.
+Lokal seed hisoblari (faqat lokal; parol `supabase/seed.sql` da, cloud akkauntlarida ishlatmang): `owner@sunmedia.local`, `admin@…`, `manager@…`, `pm@…`, `smm@…`, `operator@…`, `editor@…`, `designer@…`, `copywriter@…`, `safi@client.local`, `safi.employee@client.local`, `wedrink@client.local`. To‘liq jadval — ADMIN README.
 
 **DEV QUICK ACCESS.** Development'da (Metro, `__DEV__`) va backend lokal bo‘lsa, login ekranida 10 ta rol tugmasi, Akkaunt ekranida “Switch Test Role” (Owner / Admin / Operator / Editor / Client) chiqadi. Ikkalasi ham oddiy `signInWithPassword` orqali kiradi (switch — chiqish + qayta kirish). Production bundle'da bu kod va test parol umuman yo‘q.
 

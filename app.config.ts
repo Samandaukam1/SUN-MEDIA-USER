@@ -30,6 +30,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       supportsTablet: true,
       usesAppleSignIn: true,
       config: { usesNonExemptEncryption: false },
+      // App-level privacy manifest; Expo modules ship their own for the APIs they use.
+      privacyManifests: {
+        NSPrivacyAccessedAPITypes: [{ NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryUserDefaults', NSPrivacyAccessedAPITypeReasons: ['CA92.1'] }],
+      },
     },
     android: {
       package: 'com.sunmedia.user',

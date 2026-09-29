@@ -28,7 +28,9 @@ function validatePreviewEnvironment({ required = false } = {}) {
 }
 module.exports = { validatePreviewEnvironment };
 
-if (require.main === module && (process.env.APP_VARIANT === 'preview' || process.env.EAS_BUILD_PROFILE === 'preview')) {
+// EAS build hook: preview and production builds must carry a public cloud config (never local, never a secret key).
+const profile = process.env.EAS_BUILD_PROFILE || (process.env.APP_VARIANT === 'preview' ? 'preview' : '');
+if (require.main === module && (profile === 'preview' || profile === 'production')) {
   validatePreviewEnvironment({ required: true });
-  console.log('Preview environment validated (public Supabase config only).');
+  console.log(`${profile} environment validated (public Supabase config only).`);
 }
