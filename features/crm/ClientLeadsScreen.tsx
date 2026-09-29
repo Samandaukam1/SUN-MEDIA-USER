@@ -112,7 +112,7 @@ function ClientLeadItem({ lead }: { lead: ClientLead }) {
         onOpen={answers.length > 0 || lead.email ? () => setOpen((v) => !v) : undefined}
       />
       {open ? (
-        <Card padded={false}>
+        <Card style={styles.kv}>
           {lead.email ? <KeyValue icon="mail" label="Email" value={lead.email} /> : null}
           {lead.form_name ? <KeyValue icon="file-text" label="Forma" value={lead.form_name} /> : null}
           {answers.map(([k, v]) => (
@@ -130,6 +130,7 @@ function ClientLeadItem({ lead }: { lead: ClientLead }) {
 }
 
 const styles = StyleSheet.create({
+  kv: { gap: spacing.md },
   list: { gap: spacing.md },
   item: { gap: spacing.xs },
 });

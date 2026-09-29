@@ -27,7 +27,8 @@ export function LeadCard({ name, phone, email, client, campaign, ad, platform, l
   const { colors } = useTheme();
   const source = [campaign, ad].filter(Boolean).join(' · ');
   return (
-    <Card onPress={onOpen} style={styles.card} accessibilityLabel={`${name ?? 'Ism yo‘q'}, ${phone ?? ''}`}>
+    // Not pressable itself: the phone number and the buttons are the actions (no nested buttons on web).
+    <Card style={styles.card} accessibilityLabel={`${name ?? 'Ism yo‘q'}, ${phone ?? ''}`}>
       <View style={styles.top}>
         <View style={styles.who}>
           <Text variant="subheading" numberOfLines={1}>
@@ -69,7 +70,7 @@ export function LeadCard({ name, phone, email, client, campaign, ad, platform, l
       ) : null}
       {onDeliver || onOpen ? (
         <View style={styles.actions}>
-          {onDeliver ? <Button title="Mijozga yuborish" icon="send" size="md" fullWidth={false} style={styles.action} loading={delivering} onPress={onDeliver} /> : null}
+          {onDeliver ? <Button title="Yuborish" icon="send" size="md" fullWidth={false} style={styles.action} loading={delivering} onPress={onDeliver} /> : null}
           {onOpen ? <Button title="Batafsil" variant="secondary" size="md" fullWidth={false} style={styles.action} onPress={onOpen} /> : null}
         </View>
       ) : null}

@@ -64,7 +64,7 @@ function Body({ lead }: { lead: LeadDetail }) {
       </Card>
 
       <Section title="Aloqa">
-        <Card padded={false}>
+        <Card style={styles.kv}>
           <KeyValue icon="user" label="Ism" value={lead.full_name} />
           <KeyValue icon="phone" label="Telefon" value={lead.phone} />
           <KeyValue icon="mail" label="Email" value={lead.email} />
@@ -73,7 +73,7 @@ function Body({ lead }: { lead: LeadDetail }) {
       </Section>
 
       <Section title="Reklama">
-        <Card padded={false}>
+        <Card style={styles.kv}>
           <KeyValue icon="flag" label="Kampaniya" value={lead.campaign_name} />
           <KeyValue icon="layers" label="Auditoriya (ad set)" value={lead.adset_name} />
           <KeyValue icon="image" label="Reklama" value={lead.ad_name} />
@@ -84,7 +84,7 @@ function Body({ lead }: { lead: LeadDetail }) {
 
       {answers.length > 0 ? (
         <Section title="Forma javoblari">
-          <Card padded={false}>
+          <Card style={styles.kv}>
             {answers.map(([key, value]) => (
               <KeyValue key={key} label={fieldLabel(key)} value={value} />
             ))}
@@ -124,6 +124,7 @@ function Body({ lead }: { lead: LeadDetail }) {
 }
 
 const styles = StyleSheet.create({
+  kv: { gap: spacing.md },
   head: { gap: spacing.md },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs + 2 },
   actions: { gap: spacing.sm },

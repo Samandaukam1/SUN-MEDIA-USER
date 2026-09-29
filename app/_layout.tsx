@@ -59,26 +59,30 @@ function RootNavigator() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <StatusBar style={splashVisible || scheme === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: colors.background } }}>
-        <Stack.Screen name="index" />
-        <Stack.Protected guard={status === 'signed_out'}>
-          <Stack.Screen name="(auth)" />
-        </Stack.Protected>
-        <Stack.Protected guard={status === 'pending' || status === 'disabled' || status === 'error'}>
-          <Stack.Screen name="pending" />
-        </Stack.Protected>
-        <Stack.Protected guard={ready && appInterface === 'client'}>
-          <Stack.Screen name="client" />
-        </Stack.Protected>
-        <Stack.Protected guard={ready && appInterface === 'employee'}>
-          <Stack.Screen name="staff" />
-        </Stack.Protected>
-        <Stack.Protected guard={ready && appInterface === 'management'}>
-          <Stack.Screen name="manage" />
-        </Stack.Protected>
-        <Stack.Screen name="reset-password" />
-        <Stack.Screen name="auth/callback" />
-      </Stack>
+      {/* Until the session is known no route is decided, so a refreshed or shared deep link (web) keeps its URL
+          instead of falling back to Home; the splash covers this moment. */}
+      {status === 'loading' ? null : (
+        <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: colors.background } }}>
+          <Stack.Screen name="index" />
+          <Stack.Protected guard={status === 'signed_out'}>
+            <Stack.Screen name="(auth)" />
+          </Stack.Protected>
+          <Stack.Protected guard={status === 'pending' || status === 'disabled' || status === 'error'}>
+            <Stack.Screen name="pending" />
+          </Stack.Protected>
+          <Stack.Protected guard={ready && appInterface === 'client'}>
+            <Stack.Screen name="client" />
+          </Stack.Protected>
+          <Stack.Protected guard={ready && appInterface === 'employee'}>
+            <Stack.Screen name="staff" />
+          </Stack.Protected>
+          <Stack.Protected guard={ready && appInterface === 'management'}>
+            <Stack.Screen name="manage" />
+          </Stack.Protected>
+          <Stack.Screen name="reset-password" />
+          <Stack.Screen name="auth/callback" />
+        </Stack>
+      )}
       <RealtimeSync />
       <UploadWatcher />
       <PushManager />
