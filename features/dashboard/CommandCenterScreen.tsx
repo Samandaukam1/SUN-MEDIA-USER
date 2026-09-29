@@ -69,7 +69,8 @@ function Body({ data }: { data: CommandCenter }) {
   const nav = useNav();
   const { tasks, attendance, publications } = data;
   const urgent = data.deadlines.items.filter((d) => d.state !== 'upcoming').slice(0, 5);
-  const canAttendance = can('attendance.read') || can('attendance.manage');
+  // Marking attendance is the Admin's daily job; the Rahbar sees the numbers without the marking screen.
+  const canAttendance = can('attendance.manage');
   const seesChats = can('chat.manage') || can('chat.observe');
   const chats = useQuery({ queryKey: ['chat', 'client-conversations'], queryFn: fetchClientConversations, enabled: seesChats, refetchInterval: 60_000 });
   const waiting = (chats.data ?? []).filter((c) => c.awaiting_reply);

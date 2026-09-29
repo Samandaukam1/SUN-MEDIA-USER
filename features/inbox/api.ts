@@ -79,7 +79,7 @@ export type RoomDetail = NonNullable<Awaited<ReturnType<typeof fetchRoom>>>;
 
 export const MESSAGE_PAGE = 40;
 
-const MESSAGE_ROW = `id, room_id, sender_id, body, reply_to_id, is_system, created_at, edited_at, deleted_at,
+const MESSAGE_ROW = `id, room_id, sender_id, body, reply_to_id, is_system, created_at, edited_at, deleted_at, sender_label, is_directive,
   sender:profiles!messages_sender_id_fkey(full_name, avatar_url),
   attachments:message_attachments(file:files(id, name, kind, mime_type, size_bytes, width, height, duration_ms, bucket, storage_path, external_url))`;
 
@@ -93,12 +93,14 @@ export async function fetchMessages(roomId: string, before: string | null) {
 }
 export type ChatMessage = Awaited<ReturnType<typeof fetchMessages>>[number];
 
-export async function sendMessage(roomId: string, body: string, replyTo: string | null, fileIds: string[]) {
+/** `directive`: the Rahbar's "Rahbar topshirig‘i" in a team chat (the database allows it only for the Rahbar). */
+export async function sendMessage(roomId: string, body: string, replyTo: string | null, fileIds: string[], directive = false) {
   const { data, error } = await getSupabase().rpc('send_message', {
     p_room_id: roomId,
     p_body: body,
     p_reply_to: replyTo ?? undefined,
     p_file_ids: fileIds,
+    p_directive: directive,
   });
   if (error) throw error;
   return data;

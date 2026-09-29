@@ -78,6 +78,10 @@ function ChatBody({ room }: { room: RoomDetail }) {
   const observer = !room.members.some((m) => m.user_id === me.userId) ||
     (room.kind === 'project' && me.permissions.includes('chat.observe') && !me.permissions.includes('chat.manage'));
   const showNames = room.kind !== 'direct';
+  // Rahbar directives ("Rahbar topshirig‘i") exist only in team chats.
+  const leader = me.roles.some((r) => r.key === 'owner' || r.key === 'director' || r.key === 'system_owner');
+  const canDirect = leader && (room.kind === 'internal' || room.kind === 'direct');
+  const [directive, setDirective] = useState(false);
 
   const messages = useInfiniteQuery({
     queryKey: ['chat', 'messages', room.id],
@@ -167,12 +171,13 @@ function ChatBody({ room }: { room: RoomDetail }) {
   const send = useMutation({
     mutationFn: async () => {
       if (editing) return editMessage(editing.id, text);
-      return sendMessage(room.id, text, replyTo?.id ?? null, ready);
+      return sendMessage(room.id, text, replyTo?.id ?? null, ready, canDirect && directive);
     },
     onSuccess: () => {
       setText('');
       setReplyTo(null);
       setEditing(null);
+      setDirective(false);
       setPending((all) => all.filter((p) => !p.fileId));
       queryClient.invalidateQueries({ queryKey: ['chat'] });
     },
@@ -346,8 +351,25 @@ function ChatBody({ room }: { room: RoomDetail }) {
                   ))}
                 </View>
               ) : null}
+              {canDirect && directive && !editing ? (
+                <View style={[styles.directiveBar, { backgroundColor: colors.accentSoft }]}>
+                  <Icon name="flag" size={14} color={colors.text} />
+                  <Text variant="captionMedium" style={styles.flex}>
+                    Rahbar topshirig‘i sifatida yuboriladi — hammaga muhim xabar keladi
+                  </Text>
+                </View>
+              ) : null}
               <View style={styles.inputRow}>
                 {editing ? null : <IconButton icon="paperclip" label="Fayl biriktirish" variant="plain" size={40} onPress={attach} />}
+                {canDirect && !editing ? (
+                  <IconButton
+                    icon="flag"
+                    label={directive ? 'Oddiy xabar' : 'Rahbar topshirig‘i'}
+                    variant={directive ? 'brand' : 'plain'}
+                    size={40}
+                    onPress={() => setDirective((v) => !v)}
+                  />
+                ) : null}
                 <TextInput
                   value={text}
                   onChangeText={onChangeText}
@@ -441,9 +463,17 @@ function MessageBubble({
         accessibilityHint="Uzoq bosib turing — javob berish, tahrirlash yoki o‘chirish"
         style={[styles.bubble, { backgroundColor: bubbleBg, borderColor: mine ? bubbleBg : colors.border }, mine ? styles.bubbleMine : styles.bubbleTheirs]}
       >
+        {m.is_directive ? (
+          <View style={[styles.directiveTag, { backgroundColor: mine ? 'rgba(255,255,255,0.12)' : colors.accentSoft }]}>
+            <Icon name="flag" size={12} color={textColor} />
+            <Text variant="micro" style={{ color: textColor }}>
+              RAHBAR TOPSHIRIG‘I
+            </Text>
+          </View>
+        ) : null}
         {showName && !mine ? (
           <Text variant="captionMedium" tone="accent" numberOfLines={1}>
-            {m.sender?.full_name ?? 'SUN MEDIA'}
+            {`${m.sender?.full_name ?? 'SUN MEDIA'}${m.sender_label ? ` · ${m.sender_label}` : ''}`}
           </Text>
         ) : null}
         {reply && !deleted ? (
@@ -538,6 +568,8 @@ const styles = StyleSheet.create({
   pendingList: { gap: spacing.xs },
   pendingChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.xs },
+  directiveBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 10 },
+  directiveTag: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginBottom: 2 },
   input: { flex: 1, minHeight: 40, maxHeight: 120, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md, paddingTop: 10, paddingBottom: 10, fontSize: 15, fontFamily: 'Inter_400Regular' },
   send: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
 });

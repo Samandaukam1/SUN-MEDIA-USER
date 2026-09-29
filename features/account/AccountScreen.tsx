@@ -108,7 +108,7 @@ function StaffSections() {
   const management = [
     seesClients ? { icon: 'briefcase' as const, title: 'Mijozlar', subtitle: 'Tarif, jarayon, kontaktlar', path: '/clients' } : null,
     seesClients ? { icon: 'folder' as const, title: 'Loyihalar', subtitle: 'Mijoz loyihalari va jamoasi', path: '/projects' } : null,
-    can('attendance.read') || can('attendance.manage') ? { icon: 'user-check' as const, title: 'Davomat', subtitle: 'Bugun kim keldi — belgilash', path: '/attendance' } : null,
+    can('attendance.manage') ? { icon: 'user-check' as const, title: 'Davomat', subtitle: 'Bugun kim keldi — belgilash', path: '/attendance' } : null,
     can('crm.read') ? { icon: 'target' as const, title: 'Lidlar (CRM)', subtitle: 'Meta reklamadan kelgan lidlar — mijozga yuborish', path: '/crm' } : null,
     can('crm.manage') ? { icon: 'send' as const, title: 'Lidlar hisobotini yuborish', subtitle: '7 kunlik, 30 kunlik yoki maxsus muddat', path: '/crm/report/new' } : null,
     can('reports.read') || can('reports.manage') ? { icon: 'bar-chart-2' as const, title: 'Oylik hisobotlar', subtitle: 'Mijozlar natijalari', path: '/reports' } : null,

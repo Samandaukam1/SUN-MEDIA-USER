@@ -227,6 +227,12 @@ export function ChatAvatar({ room, size = 46 }: { room: Pick<ChatSummary, 'kind'
 // Notifications
 // ---------------------------------------------------------------------------
 const TYPE_ICON: { prefix: string; icon: IconName }[] = [
+  { prefix: 'chat.directive', icon: 'flag' },
+  { prefix: 'crm', icon: 'target' },
+  { prefix: 'account', icon: 'user-plus' },
+  { prefix: 'subscription', icon: 'star' },
+  { prefix: 'promo', icon: 'gift' },
+  { prefix: 'game', icon: 'gift' },
   { prefix: 'approval', icon: 'check-circle' },
   { prefix: 'deadline', icon: 'clock' },
   { prefix: 'task', icon: 'check-square' },
