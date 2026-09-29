@@ -52,14 +52,32 @@ export const CONTENT_STATUS: Record<Enums['content_status'], Labelled & { icon: 
   shooting: { label: 'Syomka', tone: 'violet', icon: 'video' },
   shot: { label: 'Suratga olindi', tone: 'violet', icon: 'film' },
   editing: { label: 'Montaj', tone: 'accent', icon: 'scissors' },
-  internal_review: { label: 'Ichki tekshiruv', tone: 'info', icon: 'eye' },
-  client_review: { label: 'Tasdiqlash kutilmoqda', tone: 'warning', icon: 'clock' },
-  revision: { label: 'Revision', tone: 'danger', icon: 'rotate-ccw' },
-  approved: { label: 'Tasdiqlandi', tone: 'success', icon: 'check-circle' },
-  scheduled: { label: 'Rejalashtirildi', tone: 'info', icon: 'calendar' },
+  internal_review: { label: 'Tekshiruv', tone: 'info', icon: 'eye' },
+  client_review: { label: 'Mijoz tasdiqlashi', tone: 'warning', icon: 'clock' },
+  revision: { label: 'O‘zgartirish', tone: 'danger', icon: 'rotate-ccw' },
+  approved: { label: 'Tayyor', tone: 'success', icon: 'check-circle' },
+  scheduled: { label: 'Rejalashtirilgan', tone: 'info', icon: 'calendar' },
   published: { label: 'Joylandi', tone: 'success', icon: 'send' },
   cancelled: { label: 'Bekor qilindi', tone: 'neutral', icon: 'x-circle' },
 };
+
+/**
+ * What a client reads: internal steps are not theirs to track. Internal review still looks like editing,
+ * a revision is "being reworked", and their own review is phrased as a request to them.
+ */
+export function contentStatusFor(status: Enums['content_status'], isClient: boolean): Labelled & { icon: IconName } {
+  if (!isClient) return CONTENT_STATUS[status];
+  switch (status) {
+    case 'internal_review':
+      return CONTENT_STATUS.editing;
+    case 'revision':
+      return { label: 'Qayta ishlanmoqda', tone: 'accent', icon: 'rotate-ccw' };
+    case 'client_review':
+      return { label: 'Tasdig‘ingizni kutmoqda', tone: 'warning', icon: 'clock' };
+    default:
+      return CONTENT_STATUS[status];
+  }
+}
 
 /** Happy path order (revision loops back to editing; cancelled is off-path). */
 export const CONTENT_PIPELINE: Enums['content_status'][] = [
@@ -76,6 +94,26 @@ export const CONTENT_PIPELINE: Enums['content_status'][] = [
   'published',
 ];
 
+/** The production path grouped into steps people recognise (the pipeline strip on a content page). */
+export type ContentStage = { key: string; label: string; icon: IconName; statuses: Enums['content_status'][] };
+
+const STAGES: (ContentStage & { staffOnly?: boolean })[] = [
+  { key: 'idea', label: 'G‘oya', icon: 'zap', statuses: ['idea'] },
+  { key: 'script', label: 'Ssenariy', icon: 'edit-3', statuses: ['script'] },
+  { key: 'shoot', label: 'Syomka', icon: 'video', statuses: ['ready_for_shoot', 'shooting', 'shot'] },
+  { key: 'edit', label: 'Montaj', icon: 'scissors', statuses: ['editing', 'revision'] },
+  { key: 'check', label: 'Tekshiruv', icon: 'eye', statuses: ['internal_review'], staffOnly: true },
+  { key: 'client', label: 'Tasdiqlash', icon: 'check-circle', statuses: ['client_review'] },
+  { key: 'ready', label: 'Tayyor', icon: 'thumbs-up', statuses: ['approved', 'scheduled'] },
+  { key: 'live', label: 'Joylandi', icon: 'send', statuses: ['published'] },
+];
+
+/** Steps for staff or for a client (who never sees the internal check: it stays under Montaj). */
+export function contentStages(isClient: boolean): ContentStage[] {
+  if (!isClient) return STAGES;
+  return STAGES.filter((s) => !s.staffOnly).map((s) => (s.key === 'edit' ? { ...s, statuses: [...s.statuses, 'internal_review'] } : s));
+}
+
 /** 0…1 progress of a content item through production (revision sits with editing). */
 export function contentProgress(status: Enums['content_status']): number {
   if (status === 'cancelled') return 0;
@@ -87,7 +125,7 @@ export const TASK_STATUS: Record<Enums['task_status'], Labelled> = {
   todo: { label: 'Navbatda', tone: 'neutral', icon: 'circle' },
   in_progress: { label: 'Jarayonda', tone: 'accent', icon: 'play-circle' },
   in_review: { label: 'Tekshiruvda', tone: 'info', icon: 'eye' },
-  revision: { label: 'Revision', tone: 'danger', icon: 'rotate-ccw' },
+  revision: { label: 'Qayta ishlash', tone: 'danger', icon: 'rotate-ccw' },
   done: { label: 'Bajarildi', tone: 'success', icon: 'check-circle' },
   cancelled: { label: 'Bekor', tone: 'neutral', icon: 'x-circle' },
 };
@@ -144,14 +182,14 @@ export const SHOOTING_ATTENDANCE_STATUS: Record<Enums['shooting_attendance_statu
 };
 
 export const TEAM_ROLE_LABEL: Record<Enums['team_role'], string> = {
-  account_manager: 'Account manager',
-  project_manager: 'Project manager',
-  smm_manager: 'SMM manager',
+  account_manager: 'Akkaunt menejer',
+  project_manager: 'Loyiha menejeri',
+  smm_manager: 'SMM menejer',
   operator: 'Operator',
   editor: 'Montajyor',
   designer: 'Dizayner',
   copywriter: 'Kopirayter',
-  assistant: 'Assistent',
+  assistant: 'Yordamchi',
 };
 
 export const PROJECT_STATUS: Record<Enums['project_status'], Labelled> = {
@@ -178,24 +216,24 @@ export const PUBLICATION_STATUS: Record<Enums['publication_status'], Labelled> =
 
 /** Calendar event types from get_calendar_events: told apart by icon + label, not colour alone. */
 export const FOLDER_KIND: Record<Enums['folder_kind'], { label: string; hint: string; icon: IconName }> = {
-  raw: { label: 'RAW', hint: 'Syomka xom materiallari', icon: 'video' },
-  edited: { label: 'EDITED', hint: 'Montaj versiyalari', icon: 'scissors' },
-  approved: { label: 'APPROVED', hint: 'Tasdiqlangan yakuniy fayllar', icon: 'check-circle' },
-  logos: { label: 'LOGOS', hint: 'Logotiplar', icon: 'star' },
-  brandbook: { label: 'BRANDBOOK', hint: 'Brendbuk va gaydlar', icon: 'book' },
-  music: { label: 'MUSIC', hint: 'Musiqa va ovozlar', icon: 'music' },
-  photos: { label: 'PHOTOS', hint: 'Rasmlar', icon: 'image' },
-  documents: { label: 'DOCUMENTS', hint: 'Hujjatlar', icon: 'file-text' },
-  contracts: { label: 'CONTRACTS', hint: 'Shartnomalar', icon: 'briefcase' },
+  raw: { label: 'Xom materiallar', hint: 'Syomkadan kelgan video va rasmlar', icon: 'video' },
+  edited: { label: 'Montaj versiyalari', hint: 'Montajdagi videolar', icon: 'scissors' },
+  approved: { label: 'Tasdiqlangan', hint: 'Mijoz tasdiqlagan tayyor fayllar', icon: 'check-circle' },
+  logos: { label: 'Logotiplar', hint: 'Logotiplar', icon: 'star' },
+  brandbook: { label: 'Brendbuk', hint: 'Brendbuk va qo‘llanmalar', icon: 'book' },
+  music: { label: 'Musiqa', hint: 'Musiqa va ovozlar', icon: 'music' },
+  photos: { label: 'Rasmlar', hint: 'Rasmlar', icon: 'image' },
+  documents: { label: 'Hujjatlar', hint: 'Hujjatlar', icon: 'file-text' },
+  contracts: { label: 'Shartnomalar', hint: 'Shartnomalar', icon: 'briefcase' },
   custom: { label: 'Papka', hint: 'Qo‘shimcha papka', icon: 'folder' },
 };
 
 export const VERSION_STATUS: Record<Enums['version_status'], Labelled & { icon: IconName }> = {
-  internal_review: { label: 'Ichki tekshiruvda', tone: 'info', icon: 'eye' },
-  client_review: { label: 'Mijozda', tone: 'warning', icon: 'user-check' },
+  internal_review: { label: 'Tekshiruvda', tone: 'info', icon: 'eye' },
+  client_review: { label: 'Mijoz tasdiqlashida', tone: 'warning', icon: 'user-check' },
   changes_requested: { label: 'O‘zgartirish so‘raldi', tone: 'danger', icon: 'rotate-ccw' },
   approved: { label: 'Tasdiqlandi', tone: 'success', icon: 'check-circle' },
-  superseded: { label: 'Almashtirilgan', tone: 'neutral', icon: 'layers' },
+  superseded: { label: 'Eski versiya', tone: 'neutral', icon: 'layers' },
 };
 
 export const REVISION_STATUS: Record<Enums['revision_status'], Labelled> = {
@@ -207,12 +245,12 @@ export const REVISION_STATUS: Record<Enums['revision_status'], Labelled> = {
 
 export const EVENT_TYPE: Record<string, { label: string; icon: IconName; tone: BadgeTone }> = {
   shooting: { label: 'Syomka', icon: 'video', tone: 'violet' },
-  publication: { label: 'Nashr', icon: 'send', tone: 'success' },
-  approval_deadline: { label: 'Mijoz tasdig‘i', icon: 'check-circle', tone: 'warning' },
-  content_due: { label: 'Montaj muddati', icon: 'scissors', tone: 'accent' },
-  editing_deadline: { label: 'Montaj muddati', icon: 'scissors', tone: 'accent' },
-  design_deadline: { label: 'Dizayn muddati', icon: 'pen-tool', tone: 'info' },
-  task_deadline: { label: 'Vazifa muddati', icon: 'check-square', tone: 'neutral' },
+  publication: { label: 'Post', icon: 'send', tone: 'success' },
+  approval_deadline: { label: 'Tasdiqlash', icon: 'check-circle', tone: 'warning' },
+  content_due: { label: 'Montaj', icon: 'scissors', tone: 'accent' },
+  editing_deadline: { label: 'Montaj', icon: 'scissors', tone: 'accent' },
+  design_deadline: { label: 'Dizayn', icon: 'pen-tool', tone: 'info' },
+  task_deadline: { label: 'Muddat', icon: 'check-square', tone: 'neutral' },
   meeting: { label: 'Uchrashuv', icon: 'users', tone: 'info' },
   company_meeting: { label: 'Umumiy yig‘ilish', icon: 'users', tone: 'info' },
   company_holiday: { label: 'Bayram', icon: 'gift', tone: 'success' },
@@ -232,7 +270,7 @@ export const COMPANY_EVENT_KIND: Record<'meeting' | 'holiday' | 'day_off' | 'com
 };
 
 export const DOCUMENT_CATEGORY: Record<'sop' | 'guide' | 'brand' | 'policy' | 'template' | 'other', { label: string; icon: IconName }> = {
-  sop: { label: 'SOP', icon: 'list' },
+  sop: { label: 'Ish tartibi', icon: 'list' },
   guide: { label: 'Qo‘llanma', icon: 'book-open' },
   brand: { label: 'Brend aktivlari', icon: 'award' },
   policy: { label: 'Qoidalar', icon: 'shield' },
@@ -245,16 +283,16 @@ export function eventMeta(type: string) {
 }
 
 export const ROLE_LABEL: Record<string, string> = {
-  owner: 'Owner',
+  owner: 'Rahbar',
   director: 'Direktor',
   admin: 'Administrator',
-  project_manager: 'Project manager',
-  smm_manager: 'SMM manager',
+  project_manager: 'Loyiha menejeri',
+  smm_manager: 'SMM menejer',
   operator: 'Operator',
   editor: 'Montajyor',
   designer: 'Dizayner',
   copywriter: 'Kopirayter',
-  client_owner: 'Mijoz (egasi)',
+  client_owner: 'Mijoz rahbari',
   client_employee: 'Mijoz xodimi',
 };
 

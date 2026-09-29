@@ -37,8 +37,8 @@ function tabsFor(isClient: boolean, approver: boolean, counts: ApprovalCounts | 
     approver
       ? { value: 'to_review', label: `Tekshirish${n(counts?.to_review)}` }
       : { value: 'to_review', label: `Tekshiruvda${n(counts?.my_in_review)}` },
-    { value: 'waiting_client', label: `Mijozda${n(counts?.waiting_client)}` },
-    { value: 'revisions', label: `Revision${n(counts?.my_revisions)}` },
+    { value: 'waiting_client', label: `Mijoz javobi${n(counts?.waiting_client)}` },
+    { value: 'revisions', label: `O‘zgartirishlar${n(counts?.my_revisions)}` },
     { value: 'history', label: 'Tarix' },
   ];
 }
@@ -128,7 +128,7 @@ function emptyFor(tab: ApprovalTab, isClient: boolean) {
     case 'waiting_client':
       return { icon: 'user-check' as const, title: 'Mijoz javobini kutayotgan versiya yo‘q' };
     case 'revisions':
-      return { icon: 'rotate-ccw' as const, title: 'Ochiq revision yo‘q', description: 'O‘zgartirish so‘ralganda vaqtli izohlar bilan shu yerda chiqadi.' };
+      return { icon: 'rotate-ccw' as const, title: 'Ochiq o‘zgartirish yo‘q', description: 'O‘zgartirish so‘ralganda vaqtli izohlar bilan shu yerda chiqadi.' };
     default:
       return { icon: 'archive' as const, title: 'Tarix hali bo‘sh' };
   }
@@ -137,7 +137,8 @@ function emptyFor(tab: ApprovalTab, isClient: boolean) {
 function VersionCard({ v, isClient, onPress }: { v: QueueVersion; isClient: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   const c = v.content!;
-  const status = VERSION_STATUS[v.status];
+  // The client reads their own turn as a request to them, not as an internal state.
+  const status = isClient && v.status === 'client_review' ? { ...VERSION_STATUS.client_review, label: 'Tasdig‘ingizni kutmoqda' } : VERSION_STATUS[v.status];
   const due = v.status === 'client_review' ? c.client_approval_due_at : null;
   const late = !!due && new Date(due).getTime() < Date.now();
   return (
@@ -163,7 +164,7 @@ function VersionCard({ v, isClient, onPress }: { v: QueueVersion; isClient: bool
           <View style={styles.badges}>
             <Badge label={status.label} tone={status.tone} icon={status.icon} />
             {due ? <Badge label={formatRelativeDeadline(due) ?? ''} tone={late ? 'danger' : 'neutral'} icon="clock" /> : null}
-            {c.revision_count > 0 ? <Badge label={`${c.revision_count} revision`} /> : null}
+            {!isClient && c.revision_count > 0 ? <Badge label={`${c.revision_count} marta o‘zgartirildi`} /> : null}
           </View>
         </View>
       </Card>
@@ -181,7 +182,7 @@ function RevisionCard({ r, onPress }: { r: OpenRevision; onPress: () => void }) 
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
       <Card style={styles.revision}>
         <Text variant="micro" tone="tertiary" numberOfLines={1}>
-          {[c.client?.name, CONTENT_TYPE[c.content_type].label, `Revision #${r.revision_number}`, r.stage === 'client' ? 'mijoz' : 'ichki'].filter(Boolean).join(' · ').toUpperCase()}
+          {[c.client?.name, CONTENT_TYPE[c.content_type].label, `O‘zgartirish #${r.revision_number}`, r.stage === 'client' ? 'mijozdan' : 'tekshiruvdan'].filter(Boolean).join(' · ').toUpperCase()}
         </Text>
         <Text variant="bodyMedium" numberOfLines={2}>
           {c.title}

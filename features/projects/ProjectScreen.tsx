@@ -63,7 +63,7 @@ export function ProjectScreen() {
                 items={[
                   { label: 'Kontent', value: live.length },
                   { label: 'Tayyor', value: done, tone: done ? 'success' : 'primary' },
-                  { label: 'Overdue', value: overdue, tone: overdue ? 'danger' : 'primary' },
+                  { label: 'Kechikkan', value: overdue, tone: overdue ? 'danger' : 'primary' },
                   { label: 'Syomka', value: p.shootings.length },
                 ]}
               />

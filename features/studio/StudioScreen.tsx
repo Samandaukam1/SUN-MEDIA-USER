@@ -21,21 +21,20 @@ const STAFF_TABS: Tab[] = [
   { key: 'script', label: 'Ssenariy', statuses: ['script'] },
   { key: 'shooting', label: 'Syomka', statuses: ['ready_for_shoot', 'shooting', 'shot'] },
   { key: 'editing', label: 'Montaj', statuses: ['editing'] },
-  { key: 'internal', label: 'Ichki tekshiruv', statuses: ['internal_review'] },
-  { key: 'client', label: 'Mijozda', statuses: ['client_review'] },
-  { key: 'revision', label: 'Revision', statuses: ['revision'] },
-  { key: 'approved', label: 'Tasdiqlandi', statuses: ['approved'] },
-  { key: 'scheduled', label: 'Rejalashtirildi', statuses: ['scheduled'] },
+  { key: 'internal', label: 'Tekshiruv', statuses: ['internal_review'] },
+  { key: 'client', label: 'Mijoz tasdiqlashi', statuses: ['client_review'] },
+  { key: 'revision', label: 'O‘zgartirish', statuses: ['revision'] },
+  { key: 'approved', label: 'Tayyor', statuses: ['approved'] },
+  { key: 'scheduled', label: 'Rejalashtirilgan', statuses: ['scheduled'] },
   { key: 'published', label: 'Joylandi', statuses: ['published'] },
 ];
 
 // Clients think in outcomes: what is being made, what needs me, what is live.
 const CLIENT_TABS: Tab[] = [
   { key: 'all', label: 'Barchasi', statuses: null },
-  { key: 'production', label: 'Jarayonda', statuses: ['script', 'ready_for_shoot', 'shooting', 'shot', 'editing', 'internal_review'] },
   { key: 'client', label: 'Tasdiqlash kerak', statuses: ['client_review'] },
-  { key: 'revision', label: 'Revision', statuses: ['revision'] },
-  { key: 'approved', label: 'Tasdiqlandi', statuses: ['approved', 'scheduled'] },
+  { key: 'production', label: 'Tayyorlanmoqda', statuses: ['idea', 'script', 'ready_for_shoot', 'shooting', 'shot', 'editing', 'internal_review', 'revision'] },
+  { key: 'approved', label: 'Tayyor', statuses: ['approved', 'scheduled'] },
   { key: 'published', label: 'Joylandi', statuses: ['published'] },
 ];
 
@@ -79,13 +78,8 @@ export function StudioScreen() {
           <View style={styles.header}>
             <ScreenHeader
               title={s.nav.studio}
-              subtitle={isStaff ? 'Kontent ishlab chiqarish markazi' : 'Sizning kontentingiz — g‘oyadan nashrgacha'}
-              right={
-                <View style={styles.headerActions}>
-                  <IconButton icon="folder" label="Fayllar" onPress={nav.files} />
-                  <IconButton icon="sliders" label={`Filtr${filterCount ? `, ${filterCount} faol` : ''}`} onPress={() => setFiltering(true)} badge={filterCount} />
-                </View>
-              }
+              subtitle={isStaff ? 'Har bir kontent qayergacha yetgani' : 'Kontentingiz qayergacha yetgani'}
+              right={<IconButton icon="sliders" label={`Filtr${filterCount ? `, ${filterCount} faol` : ''}`} onPress={() => setFiltering(true)} badge={filterCount} />}
             />
             <SearchField value={search} onChangeText={setSearch} placeholder="Kontent nomi" />
             <ChipRow>
@@ -109,7 +103,7 @@ export function StudioScreen() {
           )
         }
         ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator style={styles.more} color={colors.textTertiary} /> : null}
-        renderItem={({ item }) => <ContentCard item={item} showClient={isStaff} onPress={() => nav.content(item.id)} />}
+        renderItem={({ item }) => <ContentCard item={item} showClient={isStaff} isClient={!isStaff} onPress={() => nav.content(item.id)} />}
       />
       {can('content.manage') ? <Fab label="Yangi kontent" onPress={() => nav.go('/content/new')} /> : null}
       <StudioFilterSheet visible={filtering} onClose={() => setFiltering(false)} value={filters} onApply={setFilters} isStaff={isStaff} />
@@ -120,7 +114,6 @@ export function StudioScreen() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   list: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: 120, gap: spacing.md },
-  headerActions: { flexDirection: 'row', gap: spacing.sm },
   header: { gap: spacing.lg, marginBottom: spacing.xs },
   more: { marginVertical: spacing.lg },
 });

@@ -32,7 +32,7 @@ export function PerformanceScreen() {
 
   return (
     <Screen edges={[]} refreshing={query.isRefetching} onRefresh={() => query.refetch()}>
-      <Stack.Screen options={{ title: 'Jamoa KPI' }} />
+      <Stack.Screen options={{ title: 'Jamoa samaradorligi' }} />
       <MonthSwitcher month={month} onChange={setMonth} />
       <SegmentedControl
         options={[

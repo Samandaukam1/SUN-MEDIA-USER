@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactElement } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Avatar, Chip, ChipRow, EmptyState, ErrorState, Icon, IconButton, ScreenHeader, SkeletonCards, Text, useToast, type IconName, PullRefreshControl } from '@/components/ui';
+import { Avatar, EmptyState, ErrorState, Icon, IconButton, ScreenHeader, SegmentedControl, SkeletonCards, Text, useToast, type IconName, PullRefreshControl } from '@/components/ui';
 import { radius, spacing } from '@/constants/theme';
 import { ApprovalsList } from '@/features/approvals/ApprovalsScreen';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
@@ -28,7 +28,7 @@ import { NewChatSheet } from './components/NewChatSheet';
 
 type Tab = 'chats' | 'approvals' | 'notifications';
 
-/** INBOX tab: conversations, what waits for my decision, and everything the system told me. */
+/** XABARLAR tab: three places only — conversations, what waits for a decision, what the system told me. */
 export function InboxScreen() {
   const s = useStrings();
   const { appInterface } = useAuth();
@@ -37,7 +37,6 @@ export function InboxScreen() {
   const [tab, setTab] = useState<Tab>('chats');
   const [composing, setComposing] = useState(false);
   const isStaff = appInterface !== 'client';
-  const n = (v: number | undefined) => (v ? ` · ${v}` : '');
 
   const header = (
     <View style={styles.header}>
@@ -45,11 +44,15 @@ export function InboxScreen() {
         title={s.nav.inbox}
         right={isStaff && tab === 'chats' ? <IconButton icon="edit" label="Yangi chat" onPress={() => setComposing(true)} /> : undefined}
       />
-      <ChipRow>
-        <Chip label={`Chatlar${n(counts.data?.chat_rooms_unread)}`} selected={tab === 'chats'} onPress={() => setTab('chats')} />
-        <Chip label={`Tasdiqlar${n(counts.data?.approvals)}`} selected={tab === 'approvals'} onPress={() => setTab('approvals')} />
-        <Chip label={`Bildirishnomalar${n(counts.data?.notifications_unread)}`} selected={tab === 'notifications'} onPress={() => setTab('notifications')} />
-      </ChipRow>
+      <SegmentedControl<Tab>
+        options={[
+          { value: 'chats', label: 'Xabarlar', count: counts.data?.chat_rooms_unread },
+          { value: 'approvals', label: 'Tasdiqlashlar', count: counts.data?.approvals },
+          { value: 'notifications', label: 'Bildirishnomalar', count: counts.data?.notifications_unread },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
     </View>
   );
 

@@ -67,7 +67,7 @@ export function MediaSection({ contentId, clientId }: { contentId: string; clien
           ) : null
         }
       </QueryView>
-      {canUpload ? <Button title="Material yuklash (RAW)" icon="upload" variant="secondary" onPress={upload} /> : null}
+      {canUpload ? <Button title="Xom material yuklash" icon="upload" variant="secondary" onPress={upload} /> : null}
     </>
   );
 }
@@ -115,7 +115,7 @@ export function ApprovalSection({ c }: { c: ContentDetail }) {
 export function RevisionSection({ c }: { c: ContentDetail }) {
   const nav = useNav();
   const revisions = [...c.revisions].sort((a, b) => b.revision_number - a.revision_number);
-  if (revisions.length === 0) return <EmptyState icon="rotate-ccw" title="Revision yo‘q" description="Mijoz yoki ichki tekshiruv o‘zgartirish so‘rasa, shu yerda ko‘rinadi." />;
+  if (revisions.length === 0) return <EmptyState icon="rotate-ccw" title="O‘zgartirish so‘ralmagan" description="Mijoz yoki tekshiruvchi o‘zgartirish so‘rasa, shu yerda ko‘rinadi." />;
   return (
     <Card padded={false}>
       {revisions.map((r, i) => (
@@ -123,7 +123,7 @@ export function RevisionSection({ c }: { c: ContentDetail }) {
           key={r.id}
           first={i === 0}
           icon="rotate-ccw"
-          title={`Revision #${r.revision_number}${r.stage === 'client' ? ' · mijoz' : ' · ichki'}`}
+          title={`O‘zgartirish #${r.revision_number}${r.stage === 'client' ? ' · mijozdan' : ' · tekshiruvdan'}`}
           subtitle={[r.summary, formatShortDateTime(r.requested_at)].filter(Boolean).join(' · ')}
           right={<Badge label={REVISION_STATUS[r.status].label} tone={REVISION_STATUS[r.status].tone} />}
           onPress={r.version_id ? () => nav.review(r.version_id!) : undefined}
@@ -142,7 +142,7 @@ export function PublishingSection({ c }: { c: ContentDetail }) {
   const canMeasure = appInterface !== 'client' && can('analytics.manage');
   const metrics = useQuery({ queryKey: ['content', 'metrics', c.id], queryFn: () => fetchPublicationMetrics(c.id), enabled: publications.some((p) => p.status === 'published') });
   const byPublication = new Map((metrics.data ?? []).map((m) => [m.publication_id, m]));
-  if (publications.length === 0) return <EmptyState icon="send" title="Nashr rejalashtirilmagan" description="Platforma va nashr vaqti kontent tahririda belgilanadi." />;
+  if (publications.length === 0) return <EmptyState icon="send" title="Post rejalashtirilmagan" description="Platforma va post vaqti kontentni tahrirlashda belgilanadi." />;
   return (
     <>
       <Card padded={false}>
@@ -182,7 +182,7 @@ export function PublishingSection({ c }: { c: ContentDetail }) {
       </Card>
       {manage && publications.some((p) => p.status !== 'published') ? (
         <Text variant="caption" tone="tertiary">
-          Nashr qilingan platformani bosing va post havolasini kiriting — kontent avtomatik “Joylandi” holatiga o‘tadi.
+          Post chiqqan platformani bosing va havolasini kiriting — kontent o‘zi “Joylandi” holatiga o‘tadi.
         </Text>
       ) : null}
       {canMeasure && publications.some((p) => p.status === 'published') ? (
@@ -272,7 +272,7 @@ function MarkPublishedSheet({ publicationId, onClose }: { publicationId: string 
   const mutation = useMutation({
     mutationFn: () => updatePublication(publicationId!, { status: 'published', post_url: url === 'https://' ? null : url }),
     onSuccess: () => {
-      toast.show('Nashr belgilandi');
+      toast.show('Joylandi deb belgilandi');
       queryClient.invalidateQueries({ queryKey: ['content'] });
       setUrl('https://');
       onClose();

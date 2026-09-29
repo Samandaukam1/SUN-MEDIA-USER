@@ -305,7 +305,7 @@ function Form({ initial }: { initial: ContentDetail | null }) {
       <FormSection title="Muddatlar">
         <DateTimeRow label="Montaj muddati" value={due} onChange={setDue} />
         <DateTimeRow label="Mijoz tasdig‘i" value={approvalDue} onChange={setApprovalDue} />
-        <DateTimeRow label="Nashr" value={publish} onChange={setPublish} />
+        <DateTimeRow label="Post vaqti" value={publish} onChange={setPublish} />
       </FormSection>
 
       <FormSection title="Ssenariy va matn">

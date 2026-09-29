@@ -4,14 +4,14 @@ import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
-import { Badge, Button, Card, EmptyState, Icon, ProgressBar, QueryView, Screen, Section, Sheet, Text, TextArea, useToast } from '@/components/ui';
+import { Badge, Button, Card, EmptyState, Icon, MetricGrid, ProgressBar, QueryView, Screen, Section, Sheet, Text, TextArea, useToast, type Metric } from '@/components/ui';
 import { CONTENT_TYPE, PLATFORM } from '@/constants/labels';
 import { radius, spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useTheme } from '@/hooks/useTheme';
 import { formatShortDateTime } from '@/lib/time';
 import type { Database } from '@/types/database';
-import { deltaPercent, deltaPoints, fetchReport, formatNumber, generateReport, publishReport, saveHighlights, unpublishReport, type Report, type ReportMetric } from './api';
+import { deltaPercent, deltaPoints, fetchReport, formatCompact, formatNumber, generateReport, publishReport, saveHighlights, unpublishReport, type Report, type ReportMetric } from './api';
 import { ReportPdfButton } from './ReportPdf';
 
 type Enums = Database['public']['Enums'];
@@ -36,7 +36,10 @@ export function formatMetric(m: Pick<ReportMetric, 'value' | 'unit' | 'key'>): s
   return m.unit && !['ta', 'dona'].includes(m.unit) ? `${formatNumber(m.value)} ${m.unit}` : formatNumber(m.value);
 }
 
-/** One monthly report: plan vs delivery, social growth, top content, production and approvals. */
+/**
+ * One monthly report. The first screen answers "what did SUN MEDIA do for us this month" in a few big numbers;
+ * plan vs delivery, social details, production and approvals open under "Batafsil hisobot".
+ */
 export function ReportScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useQuery({ queryKey: ['reports', 'detail', id], queryFn: () => fetchReport(id), enabled: !!id });
@@ -56,6 +59,7 @@ function ReportBody({ report }: { report: Report }) {
   const queryClient = useQueryClient();
   const { colors } = useTheme();
   const [editing, setEditing] = useState(false);
+  const [details, setDetails] = useState(false);
   const manage = appInterface !== 'client' && can('reports.manage');
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['reports'] });
 
@@ -113,10 +117,16 @@ function ReportBody({ report }: { report: Report }) {
   ) : null;
 
   const bySection = (key: ReportMetric['section']) => report.metrics.filter((m) => m.section === key && (m.value != null || m.target != null));
-  const completion = report.metrics.find((m) => m.key === 'calendar.completion_rate');
-  const delivered = bySection('delivery').filter((m) => m.target != null);
-  const deliveredTotal = delivered.reduce((s, m) => s + (m.value ?? 0), 0);
-  const plannedTotal = delivered.reduce((s, m) => s + (m.target ?? 0), 0);
+  const metric = (key: string) => report.metrics.find((m) => m.key === key);
+  const views = metric('social.views');
+  const growth = metric('social.followers_growth');
+  const summary: Metric[] = [
+    ...bySection('delivery')
+      .filter((m) => (m.value ?? 0) > 0 && m.target != null)
+      .map((m) => ({ label: m.label, value: formatNumber(m.value) })),
+    ...(views?.value ? [{ label: 'Ko‘rish', value: formatCompact(views.value) }] : []),
+    ...(growth?.value ? [{ label: 'Yangi obunachi', value: `${growth.value > 0 ? '+' : ''}${formatCompact(growth.value)}`, tone: growth.value > 0 ? ('brand' as const) : ('hero' as const) }] : []),
+  ].slice(0, 6);
 
   return (
     <>
@@ -125,37 +135,28 @@ function ReportBody({ report }: { report: Report }) {
           <Text variant="label" tone="heroSecondary" style={styles.flex}>
             {`${report.client.name}${report.plan_name ? ` · ${report.plan_name}` : ''}`}
           </Text>
-          {manage ? <Badge label={report.status === 'published' ? 'Nashr qilingan' : 'Qoralama'} tone={report.status === 'published' ? 'success' : 'warning'} /> : null}
+          {manage ? <Badge label={report.status === 'published' ? 'Mijozga yuborilgan' : 'Qoralama'} tone={report.status === 'published' ? 'success' : 'warning'} /> : null}
         </View>
-        <Text variant="display" tone="hero">
+        <Text variant="title" tone="hero">
           {report.month_label}
         </Text>
-        <View style={styles.heroNumbers}>
-          <View style={styles.flex}>
-            <Text variant="metric" tone="hero">
-              {completion?.value != null ? `${formatNumber(completion.value)}%` : '—'}
-            </Text>
-            <Text variant="caption" tone="heroSecondary">
-              Kontent reja bajarilishi
-            </Text>
-          </View>
-          <View style={styles.flex}>
-            <Text variant="metric" tone="hero">
-              {plannedTotal ? `${deliveredTotal}/${plannedTotal}` : formatNumber(deliveredTotal)}
-            </Text>
-            <Text variant="caption" tone="heroSecondary">
-              Tarif bo‘yicha yetkazildi
-            </Text>
-          </View>
-        </View>
-        {completion?.value != null ? <ProgressBar value={completion.value / 100} tone="brand" height={6} label="Reja bajarilishi" /> : null}
+        <Text variant="caption" tone="heroSecondary">
+          Bu oy SUN MEDIA siz uchun:
+        </Text>
+        {summary.length ? (
+          <MetricGrid items={summary} />
+        ) : (
+          <Text variant="body" tone="hero">
+            Bu oy uchun hali natija kiritilmagan.
+          </Text>
+        )}
       </Card>
 
       <View style={styles.actions}>
         <ReportPdfButton report={report} />
         {manage ? (
           <Button
-            title={report.status === 'published' ? 'Qoralamaga qaytarish' : 'Mijozga nashr qilish'}
+            title={report.status === 'published' ? 'Qoralamaga qaytarish' : 'Mijozga yuborish'}
             icon={report.status === 'published' ? 'rotate-ccw' : 'send'}
             variant={report.status === 'published' ? 'secondary' : 'primary'}
             size="md"
@@ -164,7 +165,7 @@ function ReportBody({ report }: { report: Report }) {
             loading={publish.isPending}
             onPress={() =>
               Alert.alert(
-                report.status === 'published' ? 'Qoralamaga qaytarilsinmi?' : 'Mijozga nashr qilinsinmi?',
+                report.status === 'published' ? 'Qoralamaga qaytarilsinmi?' : 'Mijozga yuborilsinmi?',
                 report.status === 'published' ? 'Mijoz hisobotni ko‘rmay qoladi.' : 'Mijoz bildirishnoma oladi va hisobotni ko‘radi.',
                 [
                   { text: 'Bekor qilish', style: 'cancel' },
@@ -179,12 +180,19 @@ function ReportBody({ report }: { report: Report }) {
       <Section title="Oy yutuqlari" actionLabel={manage ? 'Tahrirlash' : undefined} onAction={manage ? () => setEditing(true) : undefined}>
         <Card>
           <Text variant="body" tone={report.highlights ? 'primary' : 'tertiary'}>
-            {report.highlights ?? (manage ? 'Account manager oy yutuqlarini shu yerga yozadi.' : 'Izoh qo‘shilmagan.')}
+            {report.highlights ?? (manage ? 'Menejer oyning asosiy yutuqlarini shu yerga yozadi.' : 'Izoh qo‘shilmagan.')}
           </Text>
         </Card>
       </Section>
 
-      {SECTIONS.map((s) => {
+      <Button
+        title={details ? 'Batafsil hisobotni yopish' : 'Batafsil hisobot'}
+        icon={details ? 'chevron-up' : 'chevron-down'}
+        variant="secondary"
+        onPress={() => setDetails(!details)}
+      />
+
+      {details ? SECTIONS.map((s) => {
         const items = bySection(s.key);
         // Best posts read right after the social numbers, before production details.
         const lead = s.key === 'production' ? topContents : null;
@@ -202,7 +210,7 @@ function ReportBody({ report }: { report: Report }) {
             </Section>
           </View>
         );
-      })}
+      }) : null}
 
       {manage ? (
         <Card variant="sunken" style={styles.meta}>
@@ -303,7 +311,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
   hero: { gap: spacing.sm },
-  heroNumbers: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.sm },
   actions: { flexDirection: 'row', gap: spacing.md },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   sectionWrap: { gap: spacing.xl },

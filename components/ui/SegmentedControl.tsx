@@ -5,7 +5,8 @@ import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { Text } from './Text';
 
-type Option<T extends string> = { value: T; label: string };
+/** `count` > 0 puts a small dot on the segment (unread, waiting…); the number is read out by screen readers. */
+type Option<T extends string> = { value: T; label: string; count?: number };
 
 export function SegmentedControl<T extends string>({
   options,
@@ -26,6 +27,7 @@ export function SegmentedControl<T extends string>({
             key={option.value}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
+            accessibilityLabel={option.count ? `${option.label}, ${option.count}` : option.label}
             onPress={() => {
               if (active) return;
               if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => undefined);
@@ -37,9 +39,10 @@ export function SegmentedControl<T extends string>({
               active && scheme === 'light' && styles.lift,
             ]}
           >
-            <Text variant="captionMedium" style={{ color: active ? colors.text : colors.textSecondary }} numberOfLines={1}>
+            <Text variant="captionMedium" style={{ color: active ? colors.text : colors.textSecondary }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
               {option.label}
             </Text>
+            {option.count ? <View style={[styles.dot, { backgroundColor: colors.brand, borderColor: colors.accent }]} /> : null}
           </Pressable>
         );
       })}
@@ -49,6 +52,7 @@ export function SegmentedControl<T extends string>({
 
 const styles = StyleSheet.create({
   track: { flexDirection: 'row', padding: 3, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth },
-  segment: { flex: 1, height: 34, borderRadius: radius.sm + 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm },
+  segment: { flex: 1, height: 34, borderRadius: radius.sm + 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: spacing.xs + 2 },
+  dot: { width: 8, height: 8, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth },
   lift: { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
 });

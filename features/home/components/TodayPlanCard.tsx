@@ -7,17 +7,12 @@ import { useTheme } from '@/hooks/useTheme';
 import { formatTime } from '@/lib/time';
 import type { TodayContent, TodayShooting } from '../api';
 
-const names = (people: { person: { full_name: string } | null }[]) =>
-  people.map((p) => p.person?.full_name).filter(Boolean).join(', ') || null;
-
-/** One shooting of the day with everything the client needs to know about it. */
+/** One shooting of the day: when, where, which video and when it will be ready — no internal crew details. */
 export function TodayPlanCard({ shooting, contents, onPress }: { shooting: TodayShooting; contents: TodayContent[]; onPress?: () => void }) {
   const { colors } = useTheme();
   const status = SHOOTING_STATUS[shooting.status];
   const primary = contents[0];
   const publication = primary?.publications.find((p) => p.status !== 'cancelled') ?? null;
-  const editors = contents.flatMap((c) => c.team.filter((t) => t.role === 'editor'));
-  const operators = shooting.crew.filter((c) => c.role === 'operator');
 
   return (
     <Card onPress={onPress} accessibilityLabel={`${formatTime(shooting.starts_at)} ${shooting.title}`}>
@@ -40,13 +35,11 @@ export function TodayPlanCard({ shooting, contents, onPress }: { shooting: Today
         </View>
       </View>
       <View style={styles.rows}>
-        <InfoRow icon="map-pin" label="Lokatsiya" value={shooting.location_name ?? shooting.location_address} />
+        <InfoRow icon="map-pin" label="Manzil" value={[shooting.location_name, shooting.location_address].filter(Boolean).join(', ') || null} />
         <InfoRow icon="film" label="Video" value={contents.map((c) => `“${c.title}”`).join('\n') || null} />
         <InfoRow icon="maximize" label="Format" value={primary ? contentFormat(primary.content_type, publication?.platform) : null} />
-        <InfoRow icon="video" label="Operator" value={names(operators)} />
-        <InfoRow icon="scissors" label="Montaj" value={names(editors)} />
         <InfoRow icon="clock" label="Tayyor bo‘ladi" value={primary?.due_at ? formatTime(primary.due_at) : null} />
-        <InfoRow icon="send" label="Nashr" value={publication?.scheduled_at ? formatTime(publication.scheduled_at) : null} />
+        <InfoRow icon="send" label="Post" value={publication?.scheduled_at ? formatTime(publication.scheduled_at) : null} />
       </View>
     </Card>
   );

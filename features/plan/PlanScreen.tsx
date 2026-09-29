@@ -12,7 +12,7 @@ import { cancelUpgrade, fetchClientPlan, formatMoney, requestUpgrade, type Clien
 
 const STATUS_LABEL = { scheduled: 'Rejalashtirilgan', active: 'Faol', expired: 'Tugagan', cancelled: 'Bekor qilingan' } as const;
 
-/** Client "Tarif": what was bought, how much is used, and a request to change the plan. */
+/** Client "Mening tarifim": what is included and how much is left; changing the plan is one button away. */
 export function PlanScreen() {
   const me = useMe();
   const [clientId, setClientId] = useState(me.clients[0]?.id ?? null);
@@ -20,7 +20,7 @@ export function PlanScreen() {
 
   return (
     <Screen edges={[]} refreshing={query.isRefetching} onRefresh={() => query.refetch()}>
-      <Stack.Screen options={{ title: 'Tarif va foydalanish' }} />
+      <Stack.Screen options={{ title: 'Mening tarifim' }} />
       {me.clients.length > 1 ? (
         <ChipRow>
           {me.clients.map((c) => (
@@ -42,7 +42,7 @@ function PlanBody({ clientId, plan }: { clientId: string; plan: ClientPlan }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const { colors } = useTheme();
-  const [choosing, setChoosing] = useState<ClientPlan['plans'][number] | null>(null);
+  const [changing, setChanging] = useState(false);
   const current = plan.current;
   const canRequest = can('client.plan.request_upgrade');
   const refresh = () => ['plan', 'home'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
@@ -129,7 +129,7 @@ function PlanBody({ clientId, plan }: { clientId: string; plan: ClientPlan }) {
             />
           ) : null}
         </Card>
-      ) : plan.last_decision ? (
+      ) : plan.last_decision && !(plan.last_decision.status === 'approved' && plan.upcoming?.plan_name === plan.last_decision.plan_name) ? (
         <Card style={[styles.notice, { borderColor: plan.last_decision.status === 'approved' ? colors.success : colors.danger }]}>
           <View style={styles.row}>
             <Icon name={plan.last_decision.status === 'approved' ? 'check-circle' : 'x-circle'} size={18} color={plan.last_decision.status === 'approved' ? colors.success : colors.danger} />
@@ -146,7 +146,7 @@ function PlanBody({ clientId, plan }: { clientId: string; plan: ClientPlan }) {
       ) : null}
 
       {current ? (
-        <Section title="Foydalanish">
+        <Section title="Bu davrda">
           <Card style={styles.usage}>
             {quantitative.map((u) => {
               const planned = u.planned ?? 0;
@@ -185,44 +185,9 @@ function PlanBody({ clientId, plan }: { clientId: string; plan: ClientPlan }) {
         </Section>
       ) : null}
 
-      <Section title="Tariflar">
-        {plan.plans.map((p) => (
-          <Card key={p.id} style={[styles.planCard, p.is_current && { borderColor: colors.accent, borderWidth: 1.5 }]}>
-            <View style={styles.row}>
-              <View style={styles.flex}>
-                <Text variant="heading">{p.name}</Text>
-                <Text variant="caption" tone="secondary">
-                  {`${formatMoney(p.price, p.currency)} · ${p.duration_months === 1 ? 'oyiga' : `${p.duration_months} oyga`}`}
-                </Text>
-              </View>
-              {p.is_current ? <Badge label="Joriy" tone="accent" /> : p.is_custom ? <Badge label="Siz uchun" tone="violet" /> : null}
-            </View>
-            {p.description ? (
-              <Text variant="caption" tone="secondary">
-                {p.description}
-              </Text>
-            ) : null}
-            <View style={styles.features}>
-              {p.features.map((f, i) => (
-                <View key={i} style={styles.row}>
-                  <Icon name="check" size={14} color={colors.success} />
-                  <Text variant="caption" style={styles.flex}>
-                    {f.quantity == null ? f.service_name : `${f.service_name}: ${f.quantity} ${f.unit}`}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            {!p.is_current && canRequest && !plan.pending_request ? (
-              <Button title="Shu tarifga o‘tish" icon="arrow-up-right" variant="secondary" size="md" onPress={() => setChoosing(p)} />
-            ) : null}
-          </Card>
-        ))}
-        {!canRequest ? (
-          <Text variant="caption" tone="tertiary">
-            Tarifni o‘zgartirish so‘rovini kompaniya egasi yuboradi.
-          </Text>
-        ) : null}
-      </Section>
+      {canRequest && !plan.pending_request ? (
+        <Button title="Tarifni o‘zgartirish" icon="repeat" variant="secondary" onPress={() => setChanging(true)} />
+      ) : null}
 
       {plan.history.length ? (
         <Section title="Oldingi davrlar">
@@ -241,39 +206,83 @@ function PlanBody({ clientId, plan }: { clientId: string; plan: ClientPlan }) {
         </Section>
       ) : null}
 
-      <RequestSheet clientId={clientId} target={choosing} onClose={() => setChoosing(null)} onSent={refresh} />
+      <ChangePlanSheet clientId={clientId} plans={plan.plans} visible={changing} onClose={() => setChanging(false)} onSent={refresh} />
     </>
   );
 }
 
-function RequestSheet({ clientId, target, onClose, onSent }: { clientId: string; target: ClientPlan['plans'][number] | null; onClose: () => void; onSent: () => void }) {
+/** Step 1: pick a plan from the catalogue. Step 2: an optional note, then the request goes to the manager. */
+function ChangePlanSheet({ clientId, plans, visible, onClose, onSent }: { clientId: string; plans: ClientPlan['plans']; visible: boolean; onClose: () => void; onSent: () => void }) {
   const toast = useToast();
+  const { colors } = useTheme();
+  const [target, setTarget] = useState<ClientPlan['plans'][number] | null>(null);
   const [message, setMessage] = useState('');
+  const close = () => {
+    setTarget(null);
+    onClose();
+  };
   const send = useMutation({
     mutationFn: () => requestUpgrade(clientId, target!.id, message),
     onSuccess: () => {
       toast.show('So‘rov yuborildi. Menejer tez orada javob beradi.');
       setMessage('');
       onSent();
-      onClose();
+      close();
     },
     onError: toast.error,
   });
+  const price = (p: ClientPlan['plans'][number]) => `${formatMoney(p.price, p.currency)} · ${p.duration_months === 1 ? 'oyiga' : `${p.duration_months} oyga`}`;
+
   return (
-    <Sheet visible={!!target} onClose={onClose} title="Tarifni o‘zgartirish" actionLabel="Yuborish" actionDisabled={send.isPending} onAction={() => send.mutate()}>
+    <Sheet
+      visible={visible}
+      onClose={close}
+      title={target ? target.name : 'Tarifni tanlang'}
+      actionLabel={target ? 'Yuborish' : undefined}
+      actionDisabled={send.isPending}
+      onAction={target ? () => send.mutate() : undefined}
+    >
       {target ? (
-        <Card style={styles.planCard}>
-          <Text variant="heading">{target.name}</Text>
-          <Text variant="caption" tone="secondary">
-            {`${formatMoney(target.price, target.currency)} · ${target.duration_months === 1 ? 'oyiga' : `${target.duration_months} oyga`}`}
+        <>
+          <Card style={styles.planCard}>
+            <Text variant="heading">{target.name}</Text>
+            <Text variant="caption" tone="secondary">
+              {price(target)}
+            </Text>
+          </Card>
+          <TextArea label="Izoh (ixtiyoriy)" value={message} onChangeText={setMessage} maxLength={2000} minHeight={100} placeholder="Masalan: keyingi oydan ko‘proq reels kerak" />
+          <Text variant="caption" tone="tertiary">
+            So‘rov menejerga boradi. Tasdiqlansa, yangi tarif belgilangan sanadan ishga tushadi va sizga xabar keladi.
           </Text>
-        </Card>
-      ) : null}
-      <TextArea label="Izoh (ixtiyoriy)" value={message} onChangeText={setMessage} maxLength={2000} minHeight={100} placeholder="Masalan: keyingi oydan ko‘proq reels kerak" />
-      <Text variant="caption" tone="tertiary">
-        So‘rov menejerga boradi. Tasdiqlansa, yangi tarif belgilangan sanadan ishga tushadi va sizga xabar keladi.
-      </Text>
-      <Button title="So‘rov yuborish" icon="send" loading={send.isPending} onPress={() => send.mutate()} />
+          <Button title="So‘rov yuborish" icon="send" loading={send.isPending} onPress={() => send.mutate()} />
+          <Button title="Boshqa tarif tanlash" variant="ghost" size="md" onPress={() => setTarget(null)} />
+        </>
+      ) : (
+        plans.map((p) => (
+          <Card key={p.id} style={[styles.planCard, p.is_current && { borderColor: colors.accent, borderWidth: 1.5 }]}>
+            <View style={styles.row}>
+              <View style={styles.flex}>
+                <Text variant="heading">{p.name}</Text>
+                <Text variant="caption" tone="secondary">
+                  {price(p)}
+                </Text>
+              </View>
+              {p.is_current ? <Badge label="Hozirgi" tone="accent" /> : p.is_custom ? <Badge label="Siz uchun" tone="violet" /> : null}
+            </View>
+            <View style={styles.features}>
+              {p.features.map((f, i) => (
+                <View key={i} style={styles.row}>
+                  <Icon name="check" size={14} color={colors.success} />
+                  <Text variant="caption" style={styles.flex}>
+                    {f.quantity == null ? f.service_name : `${f.service_name}: ${f.quantity} ${f.unit}`}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            {!p.is_current ? <Button title="Shu tarifni tanlash" variant="secondary" size="md" onPress={() => setTarget(p)} /> : null}
+          </Card>
+        ))
+      )}
     </Sheet>
   );
 }

@@ -169,7 +169,7 @@ function SubmitForm({ content }: { content: Content }) {
       {can('approvals.manage') ? (
         <ToggleRow
           label="To‘g‘ridan-to‘g‘ri mijozga yuborish"
-          description="Ichki tekshiruvni o‘tkazib yuboradi"
+          description="Tekshiruvsiz to‘g‘ridan-to‘g‘ri mijozga boradi"
           value={toClient}
           onChange={setToClient}
           disabled={busy}

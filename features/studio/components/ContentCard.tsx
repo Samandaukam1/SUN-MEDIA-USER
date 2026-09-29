@@ -1,89 +1,65 @@
 import { StyleSheet, View } from 'react-native';
 
-import { AvatarStack, Badge, Card, Icon, ProgressBar, Text } from '@/components/ui';
-import { CONTENT_STATUS, CONTENT_TYPE, contentProgress, PLATFORM, PRIORITY } from '@/constants/labels';
+import { Badge, Card, Text } from '@/components/ui';
+import { contentStatusFor, CONTENT_TYPE } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/useTheme';
 import { formatRelativeDeadline, formatShortDateTime } from '@/lib/time';
 import { isContentOverdue, type StudioItem } from '../api';
 import { ContentThumb } from './ContentThumb';
 
-/** Studio card: thumbnail, title, client, platform · type, status, pipeline progress, team, deadlines. */
 const FINISHED = ['approved', 'scheduled', 'published', 'cancelled'];
 
-export function ContentCard({ item, onPress, showClient = true }: { item: StudioItem; onPress: () => void; showClient?: boolean }) {
-  const { colors } = useTheme();
-  const status = CONTENT_STATUS[item.status];
-  const overdue = isContentOverdue(item);
-  const publication = item.publications.find((p) => p.status !== 'cancelled');
-  const platforms = [...new Set(item.publications.filter((p) => p.status !== 'cancelled').map((p) => p.platform))];
-  const editor = item.team.find((t) => t.role === 'editor')?.person;
-  const operator = item.team.find((t) => t.role === 'operator')?.person;
-  const people = item.team.map((t) => t.person).filter((p): p is NonNullable<typeof p> => !!p);
-  const unique = [...new Map(people.map((p) => [p.id, p])).values()];
+/**
+ * Studio card: only what is needed to pick the right item — picture, name, client, status, one date.
+ * Team, platforms and history live on the content page.
+ */
+export function ContentCard({ item, onPress, showClient = true, isClient = false }: { item: StudioItem; onPress: () => void; showClient?: boolean; isClient?: boolean }) {
+  const status = contentStatusFor(item.status, isClient);
+  const overdue = !isClient && isContentOverdue(item);
+  const post = item.publications.find((p) => p.status !== 'cancelled' && p.scheduled_at)?.scheduled_at ?? null;
+  const date = dateLine(item, isClient, overdue, post);
 
   return (
     <Card onPress={onPress} accessibilityLabel={`${item.title}, ${status.label}${overdue ? ', muddati o‘tgan' : ''}`}>
       <View style={styles.row}>
         <ContentThumb file={item.thumbnail} type={item.content_type} code={item.client?.code} />
         <View style={styles.body}>
-          <View style={styles.kicker}>
-            {platforms.length ? (
-              platforms.slice(0, 3).map((p) => <Icon key={p} name={PLATFORM[p].icon} size={12} color={colors.textTertiary} />)
-            ) : null}
-            <Text variant="micro" tone="tertiary" numberOfLines={1} style={styles.flex}>
-              {[showClient ? item.client?.name : null, CONTENT_TYPE[item.content_type].label, item.number ? `#${item.number}` : null].filter(Boolean).join(' · ')}
-            </Text>
-            {item.priority === 'urgent' || item.priority === 'high' ? <Icon name={PRIORITY[item.priority].icon ?? 'arrow-up'} size={13} color={colors.warning} /> : null}
-          </View>
+          <Text variant="micro" tone="tertiary" numberOfLines={1}>
+            {[showClient ? item.client?.name : null, CONTENT_TYPE[item.content_type].label].filter(Boolean).join(' · ')}
+          </Text>
           <Text variant="subheading" numberOfLines={2}>
             {item.title}
           </Text>
           <View style={styles.statusRow}>
             <Badge label={status.label} tone={status.tone} icon={status.icon} />
-            {item.revision_count > 0 ? <Badge label={`${item.revision_count} revision`} tone="danger" /> : null}
           </View>
+          {date ? (
+            <Text variant="caption" tone={overdue ? 'danger' : 'secondary'} numberOfLines={1}>
+              {date}
+            </Text>
+          ) : null}
         </View>
       </View>
-      <View style={styles.progress}>
-        <ProgressBar value={contentProgress(item.status)} height={4} tone={item.status === 'revision' ? 'danger' : 'accent'} label="Ishlab chiqarish jarayoni" />
-      </View>
-      {unique.length ? (
-        <View style={styles.footer}>
-          <AvatarStack people={unique.map((p) => ({ id: p.id, name: p.full_name, avatarUrl: p.avatar_url }))} size={22} max={4} />
-          <Text variant="caption" tone="secondary" numberOfLines={1} style={styles.flex}>
-            {[editor ? `Montaj: ${editor.full_name.split(' ')[0]}` : null, operator ? `Operator: ${operator.full_name.split(' ')[0]}` : null].filter(Boolean).join(' · ')}
-          </Text>
-        </View>
-      ) : null}
-      {item.due_at || publication?.scheduled_at ? (
-      <View style={styles.dates}>
-        {item.due_at ? (
-          <Text variant="captionMedium" tone={overdue ? 'danger' : 'secondary'}>
-            {overdue ? 'Muddat o‘tdi · ' : 'Muddat · '}
-            {formatShortDateTime(item.due_at)}
-            {/* Finished work has nothing left to count down to. */}
-            {!overdue && !FINISHED.includes(item.status) && formatRelativeDeadline(item.due_at) ? ` · ${formatRelativeDeadline(item.due_at)}` : ''}
-          </Text>
-        ) : null}
-        {publication?.scheduled_at ? (
-          <Text variant="caption" tone="tertiary">
-            Nashr · {formatShortDateTime(publication.scheduled_at)}
-          </Text>
-        ) : null}
-      </View>
-      ) : null}
     </Card>
   );
+}
+
+/** Staff see the work deadline; a client sees when the post goes out (or when their answer is due). */
+function dateLine(item: StudioItem, isClient: boolean, overdue: boolean, post: string | null): string | null {
+  if (isClient) {
+    if (item.status === 'client_review' && item.client_approval_due_at) return `Javob: ${formatShortDateTime(item.client_approval_due_at)}`;
+    if (item.status === 'published') return null;
+    return post ? `Post: ${formatShortDateTime(post)}` : null;
+  }
+  if (FINISHED.includes(item.status)) return post && item.status !== 'published' ? `Post: ${formatShortDateTime(post)}` : null;
+  if (!item.due_at) return null;
+  if (overdue) return `Muddat o‘tdi · ${formatShortDateTime(item.due_at)}`;
+  const left = formatRelativeDeadline(item.due_at);
+  return `Muddat: ${formatShortDateTime(item.due_at)}${left ? ` · ${left}` : ''}`;
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.md },
   body: { flex: 1, gap: 4 },
-  kicker: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  flex: { flex: 1 },
   statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs + 2, marginTop: 2 },
-  progress: { marginTop: spacing.md },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
-  dates: { marginTop: spacing.xs + 2, gap: 2 },
 });

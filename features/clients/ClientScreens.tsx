@@ -225,7 +225,7 @@ function ClientBody({ o }: { o: ClientOverview }) {
                   first={i === 0}
                   icon="bar-chart-2"
                   title={formatMonthYear(r.period_month)}
-                  right={<Badge label={r.status === 'published' ? 'Nashr qilingan' : 'Qoralama'} tone={r.status === 'published' ? 'success' : 'warning'} />}
+                  right={<Badge label={r.status === 'published' ? 'Mijozga yuborilgan' : 'Qoralama'} tone={r.status === 'published' ? 'success' : 'warning'} />}
                   onPress={() => nav.report(r.id)}
                 />
               ))}

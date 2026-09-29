@@ -32,7 +32,7 @@ const TASK_EVENTS = new Set(['editing_deadline', 'design_deadline', 'task_deadli
 const GROUPS: { key: EventGroup; label: string; staffOnly?: boolean }[] = [
   { key: 'all', label: 'Barchasi' },
   { key: 'shooting', label: 'Syomka' },
-  { key: 'publication', label: 'Nashr' },
+  { key: 'publication', label: 'Post' },
   { key: 'deadline', label: 'Muddatlar' },
   { key: 'approval', label: 'Tasdiqlash' },
   { key: 'company', label: 'Kompaniya', staffOnly: true },
@@ -96,7 +96,7 @@ export function CalendarScreen() {
     <Screen refreshing={query.isRefetching} onRefresh={() => query.refetch()} contentStyle={can('shootings.manage') ? { paddingBottom: 110 } : undefined}>
       <ScreenHeader
         title={s.nav.calendar}
-        subtitle={isStaff ? 'Syomkalar, muddatlar, tasdiqlash va nashrlar' : 'Sizning kontent rejangiz'}
+        subtitle={isStaff ? 'Qachon nima bo‘lishi' : 'Syomka, tasdiqlash va postlaringiz'}
         right={selected !== today ? <Button title="Bugun" size="md" variant="secondary" fullWidth={false} onPress={() => setSelected(today)} /> : undefined}
       />
       <SegmentedControl<View_>

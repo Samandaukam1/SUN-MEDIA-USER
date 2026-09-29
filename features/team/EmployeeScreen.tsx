@@ -34,7 +34,7 @@ export function EmployeeScreen() {
   const self = id === me.userId;
   const tabs: { key: Tab; label: string; show: boolean }[] = [
     { key: 'overview', label: 'Umumiy', show: true },
-    { key: 'kpi', label: 'KPI', show: self || can('performance.read') },
+    { key: 'kpi', label: 'Natijalar', show: self || can('performance.read') },
     { key: 'attendance', label: 'Davomat', show: self || can('attendance.read') },
     { key: 'tasks', label: 'Vazifalar', show: self || can('tasks.read_all') },
   ];
@@ -117,7 +117,7 @@ function Overview({ member }: { member: TeamMember }) {
               items={[
                 { label: 'Ochiq vazifa', value: member.open_tasks ?? 0 },
                 { label: 'Bugun muddat', value: member.due_today ?? 0 },
-                { label: 'Overdue', value: member.overdue_tasks ?? 0, tone: member.overdue_tasks ? 'danger' : 'primary' },
+                { label: 'Kechikkan', value: member.overdue_tasks ?? 0, tone: member.overdue_tasks ? 'danger' : 'primary' },
                 { label: 'Syomka', value: member.shootings_today ?? 0 },
               ]}
             />

@@ -13,11 +13,11 @@ import { TaskCard, type TaskSummary } from './components/TaskCard';
 
 const TABS: { key: string; label: string; statuses?: TaskStatus[]; overdue?: boolean }[] = [
   { key: 'open', label: 'Faol', statuses: OPEN_STATUSES },
-  { key: 'overdue', label: 'Overdue', overdue: true },
+  { key: 'overdue', label: 'Kechikkan', overdue: true },
   { key: 'todo', label: 'Navbatda', statuses: ['todo'] },
   { key: 'progress', label: 'Jarayonda', statuses: ['in_progress'] },
   { key: 'review', label: 'Tekshiruvda', statuses: ['in_review'] },
-  { key: 'revision', label: 'Revision', statuses: ['revision'] },
+  { key: 'revision', label: 'Qayta ishlash', statuses: ['revision'] },
   { key: 'done', label: 'Bajarildi', statuses: ['done'] },
   { key: 'cancelled', label: 'Bekor', statuses: ['cancelled'] },
 ];

@@ -14,6 +14,7 @@ export { IconButton } from './IconButton';
 export { ItemRow } from './ItemRow';
 export { KeyValue } from './KeyValue';
 export { ListGroup, ListRow } from './ListRow';
+export { MetricGrid, type Metric } from './MetricGrid';
 export { OfflineBanner } from './OfflineBanner';
 export { ProgressBar } from './ProgressBar';
 export { QueryView } from './QueryView';

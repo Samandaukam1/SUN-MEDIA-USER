@@ -121,6 +121,15 @@ export function formatNumber(value: number | null | undefined): string {
   return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + (frac ? `,${frac}` : '');
 }
 
+/** Short form for big numbers on the summary: 2,7 mln · 412 ming · 950. */
+export function formatCompact(value: number | null | undefined): string {
+  if (value == null) return '—';
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `${formatNumber(Math.round(value / 100_000) / 10)} mln`;
+  if (abs >= 10_000) return `${formatNumber(Math.round(value / 1000))} ming`;
+  return formatNumber(value);
+}
+
 /** Difference in percentage points for metrics that are already percentages (engagement, completion). */
 export function deltaPoints(value: number | null, previous: number | null): number | null {
   if (value == null || previous == null) return null;

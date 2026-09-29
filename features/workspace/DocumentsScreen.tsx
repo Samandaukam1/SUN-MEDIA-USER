@@ -32,7 +32,7 @@ export function DocumentsScreen() {
     <Screen edges={[]} refreshing={query.isRefetching} onRefresh={() => query.refetch()}>
       <Stack.Screen
         options={{
-          title: 'Hujjatlar va SOP',
+          title: 'Hujjatlar',
           headerRight: can('workspace.manage') ? () => <HeaderButton icon="plus" label="Yangi hujjat" onPress={() => setCreating(true)} /> : undefined,
         }}
       />
@@ -46,7 +46,7 @@ export function DocumentsScreen() {
       <QueryView
         query={query}
         isEmpty={(d) => d.length === 0}
-        empty={{ icon: 'book-open', title: 'Hali hujjat yo‘q', description: 'SOP, qo‘llanma va brend fayllari shu yerda jamlanadi.' }}
+        empty={{ icon: 'book-open', title: 'Hali hujjat yo‘q', description: 'Ish tartibi, qo‘llanma va brend fayllari shu yerda jamlanadi.' }}
       >
         {(docs) => <Grouped docs={docs} category={category} q={q} onOpen={open} />}
       </QueryView>

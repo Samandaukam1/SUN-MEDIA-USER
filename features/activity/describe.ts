@@ -31,7 +31,7 @@ export function describeActivity(item: ActivityItem): Described {
     case 'content_publications':
       return insert
         ? { icon: 'calendar', text: `${who} nashrni rejalashtirdi`, detail: label }
-        : { icon: 'send', text: `Nashr: ${statusLabel(PUBLICATION_STATUS, status)}`, detail: label };
+        : { icon: 'send', text: `Post: ${statusLabel(PUBLICATION_STATUS, status)}`, detail: label };
     case 'revisions':
       return { icon: 'rotate-ccw', text: `${who} o‘zgartirish so‘radi`, detail: label };
     case 'tasks':

@@ -28,6 +28,8 @@ export function useNav() {
       base,
       go,
       back: () => (router.canGoBack() ? router.back() : router.replace(base as Href)),
+      /** Switch to one of the five bottom tabs ('' is Home). */
+      tab: (name: '' | 'calendar' | 'studio' | 'inbox' | 'account') => router.navigate(`${base}/${name}` as Href),
       content: (id: string) => go(`/content/${id}`),
       shooting: (id: string) => go(`/shooting/${id}`),
       task: (id: string) => go(`/task/${id}`),

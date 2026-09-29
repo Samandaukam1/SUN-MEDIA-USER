@@ -240,7 +240,7 @@ function Body({ t, refresh, refreshing }: { t: TaskDetail; refresh: () => void; 
                       key={r.id}
                       first={i === 0}
                       icon={r.offset_minutes >= 0 ? 'alert-octagon' : 'bell'}
-                      title={`${formatTime(at)} — ${r.offset_minutes >= 0 ? 'Overdue' : `${Math.abs(r.offset_minutes) >= 60 ? `${Math.abs(r.offset_minutes) / 60} soat` : `${Math.abs(r.offset_minutes)} daqiqa`} qolganda`}`}
+                      title={`${formatTime(at)} — ${r.offset_minutes >= 0 ? 'Muddat o‘tganda' : `${Math.abs(r.offset_minutes) >= 60 ? `${Math.abs(r.offset_minutes) / 60} soat` : `${Math.abs(r.offset_minutes)} daqiqa`} qolganda`}`}
                       subtitle={r.recipients.map((x) => ({ assignees: 'mas’ullar', admins: 'admin', owners: 'owner', managers: 'menejer', client_approvers: 'mijoz' })[x] ?? x).join(', ')}
                       right={passed ? <Badge label="Yuborilgan" /> : undefined}
                     />

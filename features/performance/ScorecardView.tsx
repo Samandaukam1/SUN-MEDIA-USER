@@ -39,7 +39,7 @@ export function ScorecardView({ card }: { card: Scorecard }) {
               { label: 'Berilgan', value: m.assigned_tasks },
               { label: 'Bajarildi', value: m.completed_tasks, tone: 'success' },
               { label: 'O‘z vaqtida', value: m.completed_on_time },
-              { label: 'Overdue', value: m.overdue_tasks, tone: m.overdue_tasks ? 'danger' : 'primary' },
+              { label: 'Kechikkan', value: m.overdue_tasks, tone: m.overdue_tasks ? 'danger' : 'primary' },
             ]}
           />
           <Rate label="O‘z vaqtida bajarish" value={m.on_time_rate} hint={`O‘rtacha bajarish vaqti: ${formatMinutes(m.avg_completion_minutes)} · yuklama ${formatMinutes(m.workload_minutes)}`} />
@@ -80,13 +80,13 @@ export function ScorecardView({ card }: { card: Scorecard }) {
       ) : null}
 
       {m.editor ? (
-        <Section title="Montaj KPI">
+        <Section title="Montaj natijalari">
           <Card style={styles.gap}>
             <Counters
               items={[
                 { label: 'Montaj qilingan', value: m.editor.videos_edited },
                 { label: 'Yuborilgan', value: m.editor.contents_submitted },
-                { label: 'Revision', value: m.editor.revisions, tone: m.editor.revisions ? 'warning' : 'primary' },
+                { label: 'O‘zgartirishlar', value: m.editor.revisions, tone: m.editor.revisions ? 'warning' : 'primary' },
               ]}
             />
             <Rate label="Birinchi urinishda tasdiqlangan" value={m.approval_rate} />
@@ -96,7 +96,7 @@ export function ScorecardView({ card }: { card: Scorecard }) {
       ) : null}
 
       {m.smm ? (
-        <Section title="SMM KPI">
+        <Section title="SMM natijalari">
           <Card style={styles.gap}>
             <Counters
               items={[

@@ -1,43 +1,44 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
-  Avatar,
-  Badge,
+  Button,
   Card,
   Chip,
   ChipRow,
-  Counters,
   EmptyState,
   ErrorState,
+  IconButton,
   ItemRow,
+  MetricGrid,
   QueryView,
   Screen,
   ScreenHeader,
-  IconButton,
   Section,
   Skeleton,
   SkeletonCards,
   Text,
 } from '@/components/ui';
-import { CONTENT_TYPE, TEAM_ROLE_LABEL } from '@/constants/labels';
+import { CONTENT_TYPE } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
 import { useMe } from '@/features/auth/AuthProvider';
-import { formatAgo, formatDateKeyLong, formatShortDateTime, formatMonthYear } from '@/lib/time';
+import { formatDateKeyLong, formatMonthYear, formatShortDateTime } from '@/lib/time';
 import { useNav } from '@/lib/routes';
 import type { CalendarEvent } from '@/lib/schemas';
 import type { ClientMembership } from '@/types/app';
 import type { Database } from '@/types/database';
 import { fetchClientHome, fetchClientToday, type ClientHome as ClientHomeData, type ClientToday } from './api';
 import { EventTimeline } from './components/EventTimeline';
-import { PlanHero } from './components/PlanHero';
 import { TodayPlanCard } from './components/TodayPlanCard';
-import { UsageList } from './components/UsageList';
 import { useAgencyDate } from './useAgencyDate';
 
 type Enums = Database['public']['Enums'];
 
+/**
+ * Client Home, in the order a client asks: is anything waiting for me, what happens today, when is the next
+ * shooting, and what did SUN MEDIA deliver this month. Team, plan details and notifications live elsewhere.
+ */
 export function ClientHome() {
   const me = useMe();
   const nav = useNav();
@@ -59,10 +60,14 @@ export function ClientHome() {
   return (
     <Screen
       refreshing={home.isRefetching || shootings.isRefetching}
-      onRefresh={client ? () => {
-        home.refetch();
-        shootings.refetch();
-      } : undefined}
+      onRefresh={
+        client
+          ? () => {
+              home.refetch();
+              shootings.refetch();
+            }
+          : undefined
+      }
     >
       <ScreenHeader
         eyebrow={formatDateKeyLong(today)}
@@ -90,130 +95,133 @@ export function ClientHome() {
   );
 }
 
-function Body({ data, shootings, client }: { data: ClientHomeData; shootings: UseQueryResult<ClientToday>; client?: ClientMembership }) {
+function Body({ data, shootings, client }: { data: ClientHomeData; shootings: UseQueryResult<ClientToday>; client: ClientMembership }) {
   const nav = useNav();
   const openEvent = (e: CalendarEvent) => (e.event_type === 'shooting' ? nav.shooting(e.entity_id) : e.content_id ? nav.content(e.content_id) : undefined);
-  const delivered = Object.entries(data.month_delivered).sort((a, b) => b[1] - a[1]);
+  const canPlan = client.permissions.includes('client.plan.view');
+  const canReports = client.permissions.includes('client.reports.view');
+  const delivered = Object.entries(data.month_delivered)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => `${CONTENT_TYPE[type as Enums['content_type']]?.label ?? type}: ${count}`)
+    .join(' · ');
+  const nextShooting = data.upcoming.find((e) => e.event_type === 'shooting');
+  const upcoming = data.upcoming.slice(0, 5);
 
   return (
     <>
-      <PlanHero home={data} onPress={() => nav.go('/plan')} canViewPlan={!!client?.permissions.includes('client.plan.view')} clientName={client?.name} />
+      <ApprovalCard data={data} />
+
+      <Card variant="hero" style={styles.hero}>
+        <View style={styles.heroTop}>
+          <Text variant="label" tone="heroSecondary">
+            {formatMonthYear(data.date)} · SUN MEDIA siz uchun
+          </Text>
+          {canPlan && data.subscription ? (
+            <Text variant="label" tone="brand">
+              {data.subscription.plan_name}
+            </Text>
+          ) : null}
+        </View>
+        <MetricGrid
+          items={[
+            { label: 'Joylandi', value: data.stats.published_month },
+            { label: 'Syomka', value: data.stats.shootings_month },
+            { label: 'Jarayonda', value: data.stats.in_production, onPress: () => nav.tab('studio') },
+          ]}
+        />
+        <Text variant="caption" tone="heroSecondary">
+          {delivered || 'Bu oy hali kontent joylanmadi.'}
+        </Text>
+        {canPlan || canReports ? (
+          <View style={styles.heroLinks}>
+            {canPlan ? <HeroLink label="Tarifim" onPress={() => nav.go('/plan')} /> : null}
+            {canReports ? <HeroLink label="Oylik hisobot" onPress={() => nav.go('/reports')} /> : null}
+          </View>
+        ) : null}
+      </Card>
 
       <Section title="Bugun">
         {data.today.length === 0 ? (
-          <EmptyState icon="sun" title="Bugun rejalashtirilgan ish yo‘q" description="Syomka, montaj, tasdiqlash va nashrlar shu yerda vaqti bilan ko‘rinadi." />
+          <Text variant="caption" tone="tertiary">
+            Bugun syomka, tasdiqlash yoki post rejalashtirilmagan.
+          </Text>
         ) : (
           <EventTimeline events={data.today} onPress={openEvent} />
         )}
       </Section>
 
-      <Section title="Bugungi syomka">
-        <QueryView query={shootings} skeleton={<SkeletonCards count={1} />}>
-          {(plan) => plan.shootings.length > 0 ? (
-            plan.shootings.map((shooting) => (
-              <TodayPlanCard key={shooting.id} shooting={shooting} contents={plan.contents.filter((c) => c.shooting_id === shooting.id)} />
-            ))
-          ) : (
-            <Text variant="caption" tone="tertiary">Bugun syomka rejalashtirilmagan.</Text>
-          )}
-        </QueryView>
-        {shootings.error && shootings.data ? <ErrorState error={shootings.error} onRetry={() => shootings.refetch()} /> : null}
-      </Section>
-
-      {data.awaiting_approval.length > 0 ? (
-        <Section title={`Tasdiq kutmoqda · ${data.stats.waiting_approval}`} actionLabel="Hammasi" onAction={nav.approvals}>
-          <Card padded={false}>
-            {data.awaiting_approval.map((item, i) => (
-              <ItemRow
-                key={item.content_id}
-                first={i === 0}
-                icon={CONTENT_TYPE[item.content_type as Enums['content_type']]?.icon ?? 'film'}
-                title={item.title}
-                subtitle={[
-                  item.version ? `v${item.version.version_number}` : null,
-                  item.due_at ? `Muddat: ${formatShortDateTime(item.due_at)}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-                right={<Badge label="Ko‘rib chiqing" tone="warning" />}
-                onPress={() => (item.version ? nav.review(item.version.id) : nav.content(item.content_id))}
-              />
-            ))}
-          </Card>
-          {data.stats.waiting_approval > data.awaiting_approval.length ? (
-            <Text variant="caption" tone="tertiary">{data.stats.waiting_approval} tadan {data.awaiting_approval.length} tasi ko‘rsatilmoqda.</Text>
-          ) : null}
-        </Section>
-      ) : null}
-
-      {data.subscription ? (
-        <Section title="Tarif bo‘yicha foydalanish" actionLabel="Batafsil" onAction={() => nav.go('/plan')}>
-          <UsageList usage={data.usage} limit={5} />
-        </Section>
-      ) : null}
-
-      <Section title={formatMonthYear(data.date)}>
-        <Card style={styles.month}>
-          <Counters
-            items={[
-              { label: 'Joylandi', value: data.stats.published_month },
-              { label: 'Syomkalar', value: data.stats.shootings_month },
-              { label: 'Jarayonda', value: data.stats.in_production },
-            ]}
-          />
-          {delivered.length > 0 ? (
-            <View style={styles.delivered}>
-              {delivered.map(([type, count]) => (
-                <Badge key={type} label={`${CONTENT_TYPE[type as Enums['content_type']]?.label ?? type}: ${count}`} icon={CONTENT_TYPE[type as Enums['content_type']]?.icon} />
+      <QueryView query={shootings} skeleton={<SkeletonCards count={1} />}>
+        {(plan) =>
+          plan.shootings.length > 0 ? (
+            <Section title="Bugungi syomka">
+              {plan.shootings.map((shooting) => (
+                <TodayPlanCard key={shooting.id} shooting={shooting} contents={plan.contents.filter((c) => c.shooting_id === shooting.id)} onPress={() => nav.shooting(shooting.id)} />
               ))}
-            </View>
-          ) : (
-            <Text variant="caption" tone="tertiary">
-              Bu oy hali kontent joylanmadi.
-            </Text>
-          )}
-        </Card>
-      </Section>
+            </Section>
+          ) : nextShooting ? (
+            <Section title="Keyingi syomka">
+              <Card padded={false}>
+                <ItemRow
+                  first
+                  icon="video"
+                  title={nextShooting.title}
+                  subtitle={[formatShortDateTime(nextShooting.starts_at), nextShooting.location_name].filter(Boolean).join(' · ')}
+                  onPress={() => nav.shooting(nextShooting.entity_id)}
+                />
+              </Card>
+            </Section>
+          ) : null
+        }
+      </QueryView>
+      {shootings.error && shootings.data ? <ErrorState error={shootings.error} onRetry={() => shootings.refetch()} /> : null}
 
-      {data.upcoming.length > 0 ? (
-        <Section title="Yaqin kunlarda">
-          <EventTimeline events={data.upcoming} withDate onPress={openEvent} />
-        </Section>
-      ) : null}
-
-      {data.team.length > 0 ? (
-        <Section title="Sizning jamoangiz">
-          <Card padded={false}>
-            {data.team.map((m, i) => (
-              <ItemRow
-                key={`${m.user_id}:${m.team_role}`}
-                first={i === 0}
-                leading={<Avatar name={m.full_name} url={m.avatar_url} size={32} />}
-                title={m.full_name}
-                subtitle={TEAM_ROLE_LABEL[m.team_role as Enums['team_role']] ?? m.team_role}
-              />
-            ))}
-          </Card>
-        </Section>
-      ) : null}
-
-      {data.notifications.length > 0 ? (
-        <Section title={`Bildirishnomalar${data.unread_notifications ? ` · ${data.unread_notifications} yangi` : ''}`}>
-          <Card padded={false}>
-            {data.notifications.slice(0, 3).map((n, i) => (
-              <ItemRow
-                key={n.id}
-                first={i === 0}
-                icon="bell"
-                title={n.title}
-                subtitle={[n.body, formatAgo(n.created_at)].filter(Boolean).join(' · ')}
-                right={n.read_at ? undefined : <Badge label="Yangi" tone="accent" />}
-              />
-            ))}
-          </Card>
+      {upcoming.length > 0 ? (
+        <Section title="Yaqin kunlarda" actionLabel="Kalendar" onAction={() => nav.tab('calendar')}>
+          <EventTimeline events={upcoming} withDate onPress={openEvent} />
         </Section>
       ) : null}
     </>
+  );
+}
+
+/** What waits for the client's decision — the one action that matters most, so it comes first. */
+function ApprovalCard({ data }: { data: ClientHomeData }) {
+  const nav = useNav();
+  const items = data.awaiting_approval;
+  if (items.length === 0) return null;
+  const [first, ...rest] = items;
+  const open = (item: (typeof items)[number]) => (item.version ? nav.review(item.version.id) : nav.content(item.content_id));
+  return (
+    <Card style={styles.approval}>
+      <Text variant="label" tone="warning">
+        Tasdiqlashingiz kerak · {data.stats.waiting_approval}
+      </Text>
+      <Text variant="heading" numberOfLines={2}>
+        {first.title}
+      </Text>
+      <Text variant="caption" tone="secondary">
+        {[CONTENT_TYPE[first.content_type as Enums['content_type']]?.label, first.due_at ? `Javob: ${formatShortDateTime(first.due_at)}` : null].filter(Boolean).join(' · ')}
+      </Text>
+      <Button title="Ko‘rish va tasdiqlash" icon="play-circle" onPress={() => open(first)} />
+      {rest.length > 0 ? (
+        <Card padded={false} variant="sunken">
+          {rest.slice(0, 3).map((item, i) => (
+            <ItemRow key={item.content_id} first={i === 0} icon={CONTENT_TYPE[item.content_type as Enums['content_type']]?.icon ?? 'film'} title={item.title} onPress={() => open(item)} />
+          ))}
+        </Card>
+      ) : null}
+      {data.stats.waiting_approval > 1 ? <Button title="Hammasini ko‘rish" variant="ghost" size="md" onPress={nav.approvals} /> : null}
+    </Card>
+  );
+}
+
+function HeroLink({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} hitSlop={6} style={({ pressed }) => [styles.heroLink, pressed && styles.pressed]}>
+      <Text variant="captionMedium" tone="hero">
+        {label} →
+      </Text>
+    </Pressable>
   );
 }
 
@@ -227,7 +235,11 @@ function HomeSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  month: { gap: spacing.lg },
-  delivered: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  hero: { gap: spacing.md, padding: spacing.lg },
+  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+  heroLinks: { flexDirection: 'row', gap: spacing.xl, marginTop: spacing.xs },
+  heroLink: { paddingVertical: 2 },
+  pressed: { opacity: 0.6 },
+  approval: { gap: spacing.sm },
   skeleton: { gap: spacing.lg },
 });

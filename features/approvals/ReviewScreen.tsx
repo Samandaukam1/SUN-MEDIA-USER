@@ -133,7 +133,7 @@ function ReviewBody({ review, refreshing, onRefresh }: { review: Review; refresh
   const startRevision = useMutation({
     mutationFn: (revisionId: string) => setRevisionStatus(revisionId, 'in_progress'),
     onSuccess: () => {
-      toast.show('Revision ishga olindi');
+      toast.show('O‘zgartirish ishga olindi');
       invalidate();
     },
     onError: toast.error,
@@ -192,7 +192,11 @@ function ReviewBody({ review, refreshing, onRefresh }: { review: Review; refresh
 
   return (
     <View style={[styles.fill, { backgroundColor: colors.background }]}>
-      <Stack.Screen options={{ title: content ? `${content.client?.code ?? ''} ${CONTENT_TYPE[content.content_type].label} #${content.number} · v${review.version_number}` : `v${review.version_number}` }} />
+      <Stack.Screen
+        options={{
+          title: isClient ? 'Ko‘rib chiqish' : content ? `${content.client?.code ?? ''} ${CONTENT_TYPE[content.content_type].label} #${content.number} · v${review.version_number}` : `v${review.version_number}`,
+        }}
+      />
       <Screen edges={[]} refreshing={refreshing} onRefresh={onRefresh} contentStyle={bottomBar ? { paddingBottom: 130 } : undefined}>
         {isVideo ? (
           media.data ? (
@@ -221,6 +225,15 @@ function ReviewBody({ review, refreshing, onRefresh }: { review: Review; refresh
             />
           </Card>
         )}
+
+        {isClient && canDecide ? (
+          // A one-line hint instead of an onboarding popup: the two possible answers and how to point at a moment.
+          <Text variant="caption" tone="secondary">
+            {isVideo
+              ? 'Videoni ko‘ring. Hammasi yoqsa — “Tasdiqlash”. O‘zgartirish kerak bo‘lsa, kerakli joyda to‘xtating, izoh yozing va “O‘zgartirish so‘rash”ni bosing.'
+              : 'Ko‘rib chiqing. Hammasi yoqsa — “Tasdiqlash”, aks holda izoh yozib “O‘zgartirish so‘rash”.'}
+          </Text>
+        ) : null}
 
         {canDecide || canCommentOnRevision ? (
           <Button
@@ -283,7 +296,7 @@ function ReviewBody({ review, refreshing, onRefresh }: { review: Review; refresh
               <View style={styles.revHead}>
                 <Icon name="rotate-ccw" size={18} color={colors.danger} />
                 <Text variant="bodyMedium" style={styles.flex}>
-                  Revision #{r.revision_number} · {r.stage === 'client' ? 'mijoz' : 'ichki'}
+                  O‘zgartirish #{r.revision_number} · {r.stage === 'client' ? 'mijozdan' : 'tekshiruvdan'}
                 </Text>
                 <Badge label={REVISION_STATUS[r.status].label} tone={REVISION_STATUS[r.status].tone} />
               </View>
@@ -327,7 +340,7 @@ function ReviewBody({ review, refreshing, onRefresh }: { review: Review; refresh
                     key={d.id}
                     first={i === 0}
                     icon={d.decision === 'approved' ? 'check-circle' : 'rotate-ccw'}
-                    title={`${d.decision === 'approved' ? (d.stage === 'internal' ? 'Ichki tekshiruvdan o‘tdi' : 'Mijoz tasdiqladi') : 'O‘zgartirish so‘raldi'}`}
+                    title={`${d.decision === 'approved' ? (d.stage === 'internal' ? 'Tekshiruvdan o‘tdi' : 'Mijoz tasdiqladi') : 'O‘zgartirish so‘raldi'}`}
                     subtitle={[d.decider?.full_name, formatShortDateTime(d.decided_at), d.comment].filter(Boolean).join(' · ')}
                   />
                 ))}
@@ -345,7 +358,7 @@ function ReviewBody({ review, refreshing, onRefresh }: { review: Review; refresh
           ) : null}
           {canDecide ? (
             <View style={styles.row}>
-              <Button title="O‘zgartirish" icon="rotate-ccw" variant="secondary" fullWidth={false} style={styles.flex} onPress={() => setDecision('changes_requested')} />
+              <Button title="O‘zgartirish so‘rash" variant="secondary" fullWidth={false} style={styles.flex} onPress={() => setDecision('changes_requested')} />
               <Button
                 title={review.status === 'internal_review' ? 'Mijozga yuborish' : 'Tasdiqlash'}
                 icon="check"
@@ -427,7 +440,7 @@ function CommentComposer({
       ) : null}
       <TextArea label="Nima o‘zgarsin?" value={body} onChangeText={setBody} maxLength={2000} minHeight={120} autoFocus placeholder="Masalan: logotipni kattaroq qiling" />
       <Text variant="caption" tone="tertiary">
-        {draft ? 'Izoh telefoningizda saqlanadi va “O‘zgartirish” qarori bilan birga yuboriladi.' : 'Izoh darhol revisionga qo‘shiladi va jamoa ko‘radi.'}
+        {draft ? 'Izoh telefoningizda saqlanadi va “O‘zgartirish” qarori bilan birga yuboriladi.' : 'Izoh darhol o‘zgartirishlar ro‘yxatiga qo‘shiladi va jamoa ko‘radi.'}
       </Text>
     </Sheet>
   );
@@ -475,7 +488,7 @@ function DecisionSheet({
           <Text variant="body">
             {stage === 'internal'
               ? 'Versiya ichki tekshiruvdan o‘tadi va mijozga tasdiqlash uchun yuboriladi.'
-              : 'Versiya yakuniy deb belgilanadi va APPROVED papkasiga o‘tadi.'}
+              : 'Versiya yakuniy deb belgilanadi va “Tasdiqlangan” papkasiga o‘tadi.'}
           </Text>
           {drafts ? (
             <View style={styles.warn}>

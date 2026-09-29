@@ -2,7 +2,6 @@
 export const uz = {
   nav: {
     home: 'Bosh sahifa',
-    dashboard: 'Dashboard',
     calendar: 'Kalendar',
     content: 'Kontent',
     chat: 'Chat',

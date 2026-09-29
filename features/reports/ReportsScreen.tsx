@@ -53,8 +53,8 @@ export function ReportsScreen() {
                         first={i === 0}
                         leading={<Avatar name={r.client?.code} url={r.client?.logo_url} size={36} />}
                         title={r.client?.name ?? 'Mijoz'}
-                        subtitle={r.published_at ? `Nashr: ${formatShortDateTime(r.published_at)}` : r.generated_at ? `Hisoblandi: ${formatShortDateTime(r.generated_at)}` : 'Hali hisoblanmagan'}
-                        right={isClient ? undefined : <Badge label={r.status === 'published' ? 'Nashr qilingan' : 'Qoralama'} tone={r.status === 'published' ? 'success' : 'warning'} />}
+                        subtitle={r.published_at ? `Yuborildi: ${formatShortDateTime(r.published_at)}` : r.generated_at ? `Hisoblandi: ${formatShortDateTime(r.generated_at)}` : 'Hali hisoblanmagan'}
+                        right={isClient ? undefined : <Badge label={r.status === 'published' ? 'Mijozga yuborilgan' : 'Qoralama'} tone={r.status === 'published' ? 'success' : 'warning'} />}
                         onPress={() => nav.report(r.id)}
                       />
                     ))}
