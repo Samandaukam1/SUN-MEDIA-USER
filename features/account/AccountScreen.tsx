@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 import { type ComponentType } from 'react';
 import { Alert, Platform, StyleSheet, View } from 'react-native';
 
-import { Avatar, Badge, Button, Card, Icon, ListGroup, ListRow, Screen, ScreenHeader, Section, Text } from '@/components/ui';
+import { Avatar, Badge, Button, Card, Icon, ListGroup, ListRow, Screen, ScreenHeader, Section, SegmentedControl, Text } from '@/components/ui';
 import { spacing } from '@/constants/theme';
 import { unregisterDevice } from '@/features/notifications/push';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
@@ -11,6 +11,7 @@ import { fetchAnnouncements } from '@/features/workspace/api';
 import { useTheme } from '@/hooks/useTheme';
 import { useStrings } from '@/lib/i18n';
 import { useNav } from '@/lib/routes';
+import { setThemePreference, useThemePreference, type ThemePreference } from '@/lib/themePreference';
 import { fetchMyGames } from '@/features/games/api';
 import { ProStatusCard } from '@/features/pro/ProStatusCard';
 import { ResultsDoors } from '@/features/results/components/ResultsCards';
@@ -40,6 +41,7 @@ function confirmSignOut(onConfirm: () => void) {
 export function AccountScreen() {
   const me = useMe();
   const { signOut } = useAuth();
+  const theme = useThemePreference();
   const nav = useNav();
   const s = useStrings();
   const { colors } = useTheme();
@@ -88,6 +90,18 @@ export function AccountScreen() {
           <ListRow icon="lock" title="Parolni o‘zgartirish" onPress={() => nav.go('/account/password')} />
           <ListRow icon="bell" title="Bildirishnomalar" subtitle="Qaysi xabarlar telefonga kelsin" onPress={() => nav.go('/account/notifications')} />
         </ListGroup>
+      </Section>
+
+      <Section title="Ko‘rinish">
+        <SegmentedControl<ThemePreference>
+          options={[
+            { value: 'system', label: 'Tizim' },
+            { value: 'light', label: 'Yorug‘' },
+            { value: 'dark', label: 'Qorong‘u' },
+          ]}
+          value={theme}
+          onChange={setThemePreference}
+        />
       </Section>
 
       {DevRoleSwitch ? <DevRoleSwitch /> : null}

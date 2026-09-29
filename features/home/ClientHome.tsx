@@ -24,6 +24,7 @@ import { spacing } from '@/constants/theme';
 import { TemporaryPasswordNotice } from '@/features/account/TemporaryPasswordNotice';
 import { useMe } from '@/features/auth/AuthProvider';
 import { MonthResultCard } from '@/features/results/components/ResultsCards';
+import { TariffCarousel } from './components/TariffCarousel';
 import { fetchMyGames } from '@/features/games/api';
 import { GameCard } from '@/features/games/GamesScreen';
 import { formatDateKeyLong, formatMonthYear, formatShortDateTime } from '@/lib/time';
@@ -116,6 +117,12 @@ function Body({ data, shootings, client }: { data: ClientHomeData; shootings: Us
     <>
       <ImportantNotice data={data} />
 
+      {client.permissions.includes('client.plan.view') && client.permissions.includes('client.results.view') ? (
+        <TariffCarousel client={client} />
+      ) : client.permissions.includes('client.results.view') ? (
+        <MonthResultCard client={client} />
+      ) : null}
+
       <Card variant="hero" style={styles.hero}>
         <View style={styles.heroTop}>
           <Text variant="label" tone="heroSecondary">
@@ -145,7 +152,6 @@ function Body({ data, shootings, client }: { data: ClientHomeData; shootings: Us
         ) : null}
       </Card>
 
-      {client.permissions.includes('client.results.view') ? <MonthResultCard client={client} /> : null}
 
       <GameBanner clientId={client.id} />
 

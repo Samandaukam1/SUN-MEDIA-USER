@@ -92,6 +92,11 @@ export async function fetchTopMedia(clientId: string, days: number, limit = 10):
 }
 
 const range = z.object({ low: z.coerce.number(), high: z.coerce.number() });
+const prices = {
+  current_price: z.coerce.number().nullable().optional(),
+  next_price: z.coerce.number().nullable().optional(),
+  currency: z.string().optional(),
+};
 const forecastSchema = z.union([
   z.object({
     available: z.literal(true),
@@ -102,6 +107,7 @@ const forecastSchema = z.union([
     views: range,
     followers: range.nullable().optional(),
     leads: range.nullable().optional(),
+    ...prices,
   }),
   z.object({
     available: z.literal(false),
@@ -109,6 +115,7 @@ const forecastSchema = z.union([
     days: z.coerce.number().optional(),
     reels: z.coerce.number().optional(),
     next_plan: z.string().optional(),
+    ...prices,
   }),
 ]);
 export type Forecast = z.infer<typeof forecastSchema>;
