@@ -6,8 +6,10 @@ import { Linking, StyleSheet, View } from 'react-native';
 
 import { Badge, Card, Chip, ChipRow, EmptyState, Icon, QueryView, Screen, Section, SegmentedControl, SkeletonCards, Stat, StatGrid, Text, TrendBars } from '@/components/ui';
 import { radius, spacing } from '@/constants/theme';
+import { ProLock } from '@/features/pro/ProLock';
 import { deltaPercent, formatCompact, formatNumber } from '@/features/reports/api';
 import { useTheme } from '@/hooks/useTheme';
+import { proFeatureOf } from '@/lib/errors';
 import { formatDateKey, formatShortDateTime } from '@/lib/time';
 import { fetchInstagramSummary, fetchTopMedia, signed, type InstagramDays, type InstagramSummary, type TopMedia } from './api';
 import { useResultsClients } from './ResultsOverviewScreen';
@@ -42,14 +44,19 @@ export function InstagramScreen() {
         value={String(days) as '7' | '30' | '90'}
         onChange={(v) => setDays(Number(v) as InstagramDays)}
       />
-      <QueryView
-        query={summary}
-        skeleton={<SkeletonCards count={3} />}
-        isEmpty={(d) => d === null}
-        empty={{ icon: 'instagram', title: 'Instagram hali ulanmagan', description: 'SUN MEDIA Instagram hisobingizni ulaganidan keyin statistika shu yerda har kuni yangilanadi.' }}
-      >
-        {(s) => (s ? <Summary s={s} top={top.data} topLoading={top.isPending} /> : null)}
-      </QueryView>
+      {proFeatureOf(summary.error) !== null ? (
+        // A longer history (or Instagram analytics itself) is a Pro feature: show what it gives instead of an error.
+        <ProLock feature={proFeatureOf(summary.error) || 'client.analytics.history_days'} title="Uzoq muddatli statistika" description="3 oylik va undan uzoq Instagram tarixi, o‘sish va eng yaxshi kontentlar." />
+      ) : (
+        <QueryView
+          query={summary}
+          skeleton={<SkeletonCards count={3} />}
+          isEmpty={(d) => d === null}
+          empty={{ icon: 'instagram', title: 'Instagram hali ulanmagan', description: 'SUN MEDIA Instagram hisobingizni ulaganidan keyin statistika shu yerda har kuni yangilanadi.' }}
+        >
+          {(s) => (s ? <Summary s={s} top={top.data} topLoading={top.isPending} /> : null)}
+        </QueryView>
+      )}
     </Screen>
   );
 }

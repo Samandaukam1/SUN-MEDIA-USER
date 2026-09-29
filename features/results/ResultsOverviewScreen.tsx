@@ -8,6 +8,8 @@ import { spacing } from '@/constants/theme';
 import { useMe } from '@/features/auth/AuthProvider';
 import { MonthSwitcher } from '@/features/performance/MonthSwitcher';
 import { fetchClientPlan } from '@/features/plan/api';
+import { ProLock } from '@/features/pro/ProLock';
+import { proFeatureOf } from '@/lib/errors';
 import { formatCompact, formatNumber } from '@/features/reports/api';
 import { useTheme } from '@/hooks/useTheme';
 import { agencyDateKey, formatMonthYear, monthStartKey } from '@/lib/time';
@@ -81,9 +83,15 @@ export function ResultsOverviewScreen() {
         </Section>
       ) : null}
 
-      <QueryView query={forecast} skeleton={<SkeletonCards count={1} />}>
-        {(f) => <ForecastCard forecast={f} />}
-      </QueryView>
+      {proFeatureOf(forecast.error) !== null ? (
+        <Section title="Taxminiy imkoniyat">
+          <ProLock feature="client.forecast" />
+        </Section>
+      ) : (
+        <QueryView query={forecast} skeleton={<SkeletonCards count={1} />}>
+          {(f) => <ForecastCard forecast={f} />}
+        </QueryView>
+      )}
     </Screen>
   );
 }

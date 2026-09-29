@@ -11,6 +11,7 @@ import { fetchAnnouncements } from '@/features/workspace/api';
 import { useTheme } from '@/hooks/useTheme';
 import { useStrings } from '@/lib/i18n';
 import { useNav } from '@/lib/routes';
+import { ProStatusCard } from '@/features/pro/ProStatusCard';
 import { ResultsDoors } from '@/features/results/components/ResultsCards';
 import { TemporaryPasswordNotice } from './TemporaryPasswordNotice';
 
@@ -169,6 +170,9 @@ function ClientSections() {
           <ListRow icon="folder" title="Fayllar" subtitle="Tayyor videolar va brend fayllari" onPress={nav.files} />
           <ListRow icon="message-circle" title="SUN MEDIA bilan chat" subtitle="Savol, fikr yoki taklif yozing" onPress={() => nav.tab('inbox')} />
         </ListGroup>
+      </Section>
+      <Section title="SUN MEDIA Pro">
+        <ProStatusCard />
       </Section>
     </>
   );

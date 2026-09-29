@@ -30,7 +30,16 @@ const SQLSTATE_MESSAGES: Record<string, string> = {
   '22008': 'Sana yoki vaqt noto‘g‘ri kiritilgan.',
   PGRST116: 'Ma’lumot topilmadi yoki sizga ko‘rinmaydi.',
   PGRST301: 'Sessiya muddati tugagan. Qaytadan kiring.',
+  P0402: 'Bu imkoniyat SUN MEDIA Pro’da mavjud.',
+  P0429: 'Juda ko‘p urinish. Bir soatdan keyin qayta urinib ko‘ring.',
 };
+
+/** The Pro feature a database refusal names ("PRO_REQUIRED:crm.meta"), or null for any other error. */
+export function proFeatureOf(error: unknown): string | null {
+  const { code, message } = fields(error);
+  if (code !== 'P0402') return null;
+  return typeof message === 'string' && message.startsWith('PRO_REQUIRED:') ? message.slice('PRO_REQUIRED:'.length) : '';
+}
 
 // Only known RPC messages are translated. Database messages can contain private
 // row values, constraint names, SQL and storage paths, so never display them raw.
