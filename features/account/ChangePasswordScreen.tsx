@@ -7,18 +7,21 @@ import { Button, Card, Icon, Screen, Text, TextField, useToast } from '@/compone
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useNav } from '@/lib/routes';
+import { useAuth } from '@/features/auth/AuthProvider';
 import { changePassword, PASSWORD_RULES } from './api';
 
 export function ChangePasswordScreen() {
   const { colors } = useTheme();
   const toast = useToast();
   const nav = useNav();
+  const { refreshContext } = useAuth();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const mutation = useMutation({
     mutationFn: () => changePassword(password, confirm),
     onSuccess: () => {
       toast.show('Parol o‘zgartirildi');
+      refreshContext();
       nav.back();
     },
     onError: toast.error,

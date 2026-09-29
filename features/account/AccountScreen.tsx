@@ -11,6 +11,8 @@ import { fetchAnnouncements } from '@/features/workspace/api';
 import { useTheme } from '@/hooks/useTheme';
 import { useStrings } from '@/lib/i18n';
 import { useNav } from '@/lib/routes';
+import { ResultsDoors } from '@/features/results/components/ResultsCards';
+import { TemporaryPasswordNotice } from './TemporaryPasswordNotice';
 
 // DEV ONLY: required behind __DEV__, so production bundles contain neither the switch nor the test accounts.
 const DevRoleSwitch: ComponentType | null = __DEV__
@@ -74,6 +76,8 @@ export function AccountScreen() {
         ) : null}
       </Card>
 
+      <TemporaryPasswordNotice />
+
       {isStaff ? <StaffSections /> : <ClientSections />}
 
       <Section title="Sozlamalar">
@@ -105,6 +109,8 @@ function StaffSections() {
     seesClients ? { icon: 'briefcase' as const, title: 'Mijozlar', subtitle: 'Tarif, jarayon, kontaktlar', path: '/clients' } : null,
     seesClients ? { icon: 'folder' as const, title: 'Loyihalar', subtitle: 'Mijoz loyihalari va jamoasi', path: '/projects' } : null,
     can('attendance.read') || can('attendance.manage') ? { icon: 'user-check' as const, title: 'Davomat', subtitle: 'Bugun kim keldi — belgilash', path: '/attendance' } : null,
+    can('crm.read') ? { icon: 'target' as const, title: 'Lidlar (CRM)', subtitle: 'Meta reklamadan kelgan lidlar — mijozga yuborish', path: '/crm' } : null,
+    can('crm.manage') ? { icon: 'send' as const, title: 'Lidlar hisobotini yuborish', subtitle: '7 kunlik, 30 kunlik yoki maxsus muddat', path: '/crm/report/new' } : null,
     can('reports.read') || can('reports.manage') ? { icon: 'bar-chart-2' as const, title: 'Oylik hisobotlar', subtitle: 'Mijozlar natijalari', path: '/reports' } : null,
     can('performance.read') ? { icon: 'trending-up' as const, title: 'Jamoa samaradorligi', subtitle: 'Xodimlarning oylik natijalari', path: '/performance' } : null,
   ].filter((r) => r !== null);
@@ -145,17 +151,26 @@ function StaffSections() {
 
 /** A client follows the work and talks to SUN MEDIA; nothing here manages anything. */
 function ClientSections() {
+  const me = useMe();
   const { can } = useAuth();
   const nav = useNav();
+  const resultsClient = me.clients.find((c) => c.permissions.includes('client.results.view'));
   return (
-    <Section title="Mening">
-      <ListGroup>
-        {can('client.plan.view') ? <ListRow icon="credit-card" iconTone="brand" title="Mening tarifim" subtitle="Nima kiradi va qancha qoldi" onPress={() => nav.go('/plan')} /> : null}
-        {can('client.reports.view') ? <ListRow icon="bar-chart-2" title="Oylik hisobot" subtitle="Bu oy nima qilindi va natijalar" onPress={() => nav.go('/reports')} /> : null}
-        <ListRow icon="folder" title="Fayllar" subtitle="Tayyor videolar va brend fayllari" onPress={nav.files} />
-        <ListRow icon="message-circle" title="SUN MEDIA bilan chat" subtitle="Savol, fikr yoki taklif yozing" onPress={() => nav.tab('inbox')} />
-      </ListGroup>
-    </Section>
+    <>
+      {resultsClient ? (
+        <Section title="Natijalar">
+          <ResultsDoors client={resultsClient} />
+        </Section>
+      ) : null}
+      <Section title="Mening">
+        <ListGroup>
+          {can('client.plan.view') ? <ListRow icon="credit-card" iconTone="brand" title="Mening tarifim" subtitle="Nima kiradi va qancha qoldi" onPress={() => nav.go('/plan')} /> : null}
+          {can('client.reports.view') && !resultsClient ? <ListRow icon="bar-chart-2" title="Oylik hisobot" subtitle="Bu oy nima qilindi va natijalar" onPress={() => nav.go('/reports')} /> : null}
+          <ListRow icon="folder" title="Fayllar" subtitle="Tayyor videolar va brend fayllari" onPress={nav.files} />
+          <ListRow icon="message-circle" title="SUN MEDIA bilan chat" subtitle="Savol, fikr yoki taklif yozing" onPress={() => nav.tab('inbox')} />
+        </ListGroup>
+      </Section>
+    </>
   );
 }
 

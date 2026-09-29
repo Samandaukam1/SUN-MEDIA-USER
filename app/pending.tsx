@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button, ErrorState, Icon, Screen, Text } from '@/components/ui';
 import { spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { requestAccess } from '@/features/auth/api';
 import { useTheme } from '@/hooks/useTheme';
 
 /** Signed in, but no role yet (e.g. first Google/Apple sign-in), account disabled, or context failed to load. */
@@ -13,6 +14,12 @@ export default function PendingScreen() {
   const [checking, setChecking] = useState(false);
   // The system owner account controls the platform from the web panel only; it has no mobile interface.
   const webOnly = !!context?.roles?.some((r) => r.key === 'system_owner');
+  const waiting = status === 'pending' && !webOnly;
+
+  // A first Google sign-in (or any login nobody set up): let the admins know once; they grant the role.
+  useEffect(() => {
+    if (waiting) requestAccess().catch(() => undefined);
+  }, [waiting]);
 
   const recheck = async () => {
     setChecking(true);
@@ -66,7 +73,7 @@ export default function PendingScreen() {
         <Text variant="body" tone="secondary" align="center">
           {disabled
             ? 'Bu hisobga kirish to‘xtatilgan. Administrator bilan bog‘laning.'
-            : 'SUN MEDIA administratori sizga rol va kompaniya biriktirgach, ilova avtomatik ochiladi.'}
+            : 'So‘rovingiz SUN MEDIA administratoriga yuborildi. Sizga rol yoki kompaniya biriktirilgach, “Qayta tekshirish”ni bosing.'}
         </Text>
         {session?.user.email ? (
           <Text variant="captionMedium" tone="tertiary" align="center">

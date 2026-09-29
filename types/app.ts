@@ -36,6 +36,8 @@ export const myContextSchema = z.object({
       }),
     )
     .default([]),
+  // An admin-issued password the person has not replaced yet.
+  temporary_password: z.boolean().optional().default(false),
 });
 
 export type MyContext = z.infer<typeof myContextSchema>;

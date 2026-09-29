@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Badge, Card, IconButton, ItemRow, ListGroup, ListRow, QueryView, Screen, ScreenHeader, Section, Text, Timeline, type TimelineItem } from '@/components/ui';
 import { QuickCreateFab } from '@/components/navigation/QuickCreateFab';
 import { CONTENT_STATUS, CONTENT_TYPE, TASK_TYPE } from '@/constants/labels';
+import { TemporaryPasswordNotice } from '@/features/account/TemporaryPasswordNotice';
 import { useMe } from '@/features/auth/AuthProvider';
 import { ShootingCard } from '@/features/shootings/components/ShootingCard';
 import { TaskCard } from '@/features/tasks/components/TaskCard';
@@ -37,6 +38,7 @@ export function EmployeeHome() {
           subtitle={me.employee?.job_title ?? me.roles[0]?.name}
           right={<IconButton icon="search" label="Qidiruv" onPress={() => nav.go('/search')} />}
         />
+        <TemporaryPasswordNotice />
         <QueryView query={query}>{(data) => <Agenda data={data} userId={me.userId} />}</QueryView>
       </Screen>
       <QuickCreateFab />

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { markPasswordChanged } from '@/features/auth/api';
 import { UserFacingError } from '@/lib/errors';
 import { getSupabase } from '@/lib/supabase';
 
@@ -53,4 +54,5 @@ export async function changePassword(password: string, confirm: string): Promise
     const message = error.code ? AUTH_PASSWORD_ERRORS[error.code] : undefined;
     throw message ? new UserFacingError(message) : error;
   }
+  await markPasswordChanged();
 }

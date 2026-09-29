@@ -1,4 +1,5 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useQuery } from '@tanstack/react-query';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
@@ -6,7 +7,7 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui';
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { signInWithAppleNative, signInWithOAuth } from '../api';
+import { fetchAuthProviders, signInWithAppleNative, signInWithOAuth } from '../api';
 
 type Props = {
   disabled: boolean;
@@ -18,6 +19,10 @@ type Props = {
 export function SocialSignIn({ disabled, onStart, onDone, onError }: Props) {
   const { colors, scheme } = useTheme();
   const [nativeApple, setNativeApple] = useState(false);
+  // Only providers the backend has configured are offered; while unknown (or offline) the email form stands alone.
+  const providers = useQuery({ queryKey: ['auth', 'providers'], queryFn: fetchAuthProviders, staleTime: 10 * 60_000, retry: 1 });
+  const google = providers.data?.google === true;
+  const apple = providers.data?.apple === true;
 
   useEffect(() => {
     if (Platform.OS === 'ios') {
@@ -37,9 +42,11 @@ export function SocialSignIn({ disabled, onStart, onDone, onError }: Props) {
     }
   };
 
+  if (!google && !apple) return null;
+
   return (
     <View style={styles.stack}>
-      {nativeApple ? (
+      {apple && nativeApple ? (
         <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
           buttonStyle={
@@ -51,10 +58,10 @@ export function SocialSignIn({ disabled, onStart, onDone, onError }: Props) {
           style={styles.apple}
           onPress={() => !disabled && run('apple')}
         />
-      ) : (
+      ) : apple ? (
         <ProviderButton label="Apple ID bilan kirish" icon="apple" disabled={disabled} onPress={() => run('apple')} />
-      )}
-      <ProviderButton label="Google bilan kirish" icon="google" disabled={disabled} onPress={() => run('google')} />
+      ) : null}
+      {google ? <ProviderButton label="Google bilan kirish" icon="google" disabled={disabled} onPress={() => run('google')} /> : null}
       <View style={styles.divider}>
         <View style={[styles.line, { backgroundColor: colors.border }]} />
         <Text variant="caption" tone="tertiary">

@@ -6,6 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import { z } from 'zod';
 
+import { env } from '@/lib/env';
 import { getSupabase } from '@/lib/supabase';
 import { myContextSchema, type MyContext } from '@/types/app';
 
@@ -28,11 +29,32 @@ export const newPasswordSchema = z
   })
   .refine((v) => v.password === v.confirm, { message: 'Parollar mos kelmadi', path: ['confirm'] });
 
+/** Web builds served under a sub-path (GitHub Pages: /SUN-MEDIA-USER) get it inlined from experiments.baseUrl. */
+function webBasePath(): string {
+  return (process.env.EXPO_BASE_URL ?? '').replace(/\/+$/, '');
+}
+
+/** Where Supabase sends the user back after Google / Apple / password-reset (must be in the Auth redirect allow list). */
 export function authRedirect(path: 'auth/callback' | 'reset-password'): string {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return `${window.location.origin}/${path}`;
+    return `${window.location.origin}${webBasePath()}/${path}`;
   }
   return makeRedirectUri({ scheme: 'sunmedia', path });
+}
+
+const providersSchema = z.object({ external: z.object({ google: z.boolean().optional(), apple: z.boolean().optional() }).passthrough() });
+export type AuthProviders = { google: boolean; apple: boolean };
+
+/**
+ * Which social providers the backend has switched on (public Auth settings). Buttons for providers that are not
+ * configured yet are hidden instead of failing with "provider is not enabled".
+ */
+export async function fetchAuthProviders(): Promise<AuthProviders> {
+  if (!env) return { google: false, apple: false };
+  const response = await fetch(`${env.supabaseUrl}/auth/v1/settings`, { headers: { apikey: env.supabaseKey } });
+  if (!response.ok) throw new Error(`Auth settings ${response.status}`);
+  const { external } = providersSchema.parse(await response.json());
+  return { google: external.google === true, apple: external.apple === true };
 }
 
 export async function fetchMyContext(): Promise<MyContext> {
@@ -132,5 +154,18 @@ export async function exchangeAuthCode(code: string): Promise<void> {
 
 export async function updatePassword(password: string): Promise<void> {
   const { error } = await getSupabase().auth.updateUser({ password });
+  if (error) throw error;
+  await markPasswordChanged();
+}
+
+/** The person chose their own password: the "replace the temporary password" reminder disappears. */
+export async function markPasswordChanged(): Promise<void> {
+  const { error } = await getSupabase().rpc('mark_password_changed');
+  if (error) console.warn('mark_password_changed', error.message);
+}
+
+/** Pending screen: tells SUN MEDIA admins once that this login is waiting for a role (idempotent). */
+export async function requestAccess(): Promise<void> {
+  const { error } = await getSupabase().rpc('request_access');
   if (error) throw error;
 }

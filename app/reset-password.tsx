@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
-import { Button, Text, TextField } from '@/components/ui';
+import { Button, TextField } from '@/components/ui';
 import { spacing } from '@/constants/theme';
 import { exchangeAuthCode, newPasswordSchema, updatePassword } from '@/features/auth/api';
 import { AuthScaffold, FormError } from '@/features/auth/components/AuthScaffold';
