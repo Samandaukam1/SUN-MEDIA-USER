@@ -1,5 +1,7 @@
 # SUN MEDIA — holat (2026-09-28)
 
+> 2026-09-29 yangilanishi: [yakuniy operatsion model](OPERATING_MODEL.md). Quyidagi 2026-09-28 jadvali oldingi holat; client approval endi ishlatilmaydi.
+
 Mobil ilova (Expo SDK 54) + admin panel (Next.js 15) + Supabase. Barcha 18 bosqich lokal muhitda yakunlangan va tekshirilgan. Cloud (production) bazaga migratsiya yuborilmagan — bu egasining qarori bilan bajariladi (pastda).
 
 ## Modullar

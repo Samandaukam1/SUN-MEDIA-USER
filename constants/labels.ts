@@ -50,34 +50,57 @@ export const CONTENT_STATUS: Record<Enums['content_status'], Labelled & { icon: 
   script: { label: 'Ssenariy', tone: 'info', icon: 'edit-3' },
   ready_for_shoot: { label: 'Syomkaga tayyor', tone: 'info', icon: 'check-square' },
   shooting: { label: 'Syomka', tone: 'violet', icon: 'video' },
-  shot: { label: 'Suratga olindi', tone: 'violet', icon: 'film' },
+  shot: { label: 'Syomka tugadi', tone: 'violet', icon: 'film' },
   editing: { label: 'Montaj', tone: 'accent', icon: 'scissors' },
-  internal_review: { label: 'Tekshiruv', tone: 'info', icon: 'eye' },
-  client_review: { label: 'Mijoz tasdiqlashi', tone: 'warning', icon: 'clock' },
-  revision: { label: 'O‘zgartirish', tone: 'danger', icon: 'rotate-ccw' },
+  internal_review: { label: 'Ichki tekshiruv', tone: 'info', icon: 'eye' },
+  // Kept for history: the client approval step is no longer part of the workflow.
+  client_review: { label: 'Ichki tekshiruv', tone: 'info', icon: 'eye' },
+  revision: { label: 'Qayta ishlash', tone: 'danger', icon: 'rotate-ccw' },
   approved: { label: 'Tayyor', tone: 'success', icon: 'check-circle' },
-  scheduled: { label: 'Rejalashtirilgan', tone: 'info', icon: 'calendar' },
+  scheduled: { label: 'Rejalashtirildi', tone: 'info', icon: 'calendar' },
   published: { label: 'Joylandi', tone: 'success', icon: 'send' },
   cancelled: { label: 'Bekor qilindi', tone: 'neutral', icon: 'x-circle' },
 };
 
-/**
- * What a client reads: internal steps are not theirs to track. Internal review still looks like editing,
- * a revision is "being reworked", and their own review is phrased as a request to them.
- */
+/** The six states a client follows; every internal step folds into one of them. */
+const CLIENT_STATUS = {
+  preparing: { label: 'Tayyorlanmoqda', tone: 'neutral', icon: 'edit-3' },
+  shooting: { label: 'Syomka', tone: 'violet', icon: 'video' },
+  editing: { label: 'Montaj', tone: 'accent', icon: 'scissors' },
+  ready: { label: 'Tayyor', tone: 'success', icon: 'check-circle' },
+  scheduled: { label: 'Rejalashtirilgan', tone: 'info', icon: 'calendar' },
+  published: { label: 'Joylandi', tone: 'success', icon: 'send' },
+} satisfies Record<string, Labelled & { icon: IconName }>;
+
+const CLIENT_OF: Record<Enums['content_status'], keyof typeof CLIENT_STATUS | null> = {
+  idea: 'preparing',
+  script: 'preparing',
+  ready_for_shoot: 'shooting',
+  shooting: 'shooting',
+  shot: 'editing',
+  editing: 'editing',
+  internal_review: 'editing',
+  client_review: 'editing',
+  revision: 'editing',
+  approved: 'ready',
+  scheduled: 'scheduled',
+  published: 'published',
+  cancelled: null,
+};
+
+/** Clients only observe: they see where the work is, never the internal checks. */
 export function contentStatusFor(status: Enums['content_status'], isClient: boolean): Labelled & { icon: IconName } {
   if (!isClient) return CONTENT_STATUS[status];
-  switch (status) {
-    case 'internal_review':
-      return CONTENT_STATUS.editing;
-    case 'revision':
-      return { label: 'Qayta ishlanmoqda', tone: 'accent', icon: 'rotate-ccw' };
-    case 'client_review':
-      return { label: 'Tasdig‘ingizni kutmoqda', tone: 'warning', icon: 'clock' };
-    default:
-      return CONTENT_STATUS[status];
-  }
+  const key = CLIENT_OF[status];
+  return key ? CLIENT_STATUS[key] : CONTENT_STATUS.cancelled;
 }
+
+/** Statuses behind each client filter chip (Studiya). */
+export const CLIENT_STAGE_FILTERS: { key: string; label: string; statuses: Enums['content_status'][] }[] = (Object.keys(CLIENT_STATUS) as (keyof typeof CLIENT_STATUS)[]).map((key) => ({
+  key,
+  label: CLIENT_STATUS[key].label,
+  statuses: (Object.keys(CLIENT_OF) as Enums['content_status'][]).filter((s) => CLIENT_OF[s] === key),
+}));
 
 /** Happy path order (revision loops back to editing; cancelled is off-path). */
 export const CONTENT_PIPELINE: Enums['content_status'][] = [
@@ -97,21 +120,23 @@ export const CONTENT_PIPELINE: Enums['content_status'][] = [
 /** The production path grouped into steps people recognise (the pipeline strip on a content page). */
 export type ContentStage = { key: string; label: string; icon: IconName; statuses: Enums['content_status'][] };
 
-const STAGES: (ContentStage & { staffOnly?: boolean })[] = [
+const STAFF_STAGES: ContentStage[] = [
   { key: 'idea', label: 'G‘oya', icon: 'zap', statuses: ['idea'] },
   { key: 'script', label: 'Ssenariy', icon: 'edit-3', statuses: ['script'] },
   { key: 'shoot', label: 'Syomka', icon: 'video', statuses: ['ready_for_shoot', 'shooting', 'shot'] },
   { key: 'edit', label: 'Montaj', icon: 'scissors', statuses: ['editing', 'revision'] },
-  { key: 'check', label: 'Tekshiruv', icon: 'eye', statuses: ['internal_review'], staffOnly: true },
-  { key: 'client', label: 'Tasdiqlash', icon: 'check-circle', statuses: ['client_review'] },
-  { key: 'ready', label: 'Tayyor', icon: 'thumbs-up', statuses: ['approved', 'scheduled'] },
+  { key: 'check', label: 'Ichki tekshiruv', icon: 'eye', statuses: ['internal_review', 'client_review'] },
+  { key: 'ready', label: 'Tayyor', icon: 'thumbs-up', statuses: ['approved'] },
+  { key: 'scheduled', label: 'Rejalashtirildi', icon: 'calendar', statuses: ['scheduled'] },
   { key: 'live', label: 'Joylandi', icon: 'send', statuses: ['published'] },
 ];
 
-/** Steps for staff or for a client (who never sees the internal check: it stays under Montaj). */
+const CLIENT_STAGE_ICONS: Record<string, IconName> = { preparing: 'edit-3', shooting: 'video', editing: 'scissors', ready: 'thumbs-up', scheduled: 'calendar', published: 'send' };
+
+/** Steps for staff, or the six simple steps a client follows. */
 export function contentStages(isClient: boolean): ContentStage[] {
-  if (!isClient) return STAGES;
-  return STAGES.filter((s) => !s.staffOnly).map((s) => (s.key === 'edit' ? { ...s, statuses: [...s.statuses, 'internal_review'] } : s));
+  if (!isClient) return STAFF_STAGES;
+  return CLIENT_STAGE_FILTERS.map((s) => ({ ...s, icon: CLIENT_STAGE_ICONS[s.key] ?? 'circle' }));
 }
 
 /** 0…1 progress of a content item through production (revision sits with editing). */

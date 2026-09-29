@@ -7,7 +7,7 @@ export type CalendarRow = Database['public']['Functions']['get_calendar_events']
 export async function fetchCalendar(fromIso: string, toIso: string, clientId?: string | null): Promise<CalendarRow[]> {
   const { data, error } = await getSupabase().rpc('get_calendar_events', { p_from: fromIso, p_to: toIso, p_client_id: clientId ?? undefined });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).filter((event) => event.event_type !== 'approval_deadline');
 }
 
 export type EventGroup = 'all' | 'shooting' | 'publication' | 'deadline' | 'approval' | 'company';

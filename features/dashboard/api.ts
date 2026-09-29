@@ -147,3 +147,16 @@ export async function fetchActivity(params: { limit?: number; before?: number; c
   if (error) throw error;
   return (data ?? []) as ActivityItem[];
 }
+
+/** Work that needs someone now: content past its deadline or sent back for rework (RLS scopes the rows). */
+export async function fetchProblemContent() {
+  const { data, error } = await getSupabase()
+    .from('content_items')
+    .select('id, title, status, due_at, client:clients(name), team:content_assignments(role, person:profiles!content_assignments_user_id_fkey(full_name))')
+    .is('deleted_at', null)
+    .or(`status.eq.revision,and(due_at.lt.${new Date().toISOString()},status.not.in.(approved,scheduled,published,cancelled))`)
+    .order('due_at', { ascending: true, nullsFirst: false })
+    .limit(6);
+  if (error) throw error;
+  return data;
+}

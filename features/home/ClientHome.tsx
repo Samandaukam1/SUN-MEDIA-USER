@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
-  Button,
   Card,
   Chip,
   ChipRow,
@@ -36,8 +35,8 @@ import { useAgencyDate } from './useAgencyDate';
 type Enums = Database['public']['Enums'];
 
 /**
- * Client Home, in the order a client asks: is anything waiting for me, what happens today, when is the next
- * shooting, and what did SUN MEDIA deliver this month. Team, plan details and notifications live elsewhere.
+ * Client Home — the client only follows the work: any important message, what SUN MEDIA delivered this month,
+ * what happens today (shootings, posts) and the next shooting. There is nothing to approve or manage here.
  */
 export function ClientHome() {
   const me = useMe();
@@ -109,7 +108,7 @@ function Body({ data, shootings, client }: { data: ClientHomeData; shootings: Us
 
   return (
     <>
-      <ApprovalCard data={data} />
+      <ImportantNotice data={data} />
 
       <Card variant="hero" style={styles.hero}>
         <View style={styles.heroTop}>
@@ -143,7 +142,7 @@ function Body({ data, shootings, client }: { data: ClientHomeData; shootings: Us
       <Section title="Bugun">
         {data.today.length === 0 ? (
           <Text variant="caption" tone="tertiary">
-            Bugun syomka, tasdiqlash yoki post rejalashtirilmagan.
+            Bugun syomka yoki post rejalashtirilmagan.
           </Text>
         ) : (
           <EventTimeline events={data.today} onPress={openEvent} />
@@ -184,33 +183,24 @@ function Body({ data, shootings, client }: { data: ClientHomeData; shootings: Us
   );
 }
 
-/** What waits for the client's decision — the one action that matters most, so it comes first. */
-function ApprovalCard({ data }: { data: ClientHomeData }) {
+/** The newest unread message from SUN MEDIA, so nothing important is missed; opens the inbox. */
+function ImportantNotice({ data }: { data: ClientHomeData }) {
   const nav = useNav();
-  const items = data.awaiting_approval;
-  if (items.length === 0) return null;
-  const [first, ...rest] = items;
-  const open = (item: (typeof items)[number]) => (item.version ? nav.review(item.version.id) : nav.content(item.content_id));
+  const latest = data.notifications.find((n) => !n.read_at);
+  if (!latest) return null;
   return (
-    <Card style={styles.approval}>
-      <Text variant="label" tone="warning">
-        Tasdiqlashingiz kerak · {data.stats.waiting_approval}
+    <Card style={styles.notice} onPress={() => nav.tab('inbox')} accessibilityLabel={`Muhim xabar: ${latest.title}`}>
+      <Text variant="label" tone="accent">
+        Muhim xabar{data.unread_notifications > 1 ? ` · ${data.unread_notifications} ta yangi` : ''}
       </Text>
-      <Text variant="heading" numberOfLines={2}>
-        {first.title}
+      <Text variant="bodyMedium" numberOfLines={2}>
+        {latest.title}
       </Text>
-      <Text variant="caption" tone="secondary">
-        {[CONTENT_TYPE[first.content_type as Enums['content_type']]?.label, first.due_at ? `Javob: ${formatShortDateTime(first.due_at)}` : null].filter(Boolean).join(' · ')}
-      </Text>
-      <Button title="Ko‘rish va tasdiqlash" icon="play-circle" onPress={() => open(first)} />
-      {rest.length > 0 ? (
-        <Card padded={false} variant="sunken">
-          {rest.slice(0, 3).map((item, i) => (
-            <ItemRow key={item.content_id} first={i === 0} icon={CONTENT_TYPE[item.content_type as Enums['content_type']]?.icon ?? 'film'} title={item.title} onPress={() => open(item)} />
-          ))}
-        </Card>
+      {latest.body ? (
+        <Text variant="caption" tone="secondary" numberOfLines={2}>
+          {latest.body}
+        </Text>
       ) : null}
-      {data.stats.waiting_approval > 1 ? <Button title="Hammasini ko‘rish" variant="ghost" size="md" onPress={nav.approvals} /> : null}
     </Card>
   );
 }
@@ -240,6 +230,6 @@ const styles = StyleSheet.create({
   heroLinks: { flexDirection: 'row', gap: spacing.xl, marginTop: spacing.xs },
   heroLink: { paddingVertical: 2 },
   pressed: { opacity: 0.6 },
-  approval: { gap: spacing.sm },
+  notice: { gap: spacing.xs },
   skeleton: { gap: spacing.lg },
 });

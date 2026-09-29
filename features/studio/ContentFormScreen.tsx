@@ -90,7 +90,6 @@ function Form({ initial }: { initial: ContentDetail | null }) {
     Object.fromEntries(TEAM_ROLES.map((r) => [r, initial?.team.find((t) => t.role === r)?.person?.id ?? null])) as Record<TeamRoleKey, string | null>,
   );
   const [due, setDue] = useState<DateTime>(toParts(initial?.due_at));
-  const [approvalDue, setApprovalDue] = useState<DateTime>(toParts(initial?.client_approval_due_at));
   const [publish, setPublish] = useState<DateTime>(toParts(initial?.publications.find((p) => p.status !== 'cancelled' && p.scheduled_at)?.scheduled_at));
   const [script, setScript] = useState(initial?.script ?? '');
   const [caption, setCaption] = useState(initial?.caption ?? '');
@@ -164,7 +163,6 @@ function Form({ initial }: { initial: ContentDetail | null }) {
       music_reference: music,
       reference_links: refs.split(/\n+/).map((r) => r.trim()).filter(Boolean),
       due_at: toIso(due),
-      client_approval_due_at: toIso(approvalDue),
       publish_at: toIso(publish, '19:00'),
       is_client_visible: clientVisible,
       counts_toward_plan: countsToPlan,
@@ -304,7 +302,6 @@ function Form({ initial }: { initial: ContentDetail | null }) {
 
       <FormSection title="Muddatlar">
         <DateTimeRow label="Montaj muddati" value={due} onChange={setDue} />
-        <DateTimeRow label="Mijoz tasdig‘i" value={approvalDue} onChange={setApprovalDue} />
         <DateTimeRow label="Post vaqti" value={publish} onChange={setPublish} />
       </FormSection>
 

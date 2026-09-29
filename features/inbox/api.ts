@@ -19,6 +19,14 @@ export async function fetchInboxCounts(): Promise<InboxCounts> {
   return countsSchema.parse(data);
 }
 
+/** Client conversations for the admin inbox and the Rahbar's read-only view (awaiting = client wrote last). */
+export async function fetchClientConversations() {
+  const { data, error } = await getSupabase().rpc('get_client_conversations');
+  if (error) throw error;
+  return data ?? [];
+}
+export type ClientConversation = Awaited<ReturnType<typeof fetchClientConversations>>[number];
+
 export async function fetchChats() {
   const { data, error } = await getSupabase().rpc('get_my_chats');
   if (error) throw error;
@@ -26,7 +34,9 @@ export async function fetchChats() {
 }
 export type ChatSummary = Awaited<ReturnType<typeof fetchChats>>[number];
 
-export function chatTitle(c: { kind: ChatSummary['kind']; name: string; is_default: boolean; peer_name: string | null }): string {
+/** Room title as the viewer should read it: a client talks to "SUN MEDIA", never to a person. */
+export function chatTitle(c: { kind: ChatSummary['kind']; name: string; is_default: boolean; peer_name: string | null }, forClient = false): string {
+  if (forClient && c.kind === 'project') return 'SUN MEDIA';
   if (c.kind === 'direct') return c.peer_name ?? 'Shaxsiy chat';
   if (c.kind === 'internal' && c.is_default) return 'SUN MEDIA jamoasi';
   return c.name;

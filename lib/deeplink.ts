@@ -3,7 +3,8 @@ export type AppKind = 'client' | 'staff';
 // Screens each audience can open from a notification. Older notifications used plural paths.
 const PATTERNS: { match: RegExp; to: (id: string) => string; staffOnly?: boolean }[] = [
   { match: /^\/content\/([0-9a-f-]{36})$/, to: (id) => `/content/${id}` },
-  { match: /^\/approvals\/([0-9a-f-]{36})$/, to: (id) => `/approvals/${id}` },
+  // Reviewing versions is internal work; clients only follow the content.
+  { match: /^\/approvals\/([0-9a-f-]{36})$/, to: (id) => `/approvals/${id}`, staffOnly: true },
   { match: /^\/chat\/([0-9a-f-]{36})$/, to: (id) => `/chat/${id}` },
   { match: /^\/shootings?\/([0-9a-f-]{36})$/, to: (id) => `/shooting/${id}` },
   { match: /^\/tasks?\/([0-9a-f-]{36})$/, to: (id) => `/task/${id}`, staffOnly: true },

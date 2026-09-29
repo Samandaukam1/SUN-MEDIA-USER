@@ -21,7 +21,8 @@ export function PipelineSteps({ status, isClient = false }: { status: ContentSta
       </View>
     );
   }
-  const rework = status === 'revision';
+  // Clients see a plain "Montaj"; only staff are told the work came back for rework.
+  const rework = status === 'revision' && !isClient;
   return (
     <ScrollView
       horizontal
@@ -54,7 +55,7 @@ export function PipelineSteps({ status, isClient = false }: { status: ContentSta
               />
             </View>
             <Text variant="micro" tone={now ? 'primary' : done ? 'secondary' : 'tertiary'} numberOfLines={2} style={styles.label}>
-              {now && rework ? (isClient ? 'Qayta ishlanmoqda' : 'O‘zgartirish') : step.label}
+              {now && rework ? 'Qayta ishlash' : step.label}
             </Text>
             {i < stages.length - 1 ? <View style={[styles.line, { backgroundColor: done ? colors.accent : colors.border }]} /> : null}
           </View>

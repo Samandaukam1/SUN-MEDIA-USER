@@ -8,9 +8,11 @@ import { useTheme } from '@/hooks/useTheme';
 
 /** Signed in, but no role yet (e.g. first Google/Apple sign-in), account disabled, or context failed to load. */
 export default function PendingScreen() {
-  const { status, session, error, refreshContext, signOut } = useAuth();
+  const { status, session, context, error, refreshContext, signOut } = useAuth();
   const { colors } = useTheme();
   const [checking, setChecking] = useState(false);
+  // The system owner account controls the platform from the web panel only; it has no mobile interface.
+  const webOnly = !!context?.roles?.some((r) => r.key === 'system_owner');
 
   const recheck = async () => {
     setChecking(true);
@@ -26,6 +28,27 @@ export default function PendingScreen() {
       <Screen scroll={false} contentStyle={styles.center}>
         <ErrorState error={error} onRetry={recheck} />
         <Button title="Chiqish" variant="ghost" onPress={signOut} fullWidth={false} />
+      </Screen>
+    );
+  }
+
+  if (webOnly && status !== 'disabled') {
+    return (
+      <Screen scroll={false} contentStyle={styles.center}>
+        <View style={[styles.icon, { backgroundColor: colors.accentSoft }]}>
+          <Icon name="monitor" size={26} color={colors.accent} />
+        </View>
+        <View style={styles.text}>
+          <Text variant="title" align="center">
+            Bu akkaunt faqat web panel uchun
+          </Text>
+          <Text variant="body" tone="secondary" align="center">
+            Tizim egasi akkaunti mobil ilovada ishlamaydi. Kundalik ish uchun xodim akkauntingiz bilan kiring.
+          </Text>
+        </View>
+        <View style={styles.actions}>
+          <Button title="Boshqa hisob bilan kirish" onPress={signOut} />
+        </View>
       </Screen>
     );
   }

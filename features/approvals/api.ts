@@ -173,12 +173,12 @@ export async function fetchEditedFolderId(clientId: string): Promise<string | nu
   return data?.id ?? null;
 }
 
-export async function submitVersion(contentId: string, fileId: string, notes: string, toClient: boolean) {
+export async function submitVersion(contentId: string, fileId: string, notes: string) {
   const { data, error } = await getSupabase().rpc('submit_content_version', {
     p_content_id: contentId,
     p_file_id: fileId,
     p_notes: notes.trim() || undefined,
-    p_stage: toClient ? 'client' : 'internal',
+    p_stage: 'internal',
   });
   if (error) throw error;
   return data;

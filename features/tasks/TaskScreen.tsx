@@ -13,6 +13,7 @@ import {
   HeaderButton,
   Icon,
   ItemRow,
+  NextStep,
   ProgressBar,
   QueryView,
   Screen,
@@ -131,6 +132,12 @@ function Body({ t, refresh, refreshing }: { t: TaskDetail; refresh: () => void; 
             {t.priority !== 'normal' ? <Badge label={PRIORITY[t.priority].label} tone={PRIORITY[t.priority].tone} icon={PRIORITY[t.priority].icon} /> : null}
             {blockers.length ? <Badge label="Kutilmoqda" tone="warning" icon="lock" /> : null}
           </View>
+          <NextStep
+            status={TASK_STATUS[t.status].label}
+            owner={t.assignees.map((a) => a.person?.full_name).filter(Boolean).join(', ') || null}
+            due={t.due_at ? formatShortDateTime(t.due_at) : null}
+            late={overdue}
+          />
           {t.due_at ? (
             <View style={[styles.deadline, { backgroundColor: overdue ? colors.dangerSoft : colors.surfaceSunken }]}>
               <View>

@@ -55,7 +55,7 @@ export function ReviewScreen() {
 }
 
 function ReviewBody({ review, refreshing, onRefresh }: { review: Review; refreshing: boolean; onRefresh: () => void }) {
-  const { can, appInterface, context } = useAuth();
+  const { can, appInterface } = useAuth();
   const me = useMe();
   const nav = useNav();
   const router = useRouter();
@@ -81,12 +81,11 @@ function ReviewBody({ review, refreshing, onRefresh }: { review: Review; refresh
   };
 
   const isClient = appInterface === 'client';
-  const clientCanApprove = !!context?.clients.find((c) => c.id === review.client_id)?.permissions.includes('client.approve');
   const canDecide =
     (review.status === 'internal_review' && !isClient && can('approvals.manage')) ||
-    (review.status === 'client_review' && (clientCanApprove || (!isClient && can('approvals.manage'))));
+    (review.status === 'client_review' && !isClient && can('approvals.manage'));
   const openRevision = review.revisions.find((r) => OPEN_REVISION.includes(r.status));
-  const canCommentOnRevision = !!openRevision && (!isClient || (openRevision.stage === 'client' && clientCanApprove));
+  const canCommentOnRevision = !!openRevision && !isClient;
   const latest = siblings.data?.[0]?.id === review.id;
   const canUploadNext = !isClient && can('files.upload') && latest && review.status === 'changes_requested' && review.content?.status === 'revision';
   const isVideo = review.file?.kind === 'video';
@@ -102,7 +101,7 @@ function ReviewBody({ review, refreshing, onRefresh }: { review: Review; refresh
     onSuccess: (_, { kind }) => {
       updateDrafts([]);
       setDecision(null);
-      toast.show(kind === 'changes_requested' ? 'O‘zgartirish so‘rovi yuborildi' : review.status === 'internal_review' ? 'Mijozga yuborildi' : 'Tasdiqlandi. Rahmat!');
+      toast.show(kind === 'changes_requested' ? 'O‘zgartirish so‘rovi yuborildi' : 'Kontent tayyor deb belgilandi');
       invalidate();
     },
     onError: toast.error,
@@ -360,7 +359,7 @@ function ReviewBody({ review, refreshing, onRefresh }: { review: Review; refresh
             <View style={styles.row}>
               <Button title="O‘zgartirish so‘rash" variant="secondary" fullWidth={false} style={styles.flex} onPress={() => setDecision('changes_requested')} />
               <Button
-                title={review.status === 'internal_review' ? 'Mijozga yuborish' : 'Tasdiqlash'}
+                title="Tayyor deb belgilash"
                 icon="check"
                 fullWidth={false}
                 style={styles.flex}
@@ -471,7 +470,7 @@ function DecisionSheet({
     <Sheet
       visible={!!decision}
       onClose={onClose}
-      title={changes ? 'O‘zgartirish so‘rash' : stage === 'internal' ? 'Mijozga yuborish' : 'Tasdiqlash'}
+      title={changes ? 'O‘zgartirish so‘rash' : 'Tayyor deb belgilash'}
       actionLabel="Yuborish"
       actionDisabled={blocked || saving}
       onAction={() => onSubmit(summary)}
@@ -487,7 +486,7 @@ function DecisionSheet({
         <>
           <Text variant="body">
             {stage === 'internal'
-              ? 'Versiya ichki tekshiruvdan o‘tadi va mijozga tasdiqlash uchun yuboriladi.'
+              ? 'Versiya ichki tekshiruvdan o‘tadi va tayyor deb belgilanadi.'
               : 'Versiya yakuniy deb belgilanadi va “Tasdiqlangan” papkasiga o‘tadi.'}
           </Text>
           {drafts ? (
@@ -501,7 +500,7 @@ function DecisionSheet({
           <TextArea label="Izoh (ixtiyoriy)" value={summary} onChangeText={setSummary} maxLength={2000} minHeight={80} placeholder={stage === 'client' ? 'Masalan: zo‘r chiqibdi!' : undefined} />
         </>
       )}
-      <Button title={changes ? 'O‘zgartirish so‘rash' : stage === 'internal' ? 'Mijozga yuborish' : 'Tasdiqlash'} icon={changes ? 'rotate-ccw' : 'check'} loading={saving} disabled={blocked} onPress={() => onSubmit(summary)} />
+      <Button title={changes ? 'O‘zgartirish so‘rash' : 'Tayyor deb belgilash'} icon={changes ? 'rotate-ccw' : 'check'} loading={saving} disabled={blocked} onPress={() => onSubmit(summary)} />
     </Sheet>
   );
 }

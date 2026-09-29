@@ -15,6 +15,7 @@ export { ItemRow } from './ItemRow';
 export { KeyValue } from './KeyValue';
 export { ListGroup, ListRow } from './ListRow';
 export { MetricGrid, type Metric } from './MetricGrid';
+export { NextStep } from './NextStep';
 export { OfflineBanner } from './OfflineBanner';
 export { ProgressBar } from './ProgressBar';
 export { QueryView } from './QueryView';

@@ -6,8 +6,8 @@ import { Text, type TextTone } from './Text';
 
 export type Metric = { label: string; value: number | string; tone?: TextTone; hint?: string | null; onPress?: () => void };
 
-/** Numbers of the day in a 3-column grid on the ink hero card; a tile with onPress opens its screen. */
-export function MetricGrid({ items }: { items: Metric[] }) {
+/** Numbers of the day in a 3- or 4-column grid on the ink hero card; a tile with onPress opens its screen. */
+export function MetricGrid({ items, columns = 3 }: { items: Metric[]; columns?: 3 | 4 }) {
   const { colors } = useTheme();
   return (
     <View style={styles.grid}>
@@ -34,12 +34,12 @@ export function MetricGrid({ items }: { items: Metric[] }) {
             accessibilityRole="button"
             accessibilityLabel={label}
             onPress={item.onPress}
-            style={({ pressed }) => [styles.tile, { backgroundColor: pressed ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)' }]}
+            style={({ pressed }) => [styles.tile, columns === 4 && styles.quarter, { backgroundColor: pressed ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)' }]}
           >
             {body}
           </Pressable>
         ) : (
-          <View key={item.label} accessible accessibilityLabel={label} style={[styles.tile, { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: colors.heroBorder }]}>
+          <View key={item.label} accessible accessibilityLabel={label} style={[styles.tile, columns === 4 && styles.quarter, { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: colors.heroBorder }]}>
             {body}
           </View>
         );
@@ -51,4 +51,5 @@ export function MetricGrid({ items }: { items: Metric[] }) {
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tile: { width: '31.5%', flexGrow: 1, gap: 2, paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderRadius: radius.md },
+  quarter: { width: '23%', paddingHorizontal: spacing.sm },
 });

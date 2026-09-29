@@ -8,6 +8,27 @@ export type ShootingStatus = Enums['shooting_status'];
 export type ShootingAttendanceStatus = Enums['shooting_attendance_status'];
 export type ShotItem = { title: string; done: boolean };
 
+/** Upcoming shootings (or the past ones), newest first for the past, soonest first ahead. RLS scopes the rows. */
+export async function fetchShootingList(when: 'upcoming' | 'past', fromIso: string) {
+  let query = getSupabase()
+    .from('shootings')
+    .select(
+      `id, title, starts_at, ends_at, status, location_name, location_address,
+       client:clients(name),
+       crew:shooting_members(role, user_id, person:profiles!shooting_members_user_id_fkey(full_name))`,
+    )
+    .is('deleted_at', null)
+    .limit(60);
+  query = when === 'past' ? query.lt('starts_at', fromIso).order('starts_at', { ascending: false }) : query.gte('starts_at', fromIso).order('starts_at');
+  const { data, error } = await query;
+  if (error) throw error;
+  return data.map((s) => ({
+    ...s,
+    client_name: s.client?.name ?? null,
+    members: s.crew.map((c) => ({ user_id: c.user_id, full_name: c.person?.full_name ?? '—', role: c.role })),
+  }));
+}
+
 export async function fetchShooting(id: string) {
   const supabase = getSupabase();
   const [shooting, attendance, content] = await Promise.all([

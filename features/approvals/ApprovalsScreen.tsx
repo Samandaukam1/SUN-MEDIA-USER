@@ -37,7 +37,7 @@ function tabsFor(isClient: boolean, approver: boolean, counts: ApprovalCounts | 
     approver
       ? { value: 'to_review', label: `Tekshirish${n(counts?.to_review)}` }
       : { value: 'to_review', label: `Tekshiruvda${n(counts?.my_in_review)}` },
-    { value: 'waiting_client', label: `Mijoz javobi${n(counts?.waiting_client)}` },
+    { value: 'waiting_client', label: `Eski navbat${n(counts?.waiting_client)}` },
     { value: 'revisions', label: `O‘zgartirishlar${n(counts?.my_revisions)}` },
     { value: 'history', label: 'Tarix' },
   ];
@@ -70,7 +70,7 @@ export function ApprovalsList({ header, onRefreshAll }: { header?: ReactElement;
 
   return (
     <View style={[styles.fill, { backgroundColor: colors.background }]}>
-      {header ? null : <Stack.Screen options={{ title: 'Tasdiqlash markazi' }} />}
+      {header ? null : <Stack.Screen options={{ title: 'Ichki tekshiruv' }} />}
       <FlatList
         data={rows}
         keyExtractor={(r) => `${r.kind}-${r.item.id}`}

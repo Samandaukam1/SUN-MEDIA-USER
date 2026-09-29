@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 
 import { Chip, ChipRow, EmptyState, ErrorState, Fab, SearchField, SegmentedControl, SkeletonCards, PullRefreshControl } from '@/components/ui';
@@ -38,6 +38,16 @@ export function toSummary(t: TaskListItem): TaskSummary {
 }
 
 export function TasksScreen() {
+  return (
+    <>
+      <Stack.Screen options={{ title: 'Vazifalar' }} />
+      <TaskList />
+    </>
+  );
+}
+
+/** Task list with scope, search and status chips; `top` lets the admin "Ishlar" tab put its own header above. */
+export function TaskList({ top, inTab = false }: { top?: ReactElement; inTab?: boolean }) {
   const me = useMe();
   const { can } = useAuth();
   const nav = useNav();
@@ -61,7 +71,6 @@ export function TasksScreen() {
 
   return (
     <View style={[styles.fill, { backgroundColor: colors.background }]}>
-      <Stack.Screen options={{ title: 'Vazifalar' }} />
       <FlatList
         data={items}
         keyExtractor={(t) => t.id}
@@ -72,6 +81,7 @@ export function TasksScreen() {
         refreshControl={<PullRefreshControl busy={query.isRefetching && !query.isFetchingNextPage} onRefresh={() => query.refetch()} />}
         ListHeaderComponent={
           <View style={styles.header}>
+            {top}
             {canSeeAll ? (
               <SegmentedControl
                 options={[
@@ -106,7 +116,7 @@ export function TasksScreen() {
         ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator style={styles.more} color={colors.textTertiary} /> : null}
         renderItem={({ item }) => <TaskCard task={toSummary(item)} onPress={() => nav.task(item.id)} />}
       />
-      {can('tasks.manage') ? <Fab label="Yangi vazifa" onPress={() => nav.go('/task/new')} overHomeIndicator /> : null}
+      {can('tasks.manage') ? <Fab label="Yangi vazifa" onPress={() => nav.go('/task/new')} overHomeIndicator={!inTab} /> : null}
     </View>
   );
 }

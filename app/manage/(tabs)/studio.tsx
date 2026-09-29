@@ -1,1 +1,1 @@
-export { StudioScreen as default } from '@/features/studio/StudioScreen';
+export { WorkScreen as default } from '@/features/work/WorkScreen';

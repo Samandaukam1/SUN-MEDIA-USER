@@ -5,9 +5,8 @@ import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
-import { Button, Card, EmptyState, Icon, ProgressBar, QueryView, Screen, Text, TextArea, ToggleRow, useToast } from '@/components/ui';
+import { Button, Card, EmptyState, Icon, ProgressBar, QueryView, Screen, Text, TextArea, useToast } from '@/components/ui';
 import { radius, spacing } from '@/constants/theme';
-import { useAuth } from '@/features/auth/AuthProvider';
 import { fetchContent } from '@/features/studio/api';
 import { useTheme } from '@/hooks/useTheme';
 import { useInterfaceBase } from '@/lib/routes';
@@ -19,7 +18,7 @@ const CLOSED = ['approved', 'scheduled', 'published', 'cancelled'];
 
 /**
  * Editor / designer uploads the next cut. Large files go up in resumable chunks with progress and
- * cancel; the version then enters internal review (or goes straight to the client for managers).
+ * cancel; the version then enters internal review.
  */
 export function SubmitVersionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -43,7 +42,6 @@ export function SubmitVersionScreen() {
 type Content = Awaited<ReturnType<typeof fetchContent>>;
 
 function SubmitForm({ content }: { content: Content }) {
-  const { can } = useAuth();
   const toast = useToast();
   const router = useRouter();
   const base = useInterfaceBase();
@@ -51,7 +49,6 @@ function SubmitForm({ content }: { content: Content }) {
   const { colors } = useTheme();
   const [source, setSource] = useState<UploadSource | null>(null);
   const [notes, setNotes] = useState('');
-  const [toClient, setToClient] = useState(false);
   const [progress, setProgress] = useState<{ sent: number; total: number } | null>(null);
   const [phase, setPhase] = useState<'idle' | 'uploading' | 'submitting'>('idle');
   const handle = useRef<UploadHandle | null>(null);
@@ -98,9 +95,9 @@ function SubmitForm({ content }: { content: Content }) {
       const file = await handle.current.promise;
       handle.current = null;
       setPhase('submitting');
-      const version = await submitVersion(content.id, file.id, notes, toClient);
+      const version = await submitVersion(content.id, file.id, notes);
       ['approvals', 'content', 'files', 'home', 'dashboard'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
-      toast.show(toClient ? `v${version.version_number} mijozga yuborildi` : `v${version.version_number} ichki tekshiruvga yuborildi`);
+      toast.show(`v${version.version_number} ichki tekshiruvga yuborildi`);
       router.replace(`${base}/approvals/${version.id}` as Href);
     } catch (e) {
       handle.current = null;
@@ -166,20 +163,10 @@ function SubmitForm({ content }: { content: Content }) {
       )}
 
       <TextArea label="Nima o‘zgardi?" value={notes} onChangeText={setNotes} maxLength={2000} minHeight={90} editable={!busy} placeholder="Masalan: musiqa almashtirildi, logo kattalashtirildi" />
-      {can('approvals.manage') ? (
-        <ToggleRow
-          label="To‘g‘ridan-to‘g‘ri mijozga yuborish"
-          description="Tekshiruvsiz to‘g‘ridan-to‘g‘ri mijozga boradi"
-          value={toClient}
-          onChange={setToClient}
-          disabled={busy}
-        />
-      ) : null}
-
       {phase === 'uploading' ? (
         <Button title="Bekor qilish" icon="x" variant="danger" onPress={() => handle.current?.cancel()} />
       ) : (
-        <Button title={toClient ? 'Yuklash va mijozga yuborish' : 'Yuklash va tekshiruvga yuborish'} icon="upload" disabled={!source} loading={phase === 'submitting'} onPress={upload} />
+        <Button title="Yuklash va tekshiruvga yuborish" icon="upload" disabled={!source} loading={phase === 'submitting'} onPress={upload} />
       )}
       <Text variant="caption" tone="tertiary">
         Katta videolar bo‘laklab yuklanadi: internet uzilsa, yuklash o‘zi davom etadi. Yuklash tugaguncha ekranni yopmang.

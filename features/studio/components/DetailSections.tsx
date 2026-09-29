@@ -30,9 +30,8 @@ export function OverviewSection({ c, isClient = false }: { c: ContentDetail; isC
         <KeyValue icon="video" label="Syomka" value={c.shooting ? `${formatShortDateTime(c.shooting.starts_at)}–${formatTime(c.shooting.ends_at)}` : null} />
         <KeyValue icon="map-pin" label="Joy" value={c.shooting ? [c.shooting.location_name, c.shooting.location_address].filter(Boolean).join(', ') || null : null} />
         <KeyValue icon="scissors" label={isClient ? 'Tayyor bo‘ladi' : 'Montaj muddati'} value={c.due_at ? formatShortDateTime(c.due_at) : null} />
-        <KeyValue icon="check-circle" label={isClient ? 'Javob muddati' : 'Mijoz tasdig‘i'} value={c.client_approval_due_at ? formatShortDateTime(c.client_approval_due_at) : null} />
         <KeyValue icon="send" label="Post" value={publish ? formatShortDateTime(publish) : null} />
-        {!c.shooting && !c.due_at && !c.client_approval_due_at && !publish ? (
+        {!c.shooting && !c.due_at && !publish ? (
           <Text variant="caption" tone="tertiary">
             Muddatlar hali belgilanmagan.
           </Text>

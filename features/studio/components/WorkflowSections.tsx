@@ -115,7 +115,7 @@ export function ApprovalSection({ c }: { c: ContentDetail }) {
 export function RevisionSection({ c }: { c: ContentDetail }) {
   const nav = useNav();
   const revisions = [...c.revisions].sort((a, b) => b.revision_number - a.revision_number);
-  if (revisions.length === 0) return <EmptyState icon="rotate-ccw" title="O‘zgartirish so‘ralmagan" description="Mijoz yoki tekshiruvchi o‘zgartirish so‘rasa, shu yerda ko‘rinadi." />;
+  if (revisions.length === 0) return <EmptyState icon="rotate-ccw" title="O‘zgartirish so‘ralmagan" description="Ichki tekshiruvdagi o‘zgartirishlar shu yerda ko‘rinadi." />;
   return (
     <Card padded={false}>
       {revisions.map((r, i) => (

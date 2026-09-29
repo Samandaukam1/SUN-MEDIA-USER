@@ -92,7 +92,7 @@ export function AttendanceScreen() {
                 ))}
               </Card>
               <Text variant="caption" tone="tertiary">
-                {canMark ? 'Tugmani bosing — darhol saqlanadi. Sababli, ta’til yoki masofadan ishlash uchun “⋯”. O‘zgarishlar tarixda qoladi.' : 'Davomatni rahbar yoki administrator belgilaydi.'}
+                {canMark ? 'Tugmani bosing — darhol saqlanadi. Sababli, ta’til yoki masofadan ishlash uchun “⋯”. O‘zgarishlar tarixda qoladi.' : 'Davomatni Admin belgilaydi.'}
               </Text>
             </>
           )

@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Badge, Button, Card, Chip, ChipRow, HeaderButton, QueryView, Screen, Text } from '@/components/ui';
+import { Badge, Button, Card, Chip, ChipRow, HeaderButton, NextStep, QueryView, Screen, Text } from '@/components/ui';
 import { contentStatusFor, CONTENT_TYPE, PRIORITY } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useTheme } from '@/hooks/useTheme';
 import { useNav } from '@/lib/routes';
+import { formatShortDateTime } from '@/lib/time';
 import { fetchContent, fetchTransitions, isContentOverdue, type ContentDetail } from './api';
 import { ContentThumb } from './components/ContentThumb';
 import { HistorySection, OverviewSection, ScriptSection, TeamSection } from './components/DetailSections';
@@ -17,13 +18,13 @@ import { PipelineSteps } from './components/PipelineSteps';
 import { StatusSheet } from './components/StatusSheet';
 import { ApprovalSection, CommentsSection, MediaSection, PublishingSection, RevisionSection } from './components/WorkflowSections';
 
-// Six places, each with one job. Clients do not get the internal team and status history.
+// Six places, each with one job. Clients only follow the work: no team, internal checks or history.
 const SECTIONS = [
   { key: 'overview', label: 'Asosiy' },
   { key: 'script', label: 'Ssenariy' },
   { key: 'media', label: 'Media' },
   { key: 'team', label: 'Jamoa', staffOnly: true },
-  { key: 'approval', label: 'Tasdiqlash' },
+  { key: 'approval', label: 'Tekshiruv', staffOnly: true },
   { key: 'history', label: 'Tarix', staffOnly: true },
 ] as const;
 type SectionKey = (typeof SECTIONS)[number]['key'];
@@ -43,19 +44,15 @@ export function ContentScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const isClient = appInterface === 'client';
-  const canMove = (transitions.data?.length ?? 0) > 0;
+  const canMove = !isClient && (transitions.data?.length ?? 0) > 0;
   const c = query.data;
   const latest = c ? [...c.versions].sort((a, b) => b.version_number - a.version_number)[0] : undefined;
-  const reviewable = !!latest && (latest.status === 'internal_review' || latest.status === 'client_review');
-  const canUpload = !!c && appInterface !== 'client' && can('files.upload') && (c.status === 'editing' || c.status === 'revision' || c.status === 'shot');
+  const reviewable = !isClient && !!latest && (latest.status === 'internal_review' || latest.status === 'client_review');
+  const canUpload = !!c && !isClient && can('files.upload') && (c.status === 'editing' || c.status === 'revision' || c.status === 'shot');
   const primary = canUpload
     ? { title: c!.status === 'revision' ? 'Tuzatilgan versiyani yuklash' : 'Versiya yuklash', icon: 'upload' as const, onPress: () => nav.go(`/content/submit/${c!.id}`) }
     : reviewable
-      ? {
-          title: isClient ? (latest!.status === 'client_review' ? 'Ko‘rish va tasdiqlash' : 'Videoni ko‘rish') : `Versiyani ko‘rish (v${latest!.version_number})`,
-          icon: 'play-circle' as const,
-          onPress: () => nav.review(latest!.id),
-        }
+      ? { title: `Versiyani ko‘rish (v${latest!.version_number})`, icon: 'play-circle' as const, onPress: () => nav.review(latest!.id) }
       : null;
   const bar = canMove || !!primary;
 
@@ -136,9 +133,44 @@ export function ContentScreen() {
   );
 }
 
+/** Who holds the work at this status and by when (the team member for the stage, or the admin for checks). */
+function nextStep(c: ContentDetail): { owner: string | null; due: string | null } {
+  const person = (...roles: string[]) => {
+    for (const role of roles) {
+      const p = c.team.find((t) => t.role === role)?.person;
+      if (p) return p.full_name;
+    }
+    return null;
+  };
+  const post = c.publications.find((p) => p.status !== 'cancelled' && p.scheduled_at)?.scheduled_at ?? null;
+  switch (c.status) {
+    case 'idea':
+    case 'script':
+      return { owner: person('copywriter', 'smm_manager'), due: c.due_at };
+    case 'ready_for_shoot':
+    case 'shooting':
+      return { owner: person('operator'), due: c.shooting?.starts_at ?? c.due_at };
+    case 'shot':
+    case 'editing':
+    case 'revision':
+      return { owner: person('editor', 'designer'), due: c.due_at };
+    case 'internal_review':
+    case 'client_review':
+      return { owner: person('project_manager') ?? 'Admin', due: c.due_at };
+    case 'approved':
+    case 'scheduled':
+      return { owner: person('smm_manager'), due: post ?? c.due_at };
+    default:
+      return { owner: person('smm_manager', 'editor', 'designer', 'operator'), due: c.due_at ?? post };
+  }
+}
+
 function Header({ c, isClient }: { c: ContentDetail; isClient: boolean }) {
   const status = contentStatusFor(c.status, isClient);
   const overdue = !isClient && isContentOverdue(c);
+  const step = nextStep(c);
+  const post = c.publications.find((p) => p.status !== 'cancelled' && p.scheduled_at)?.scheduled_at ?? null;
+  const due = isClient ? post ?? c.due_at : step.due;
   return (
     <Card style={styles.header}>
       <View style={styles.headRow}>
@@ -157,6 +189,12 @@ function Header({ c, isClient }: { c: ContentDetail; isClient: boolean }) {
           </View>
         </View>
       </View>
+      <NextStep
+        status={status.label}
+        owner={isClient ? 'Admin' : step.owner}
+        due={due ? formatShortDateTime(due) : null}
+        late={overdue}
+      />
       <PipelineSteps status={c.status} isClient={isClient} />
     </Card>
   );

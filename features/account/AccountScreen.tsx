@@ -1,22 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import Constants from 'expo-constants';
-import { useState, type ComponentType } from 'react';
+import { type ComponentType } from 'react';
 import { Alert, Platform, StyleSheet, View } from 'react-native';
 
-import { Avatar, Badge, Button, Card, Icon, ItemRow, ListGroup, ListRow, Screen, ScreenHeader, Section, Sheet, Text } from '@/components/ui';
-import { TEAM_ROLE_LABEL } from '@/constants/labels';
+import { Avatar, Badge, Button, Card, Icon, ListGroup, ListRow, Screen, ScreenHeader, Section, Text } from '@/components/ui';
 import { spacing } from '@/constants/theme';
 import { unregisterDevice } from '@/features/notifications/push';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
-import { fetchClientHome } from '@/features/home/api';
-import { useAgencyDate } from '@/features/home/useAgencyDate';
 import { fetchAnnouncements } from '@/features/workspace/api';
 import { useTheme } from '@/hooks/useTheme';
 import { useStrings } from '@/lib/i18n';
 import { useNav } from '@/lib/routes';
-import type { Database } from '@/types/database';
-
-type Enums = Database['public']['Enums'];
 
 // DEV ONLY: required behind __DEV__, so production bundles contain neither the switch nor the test accounts.
 const DevRoleSwitch: ComponentType | null = __DEV__
@@ -128,7 +122,9 @@ function StaffSections() {
       <Section title="Jamoa uchun">
         <ListGroup>
           <ListRow icon="volume-2" title="E’lonlar" value={unread ? `${unread} yangi` : null} onPress={() => nav.go('/announcements')} />
-          <ListRow icon="calendar" title="Tadbirlar va uchrashuvlar" onPress={() => nav.go('/events')} />
+          <ListRow icon="message-circle" title="Umumiy chat" subtitle="SUN MEDIA jamoasi — faqat xodimlar" onPress={() => nav.tab('inbox')} />
+          <ListRow icon="calendar" title="Umumiy kalendar" subtitle="Syomkalar, uchrashuvlar, muddatlar" onPress={() => nav.tab('calendar')} />
+          <ListRow icon="star" title="Tadbirlar va uchrashuvlar" onPress={() => nav.go('/events')} />
           <ListRow icon="book-open" title="Hujjatlar" subtitle="Ish tartibi, qo‘llanmalar, shablonlar" onPress={() => nav.go('/documents')} />
           <ListRow icon="users" title="Jamoa" subtitle="Xodimlar va ularning telefoni" onPress={() => nav.go('/team')} />
         </ListGroup>
@@ -147,46 +143,18 @@ function StaffSections() {
   );
 }
 
+/** A client follows the work and talks to SUN MEDIA; nothing here manages anything. */
 function ClientSections() {
-  const me = useMe();
   const { can } = useAuth();
   const nav = useNav();
-  const [teamOpen, setTeamOpen] = useState(false);
-  const client = me.clients[0];
-  const today = useAgencyDate();
-  // Same cache as the Home tab: opening the team costs no extra request.
-  const home = useQuery({ queryKey: ['home', 'client', client?.id, today], queryFn: () => fetchClientHome(client!.id), enabled: !!client && teamOpen });
-
   return (
     <Section title="Mening">
       <ListGroup>
         {can('client.plan.view') ? <ListRow icon="credit-card" iconTone="brand" title="Mening tarifim" subtitle="Nima kiradi va qancha qoldi" onPress={() => nav.go('/plan')} /> : null}
         {can('client.reports.view') ? <ListRow icon="bar-chart-2" title="Oylik hisobot" subtitle="Bu oy nima qilindi va natijalar" onPress={() => nav.go('/reports')} /> : null}
         <ListRow icon="folder" title="Fayllar" subtitle="Tayyor videolar va brend fayllari" onPress={nav.files} />
-        {client ? <ListRow icon="users" title="Jamoangiz" subtitle="Siz bilan ishlaydigan SUN MEDIA xodimlari" onPress={() => setTeamOpen(true)} /> : null}
+        <ListRow icon="message-circle" title="SUN MEDIA bilan chat" subtitle="Savol, fikr yoki taklif yozing" onPress={() => nav.tab('inbox')} />
       </ListGroup>
-      <Sheet visible={teamOpen} onClose={() => setTeamOpen(false)} title="Jamoangiz">
-        {home.data?.team.length ? (
-          <Card padded={false}>
-            {home.data.team.map((m, i) => (
-              <ItemRow
-                key={`${m.user_id}:${m.team_role}`}
-                first={i === 0}
-                leading={<Avatar name={m.full_name} url={m.avatar_url} size={34} />}
-                title={m.full_name}
-                subtitle={TEAM_ROLE_LABEL[m.team_role as Enums['team_role']] ?? m.team_role}
-              />
-            ))}
-          </Card>
-        ) : (
-          <Text variant="caption" tone="tertiary">
-            {home.isPending ? 'Yuklanmoqda…' : 'Jamoa hali biriktirilmagan.'}
-          </Text>
-        )}
-        <Text variant="caption" tone="tertiary">
-          Savollar bo‘lsa, “Xabarlar” bo‘limidagi loyiha chatiga yozing.
-        </Text>
-      </Sheet>
     </Section>
   );
 }

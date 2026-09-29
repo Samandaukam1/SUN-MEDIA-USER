@@ -73,7 +73,10 @@ function ChatBody({ room }: { room: RoomDetail }) {
   const lastTypingSent = useRef(0);
   const archived = !!room.archived_at;
   const peer = room.kind === 'direct' ? room.members.find((m) => m.user_id !== me.userId)?.person : null;
-  const title = chatTitle({ kind: room.kind, name: room.name, is_default: room.is_default, peer_name: peer?.full_name ?? null });
+  const title = chatTitle({ kind: room.kind, name: room.name, is_default: room.is_default, peer_name: peer?.full_name ?? null }, me.kind === 'client');
+  // The Rahbar reads client chats without being a member: they watch, the admins answer.
+  const observer = !room.members.some((m) => m.user_id === me.userId) ||
+    (room.kind === 'project' && me.permissions.includes('chat.observe') && !me.permissions.includes('chat.manage'));
   const showNames = room.kind !== 'direct';
 
   const messages = useInfiniteQuery({
@@ -186,9 +189,9 @@ function ChatBody({ room }: { room: RoomDetail }) {
     if (m.is_system || m.deleted_at) return;
     const mine = m.sender_id === me.userId;
     const actions: { label: string; destructive?: boolean; run: () => void }[] = [];
-    if (!archived) actions.push({ label: 'Javob berish', run: () => setReplyTo(m) });
+    if (!archived && !observer) actions.push({ label: 'Javob berish', run: () => setReplyTo(m) });
     if (m.body) actions.push({ label: 'Ulashish', run: () => Share.share({ message: m.body }).catch(() => undefined) });
-    if (mine && m.body && !archived)
+    if (mine && m.body && !archived && !observer)
       actions.push({
         label: 'Tahrirlash',
         run: () => {
@@ -197,7 +200,7 @@ function ChatBody({ room }: { room: RoomDetail }) {
           setText(m.body);
         },
       });
-    if (mine)
+    if (mine && !observer)
       actions.push({
         label: 'O‘chirish',
         destructive: true,
@@ -287,9 +290,9 @@ function ChatBody({ room }: { room: RoomDetail }) {
         />
 
         <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, spacing.md), borderTopColor: colors.border, backgroundColor: colors.background }]}>
-          {archived ? (
+          {archived || observer ? (
             <Text variant="caption" tone="tertiary" align="center">
-              Chat arxivlangan — yangi xabar yozib bo‘lmaydi.
+              {observer ? 'Siz bu chatni faqat kuzatasiz — mijozga Admin javob beradi.' : 'Chat arxivlangan — yangi xabar yozib bo‘lmaydi.'}
             </Text>
           ) : (
             <>

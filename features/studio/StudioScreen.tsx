@@ -1,9 +1,10 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Chip, ChipRow, EmptyState, ErrorState, Fab, IconButton, ScreenHeader, SearchField, SkeletonCards, PullRefreshControl } from '@/components/ui';
+import { CLIENT_STAGE_FILTERS } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
 import { useTheme } from '@/hooks/useTheme';
@@ -15,34 +16,43 @@ import { countActiveFilters, StudioFilterSheet } from './components/StudioFilter
 
 type Tab = { key: string; label: string; statuses: ContentStatus[] | null };
 
+// Internal stages (the client approval step is history now: old items sit under "Ichki tekshiruv").
 const STAFF_TABS: Tab[] = [
   { key: 'all', label: 'Barchasi', statuses: null },
   { key: 'idea', label: 'G‘oya', statuses: ['idea'] },
   { key: 'script', label: 'Ssenariy', statuses: ['script'] },
   { key: 'shooting', label: 'Syomka', statuses: ['ready_for_shoot', 'shooting', 'shot'] },
-  { key: 'editing', label: 'Montaj', statuses: ['editing'] },
-  { key: 'internal', label: 'Tekshiruv', statuses: ['internal_review'] },
-  { key: 'client', label: 'Mijoz tasdiqlashi', statuses: ['client_review'] },
-  { key: 'revision', label: 'O‘zgartirish', statuses: ['revision'] },
+  { key: 'editing', label: 'Montaj', statuses: ['editing', 'revision'] },
+  { key: 'internal', label: 'Ichki tekshiruv', statuses: ['internal_review', 'client_review'] },
   { key: 'approved', label: 'Tayyor', statuses: ['approved'] },
-  { key: 'scheduled', label: 'Rejalashtirilgan', statuses: ['scheduled'] },
+  { key: 'scheduled', label: 'Rejalashtirildi', statuses: ['scheduled'] },
   { key: 'published', label: 'Joylandi', statuses: ['published'] },
 ];
 
-// Clients think in outcomes: what is being made, what needs me, what is live.
-const CLIENT_TABS: Tab[] = [
-  { key: 'all', label: 'Barchasi', statuses: null },
-  { key: 'client', label: 'Tasdiqlash kerak', statuses: ['client_review'] },
-  { key: 'production', label: 'Tayyorlanmoqda', statuses: ['idea', 'script', 'ready_for_shoot', 'shooting', 'shot', 'editing', 'internal_review', 'revision'] },
-  { key: 'approved', label: 'Tayyor', statuses: ['approved', 'scheduled'] },
-  { key: 'published', label: 'Joylandi', statuses: ['published'] },
-];
+// Clients only follow six simple states.
+const CLIENT_TABS: Tab[] = [{ key: 'all', label: 'Barchasi', statuses: null }, ...CLIENT_STAGE_FILTERS];
 
 export function StudioScreen() {
   const me = useMe();
+  const s = useStrings();
+  const { colors } = useTheme();
+  const isStaff = me.kind === 'staff';
+  return (
+    <SafeAreaView edges={['top']} style={[styles.fill, { backgroundColor: colors.background }]}>
+      <ContentList
+        top={(filterButton) => (
+          <ScreenHeader title={s.nav.studio} subtitle={isStaff ? 'Har bir kontent qayergacha yetgani' : 'Kontentingiz qayergacha yetgani'} right={filterButton} />
+        )}
+      />
+    </SafeAreaView>
+  );
+}
+
+/** Searchable, filterable content list; the Studio tab and the admin "Ishlar" tab both use it. */
+export function ContentList({ top }: { top: (filterButton: ReactElement) => ReactElement }) {
+  const me = useMe();
   const { can } = useAuth();
   const nav = useNav();
-  const s = useStrings();
   const { colors } = useTheme();
   const isStaff = me.kind === 'staff';
   const tabs = isStaff ? STAFF_TABS : CLIENT_TABS;
@@ -63,9 +73,10 @@ export function StudioScreen() {
   });
   const items = query.data?.pages.flat() ?? [];
   const filterCount = countActiveFilters(filters);
+  const filterButton = <IconButton icon="sliders" label={`Filtr${filterCount ? `, ${filterCount} faol` : ''}`} onPress={() => setFiltering(true)} badge={filterCount} />;
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.fill, { backgroundColor: colors.background }]}>
+    <View style={styles.fill}>
       <FlatList
         data={items}
         keyExtractor={(i) => i.id}
@@ -76,11 +87,7 @@ export function StudioScreen() {
         refreshControl={<PullRefreshControl busy={query.isRefetching && !query.isFetchingNextPage} onRefresh={() => query.refetch()} />}
         ListHeaderComponent={
           <View style={styles.header}>
-            <ScreenHeader
-              title={s.nav.studio}
-              subtitle={isStaff ? 'Har bir kontent qayergacha yetgani' : 'Kontentingiz qayergacha yetgani'}
-              right={<IconButton icon="sliders" label={`Filtr${filterCount ? `, ${filterCount} faol` : ''}`} onPress={() => setFiltering(true)} badge={filterCount} />}
-            />
+            {top(filterButton)}
             <SearchField value={search} onChangeText={setSearch} placeholder="Kontent nomi" />
             <ChipRow>
               {tabs.map((t) => (
@@ -107,7 +114,7 @@ export function StudioScreen() {
       />
       {can('content.manage') ? <Fab label="Yangi kontent" onPress={() => nav.go('/content/new')} /> : null}
       <StudioFilterSheet visible={filtering} onClose={() => setFiltering(false)} value={filters} onApply={setFilters} isStaff={isStaff} />
-    </SafeAreaView>
+    </View>
   );
 }
 

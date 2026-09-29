@@ -231,7 +231,7 @@ export const contentFormSchema = z.object({
   music_reference: z.string().max(500),
   reference_links: z.array(z.string().regex(/^https:\/\/\S+$/i, 'Referens havolalari https:// bilan boshlansin')).max(20),
   due_at: z.string().nullable(),
-  client_approval_due_at: z.string().nullable(),
+  client_approval_due_at: z.string().nullable().optional(),
   publish_at: z.string().nullable(),
   is_client_visible: z.boolean(),
   counts_toward_plan: z.boolean(),

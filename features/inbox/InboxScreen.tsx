@@ -17,12 +17,14 @@ import { formatAgo, formatChatTime } from '@/lib/time';
 import {
   chatTitle,
   fetchChats,
+  fetchClientConversations,
   fetchInboxCounts,
   fetchNotifications,
   markNotificationsRead,
   NOTIFICATION_PAGE,
   type AppNotification,
   type ChatSummary,
+  type ClientConversation,
 } from './api';
 import { NewChatSheet } from './components/NewChatSheet';
 
@@ -46,9 +48,10 @@ export function InboxScreen() {
       />
       <SegmentedControl<Tab>
         options={[
-          { value: 'chats', label: 'Xabarlar', count: counts.data?.chat_rooms_unread },
-          { value: 'approvals', label: 'Tasdiqlashlar', count: counts.data?.approvals },
-          { value: 'notifications', label: 'Bildirishnomalar', count: counts.data?.notifications_unread },
+          { value: 'chats' as const, label: isStaff ? 'Xabarlar' : 'SUN MEDIA bilan chat', count: counts.data?.chat_rooms_unread },
+          // Internal checks are staff work; clients only follow and write to SUN MEDIA.
+          ...(isStaff ? [{ value: 'approvals' as const, label: 'Tekshiruv', count: counts.data?.approvals }] : []),
+          { value: 'notifications' as const, label: 'Bildirishnomalar', count: counts.data?.notifications_unread },
         ]}
         value={tab}
         onChange={setTab}
@@ -59,7 +62,7 @@ export function InboxScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.fill, { backgroundColor: colors.background }]}>
       {tab === 'chats' ? <ChatList header={header} onRefresh={() => counts.refetch()} /> : null}
-      {tab === 'approvals' ? <ApprovalsList header={header} onRefreshAll={() => counts.refetch()} /> : null}
+      {tab === 'approvals' && isStaff ? <ApprovalsList header={header} onRefreshAll={() => counts.refetch()} /> : null}
       {tab === 'notifications' ? <NotificationList header={header} unread={counts.data?.notifications_unread ?? 0} onRefresh={() => counts.refetch()} /> : null}
       {isStaff ? <NewChatSheet visible={composing} onClose={() => setComposing(false)} /> : null}
     </SafeAreaView>
@@ -71,8 +74,13 @@ export function InboxScreen() {
 // ---------------------------------------------------------------------------
 function ChatList({ header, onRefresh }: { header: ReactElement; onRefresh: () => void }) {
   const nav = useNav();
+  const { can } = useAuth();
   const query = useQuery({ queryKey: ['chat', 'list'], queryFn: fetchChats });
   const rooms = (query.data ?? []).filter((r) => !r.archived || r.unread_count > 0);
+  // The Rahbar is not in client rooms: they follow every client conversation read-only.
+  const observer = can('chat.observe') && !can('chat.manage');
+  const watched = useQuery({ queryKey: ['chat', 'client-conversations'], queryFn: fetchClientConversations, enabled: observer });
+  const observed = (watched.data ?? []).filter((c) => !c.is_member);
   return (
     <FlatList
       data={rooms}
@@ -87,18 +95,68 @@ function ChatList({ header, onRefresh }: { header: ReactElement; onRefresh: () =
           }}
         />
       }
-      ListHeaderComponent={header}
+      ListHeaderComponent={
+        <View style={styles.header}>
+          {header}
+          {observed.length > 0 ? (
+            <View style={styles.observed}>
+              <Text variant="label" tone="tertiary">
+                Mijoz chatlari · kuzatish
+              </Text>
+              <View>
+                {observed.map((c, i) => (
+                  <ObservedRow key={c.room_id} c={c} first={i === 0} last={i === observed.length - 1} onPress={() => nav.chat(c.room_id)} />
+                ))}
+              </View>
+            </View>
+          ) : null}
+        </View>
+      }
       ListEmptyComponent={
         query.isPending ? (
           <SkeletonCards count={4} />
         ) : query.error ? (
           <ErrorState error={query.error} onRetry={() => query.refetch()} />
         ) : (
-          <EmptyState icon="message-circle" title="Hali chat yo‘q" description="Jamoa va loyiha chatlari shu yerda ko‘rinadi." />
+          <EmptyState icon="message-circle" title="Hozircha xabar yo‘q" description="Jamoa va mijoz bilan yozishmalar shu yerda ko‘rinadi." />
         )
       }
       renderItem={({ item, index }) => <ChatRow room={item} first={index === 0} last={index === rooms.length - 1} onPress={() => nav.chat(item.room_id)} />}
     />
+  );
+}
+
+/** A client conversation the Rahbar watches (not a member, cannot write). */
+function ObservedRow({ c, first, last, onPress }: { c: ClientConversation; first: boolean; last: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${c.client_name}${c.awaiting_reply ? ', javob kutmoqda' : ''}`}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.row,
+        { backgroundColor: pressed ? colors.surfaceSunken : colors.surface, borderColor: colors.border },
+        first && styles.firstRow,
+        last && styles.lastRow,
+        !first && { borderTopWidth: 0 },
+      ]}
+    >
+      <Avatar name={c.client_code} url={c.client_logo} size={46} />
+      <View style={styles.flex}>
+        <View style={styles.titleRow}>
+          <Text variant="bodyMedium" numberOfLines={1} style={styles.flex}>
+            {c.client_name}
+          </Text>
+          <Text variant="caption" tone="tertiary">
+            {c.last_message_at ? formatChatTime(c.last_message_at) : ''}
+          </Text>
+        </View>
+        <Text variant="caption" tone={c.awaiting_reply ? 'warning' : 'secondary'} numberOfLines={1}>
+          {c.last_message_at ? `${c.awaiting_reply ? 'Javob kutmoqda · ' : ''}${c.last_sender_name?.split(' ')[0] ?? ''}: ${c.last_message_body || 'Fayl'}` : 'Hali xabar yo‘q'}
+        </Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -116,7 +174,7 @@ function ChatRow({ room, first, last, onPress }: { room: ChatSummary; first: boo
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${chatTitle(room)}${unread ? `, ${room.unread_count} ta o‘qilmagan` : ''}`}
+      accessibilityLabel={`${chatTitle(room, me.kind === 'client')}${unread ? `, ${room.unread_count} ta o‘qilmagan` : ''}`}
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
@@ -130,7 +188,7 @@ function ChatRow({ room, first, last, onPress }: { room: ChatSummary; first: boo
       <View style={styles.flex}>
         <View style={styles.titleRow}>
           <Text variant={unread ? 'subheading' : 'bodyMedium'} numberOfLines={1} style={styles.flex}>
-            {chatTitle(room)}
+            {chatTitle(room, me.kind === 'client')}
           </Text>
           {room.muted ? <Icon name="bell-off" size={13} color={colors.textTertiary} /> : null}
           <Text variant="caption" tone={unread ? 'accent' : 'tertiary'}>
@@ -316,6 +374,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   list: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: 120 },
   header: { gap: spacing.lg, marginBottom: spacing.md },
+  observed: { gap: spacing.sm },
   more: { marginVertical: spacing.lg },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderWidth: StyleSheet.hairlineWidth },
   notification: { alignItems: 'flex-start' },

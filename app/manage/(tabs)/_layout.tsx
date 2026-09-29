@@ -11,7 +11,8 @@ export default function ManagementTabs() {
     <Tabs screenOptions={useTabScreenOptions()} tabBar={renderTabBar}>
       <Tabs.Screen name="index" options={tab(s.nav.home, 'home')} />
       <Tabs.Screen name="calendar" options={tab(s.nav.calendar, 'calendar')} />
-      <Tabs.Screen name="studio" options={tab(s.nav.studio, 'film')} />
+      {/* Admin / Rahbar: tasks, content and shootings together ("Ishlar"). */}
+      <Tabs.Screen name="studio" options={tab(s.nav.work, 'briefcase')} />
       <Tabs.Screen name="inbox" options={tab(s.nav.inbox, 'inbox', inbox)} />
       <Tabs.Screen name="account" options={tab(s.nav.account, 'user')} />
     </Tabs>

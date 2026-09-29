@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Badge, Card, EmptyState, ErrorState, IconButton, ItemRow, ListGroup, ListRow, MetricGrid, QueryView, Screen, ScreenHeader, Section, Skeleton, SkeletonCards, Text } from '@/components/ui';
 import { QuickCreateFab } from '@/components/navigation/QuickCreateFab';
-import { CONTENT_STATUS, CONTENT_TYPE, TASK_TYPE } from '@/constants/labels';
+import { CONTENT_STATUS, TASK_TYPE } from '@/constants/labels';
 import { spacing } from '@/constants/theme';
 import { ActivityList } from '@/features/activity/ActivityList';
 import { useAuth, useMe } from '@/features/auth/AuthProvider';
@@ -13,13 +13,15 @@ import { WorkspaceHomeSection } from '@/features/workspace/components/WorkspaceH
 import { useNav } from '@/lib/routes';
 import { formatAgo, formatDateKeyLong, formatRelativeDeadline, formatShortDateTime } from '@/lib/time';
 import type { Database } from '@/types/database';
-import { fetchActivity, fetchCommandCenter, type CommandCenter } from './api';
+import { fetchClientConversations } from '@/features/inbox/api';
+import { fetchActivity, fetchCommandCenter, fetchProblemContent, type CommandCenter } from './api';
 
 type Enums = Database['public']['Enums'];
 
 /**
- * Owner / director / admin Home: "what is happening in the agency today" in one look —
- * six numbers, then only the lists that need someone (shootings, deadlines, approvals).
+ * Admin / Rahbar Home: "what needs managing today" in one look — eight numbers, then only the lists that need
+ * someone (shootings, deadlines, clients waiting for an answer, problem work). The Rahbar sees the same
+ * picture read-only: permissions hide every action they do not hold.
  */
 export function CommandCenterScreen() {
   const today = useAgencyDate();
@@ -62,11 +64,13 @@ function Body({ data }: { data: CommandCenter }) {
   const me = useMe();
   const { can } = useAuth();
   const nav = useNav();
-  const { tasks, attendance, approvals, publications } = data;
-  const arrived = attendance.present + attendance.late + attendance.remote;
-  const waiting = approvals.client_review + approvals.internal_review;
+  const { tasks, attendance, publications } = data;
   const urgent = data.deadlines.items.filter((d) => d.state !== 'upcoming').slice(0, 5);
   const canAttendance = can('attendance.read') || can('attendance.manage');
+  const seesChats = can('chat.manage') || can('chat.observe');
+  const chats = useQuery({ queryKey: ['chat', 'client-conversations'], queryFn: fetchClientConversations, enabled: seesChats, refetchInterval: 60_000 });
+  const waiting = (chats.data ?? []).filter((c) => c.awaiting_reply);
+  const problems = useQuery({ queryKey: ['dashboard', 'problems'], queryFn: fetchProblemContent });
 
   return (
     <>
@@ -75,19 +79,16 @@ function Body({ data }: { data: CommandCenter }) {
           Bugun
         </Text>
         <MetricGrid
+          columns={4}
           items={[
-            { label: 'Syomka', value: data.shootings.length, onPress: () => nav.tab('calendar') },
-            { label: 'Faol vazifa', value: tasks.in_progress + tasks.todo, onPress: () => nav.go('/tasks') },
-            { label: 'Kechikkan', value: tasks.overdue, tone: tasks.overdue ? 'danger' : 'hero', onPress: () => nav.go('/tasks') },
-            { label: 'Tasdiqlash', value: waiting, tone: waiting ? 'brand' : 'hero', onPress: nav.approvals },
-            { label: 'Post', value: publications.scheduled + publications.published, hint: publications.delayed ? `${publications.delayed} kechikdi` : null, tone: publications.delayed ? 'danger' : 'hero' },
-            {
-              label: 'Davomat',
-              value: `${arrived}/${attendance.employees}`,
-              hint: attendance.late ? `${attendance.late} kechikdi` : null,
-              tone: attendance.late ? 'warning' : 'hero',
-              onPress: canAttendance ? () => nav.go('/attendance') : undefined,
-            },
+            { label: 'Syomka', value: data.shootings.length, onPress: () => nav.tab('studio') },
+            { label: 'Aktiv vazifa', value: tasks.in_progress + tasks.todo, onPress: () => nav.tab('studio') },
+            { label: 'Kechikkan', value: tasks.overdue, tone: tasks.overdue ? 'danger' : 'hero', onPress: () => nav.tab('studio') },
+            { label: 'Bugungi post', value: publications.scheduled + publications.published },
+            { label: 'Keldi', value: attendance.present + attendance.late + attendance.remote, onPress: canAttendance ? () => nav.go('/attendance') : undefined },
+            { label: 'Kechikdi', value: attendance.late, tone: attendance.late ? 'warning' : 'hero', onPress: canAttendance ? () => nav.go('/attendance') : undefined },
+            { label: 'Kelmadi', value: attendance.absent, tone: attendance.absent ? 'danger' : 'hero', onPress: canAttendance ? () => nav.go('/attendance') : undefined },
+            { label: 'Javobsiz xabar', value: seesChats ? waiting.length : '—', tone: waiting.length ? 'brand' : 'hero', onPress: () => nav.tab('inbox') },
           ]}
         />
       </Card>
@@ -98,7 +99,7 @@ function Body({ data }: { data: CommandCenter }) {
             icon="user-check"
             iconTone="warning"
             title={`${attendance.unmarked} xodim davomati belgilanmagan`}
-            subtitle="Bir necha soniyada belgilang"
+            subtitle="Keldi / Kechikdi / Kelmadi — bir bosishda"
             onPress={() => nav.go('/attendance')}
           />
         </ListGroup>
@@ -130,20 +131,39 @@ function Body({ data }: { data: CommandCenter }) {
         </Section>
       ) : null}
 
-      {approvals.items.length > 0 ? (
-        <Section title="Tasdiqlash kutmoqda" actionLabel="Barchasi" onAction={nav.approvals}>
+      {waiting.length > 0 ? (
+        <Section title="Javob kutayotgan mijozlar" actionLabel="Xabarlar" onAction={() => nav.tab('inbox')}>
           <Card padded={false}>
-            {approvals.items.slice(0, 4).map((a, i) => {
-              const status = CONTENT_STATUS[a.status as Enums['content_status']];
+            {waiting.slice(0, 5).map((c, i) => (
+              <ItemRow
+                key={c.room_id}
+                first={i === 0}
+                icon="message-circle"
+                title={c.client_name}
+                subtitle={[c.last_message_body || 'Fayl', c.last_message_at ? formatAgo(c.last_message_at) : null].filter(Boolean).join(' · ')}
+                right={<Badge label={c.is_member ? 'Javob bering' : 'Kutmoqda'} tone="warning" />}
+                onPress={() => nav.chat(c.room_id)}
+              />
+            ))}
+          </Card>
+        </Section>
+      ) : null}
+
+      {(problems.data ?? []).length > 0 ? (
+        <Section title="Muammoli ishlar" actionLabel="Ishlar" onAction={() => nav.tab('studio')}>
+          <Card padded={false}>
+            {(problems.data ?? []).map((c, i) => {
+              const status = CONTENT_STATUS[c.status];
+              const late = c.status !== 'revision';
               return (
                 <ItemRow
-                  key={a.content_id}
+                  key={c.id}
                   first={i === 0}
-                  icon={CONTENT_TYPE[a.content_type as Enums['content_type']]?.icon ?? 'film'}
-                  title={a.title}
-                  subtitle={[a.client_name, formatAgo(a.since)].join(' · ')}
-                  right={status ? <Badge label={status.label} tone={status.tone} /> : undefined}
-                  onPress={() => nav.content(a.content_id)}
+                  icon={late ? 'alert-triangle' : 'rotate-ccw'}
+                  title={c.title}
+                  subtitle={[c.client?.name, c.team.map((t) => t.person?.full_name.split(' ')[0]).filter(Boolean).join(', ') || null, c.due_at ? formatShortDateTime(c.due_at) : null].filter(Boolean).join(' · ')}
+                  right={<Badge label={late ? 'Kechikdi' : status.label} tone="danger" />}
+                  onPress={() => nav.content(c.id)}
                 />
               );
             })}
@@ -153,8 +173,8 @@ function Body({ data }: { data: CommandCenter }) {
 
       <WorkspaceHomeSection userId={me.userId} />
 
-      {data.shootings.length === 0 && urgent.length === 0 && approvals.items.length === 0 ? (
-        <EmptyState icon="sun" title="Bugun hammasi joyida" description="Syomka, kechikkan ish yoki tasdiqlash kutayotgan kontent yo‘q." />
+      {data.shootings.length === 0 && urgent.length === 0 && waiting.length === 0 && !(problems.data ?? []).length ? (
+        <EmptyState icon="sun" title="Bugun hammasi joyida" description="Syomka, kechikkan ish yoki javob kutayotgan mijoz yo‘q." />
       ) : null}
     </>
   );
