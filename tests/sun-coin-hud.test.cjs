@@ -130,14 +130,10 @@ test("every dive pushes off the ground, never sinks below it, and lands back on 
   assert.equal(centreLow.angle, 0);
 });
 
-test("game levels: the app's odds match the server's reach rule", () => {
-  const { catchChance, covers, poolSummary } = require("../features/game-admin/levels.ts");
-  assert.deepEqual([0, 1, 2, 3].map((r) => Math.round(catchChance(r) * 1000) / 10), [6.7, 17.3, 40.4, 59.1]);
-  assert.equal(covers(7, 8, 0), false);
-  assert.equal(covers(7, 8, 1), true, "normal: next column, same row");
-  assert.equal(covers(7, 12, 1), false);
-  assert.equal(covers(7, 12, 2), true, "hard: next row too");
-  assert.equal(covers(5, 7, 3), true, "extreme: two columns");
+test("game levels: the app shows the server's save chances (goals ≈ 55 / 35 / 12.5 / 1 %)", () => {
+  const { levelOdds, poolSummary } = require("../features/game-admin/levels.ts");
+  assert.deepEqual(["easy", "normal", "hard", "extreme"].map((k) => levelOdds(k).goal), [55, 35, 12.5, 1]);
+  assert.equal(levelOdds("extreme").save, 99);
   assert.deepEqual(poolSummary(20, [{ amount: 5, quantity: 2 }, { amount: 3, quantity: 3 }]), { fixed: 19, poolLimited: false, maximum: 19, unallocated: 1, exceeds: false });
   assert.equal(poolSummary(10, [{ amount: 5, quantity: 3 }]).exceeds, true);
 });

@@ -26,7 +26,7 @@ import {
   type GameAdminDashboard,
 } from './api';
 import { CampaignSheet, GiftSheet, PackSheet } from './GameAdminSheets';
-import { catchChance, LEVELS, type LevelKey } from './levels';
+import { levelOdds, LEVELS, type LevelKey } from './levels';
 
 function confirm(title: string, message: string, action: string, onConfirm: () => void, destructive = false) {
   if (Platform.OS === 'web') {
@@ -86,7 +86,7 @@ function Dashboard({ data, onSheet }: { data: GameAdminDashboard; onSheet: (s: '
   const act = useMutation({ mutationFn: (fn: () => Promise<unknown>) => fn(), onSuccess: refresh, onError: (e) => toast.show(gameAdminError(e), 'error') });
   const pending = data.purchaseRequests.filter((r) => r.status === 'pending');
   const level = (data.settings.find((s) => s.gameId === 'safi-penalty')?.difficulty ?? 'easy') as LevelKey;
-  const levelInfo = LEVELS.find((l) => l.key === level)!;
+  const odds = levelOdds(level);
   const a = data.analytics;
   const campaigns = data.campaigns.filter((c) => c.gameId === 'safi-penalty').slice(0, 6);
 
@@ -137,7 +137,7 @@ function Dashboard({ data, onSheet }: { data: GameAdminDashboard; onSheet: (s: '
           onChange={(v) => act.mutate(() => setLevel(v))}
         />
         <Text variant="caption" tone="secondary">
-          {`${levelInfo.detail}. Tovuqning ushlash ehtimoli ≈ ${Math.round(catchChance(levelInfo.reach) * 100)}%. Yangi raundlarga qo‘llanadi; o‘ynalayotgan raund o‘z darajasida tugaydi.`}
+          {`Gol ≈ ${odds.goal}% · tovuq ushlaydi ≈ ${odds.save}%. Yangi raundlarga qo‘llanadi; o‘ynalayotgan raund o‘z darajasida tugaydi. Sovg‘a ehtimoli kampaniya sozlamalarida alohida.`}
         </Text>
       </Section>
 

@@ -1,26 +1,19 @@
-/** The SAFI goalkeeper's levels: how far its dive reaches (same rule the server judges with). */
+/**
+ * SAFI goalkeeper levels: how often the chicken saves (the server's private.game_center_save_chance).
+ * Goals ≈ 55 / 35 / 12.5 / 1 %. Rewards are a separate system; a level only decides goal or save.
+ */
 export const LEVELS = [
-  { key: 'easy', label: 'Oson', reach: 0, detail: 'Faqat o‘zi sakragan zona' },
-  { key: 'normal', label: 'O‘rta', reach: 1, detail: 'Qo‘shni ustunlar ham' },
-  { key: 'hard', label: 'Qiyin', reach: 2, detail: 'Qo‘shni ustun va qatorlar' },
-  { key: 'extreme', label: 'Juda qiyin', reach: 3, detail: '±2 ustun, ±1 qator' },
+  { key: 'easy', label: 'Oson', save: 0.45 },
+  { key: 'normal', label: 'O‘rta', save: 0.65 },
+  { key: 'hard', label: 'Qiyin', save: 0.875 },
+  { key: 'extreme', label: 'Juda qiyin', save: 0.99 },
 ] as const;
 export type LevelKey = (typeof LEVELS)[number]['key'];
 
-/** Does a dive to `keeper` (0…14) cover `zone` (0…14)? Mirrors private.penalty_saved. */
-export function covers(keeper: number, zone: number, reach: number): boolean {
-  const kr = Math.floor(keeper / 5), kc = keeper % 5, zr = Math.floor(zone / 5), zc = zone % 5;
-  if (reach === 0) return keeper === zone;
-  if (reach === 1) return kr === zr && Math.abs(kc - zc) <= 1;
-  if (reach === 2) return Math.abs(kr - zr) <= 1 && Math.abs(kc - zc) <= 1;
-  return Math.abs(kr - zr) <= 1 && Math.abs(kc - zc) <= 2;
-}
-
-/** Chance the chicken saves a shot aimed at a random zone (the dive is uniform over the 15 zones). */
-export function catchChance(reach: number): number {
-  let saved = 0;
-  for (let k = 0; k < 15; k++) for (let z = 0; z < 15; z++) if (covers(k, z, reach)) saved++;
-  return saved / 225;
+/** "Gol ≈ 55% · tovuq ushlaydi ≈ 45%" */
+export function levelOdds(key: LevelKey): { goal: number; save: number } {
+  const save = LEVELS.find((l) => l.key === key)?.save ?? LEVELS[0].save;
+  return { goal: Math.round((1 - save) * 1000) / 10, save: Math.round(save * 1000) / 10 };
 }
 
 export type RewardOptionDraft = { amount: number; quantity: number | null };

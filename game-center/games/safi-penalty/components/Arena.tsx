@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Image, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import type { GameSession } from "../../../engine/gameSession";
 import { feedback, motion } from "../../../engine/animationUtils";
 import type { GameFeedback, GameState } from "../../../engine/types";
 import { safiTheme as t } from "../config";
 import { arenaLayout, eggTrajectory, KEEPER_FEET, keeperBox, keeperDive, ZONES, zonePoint } from "../physics";
-import { Chicken, Egg, EggSplat, Field } from "./Artwork";
+import { canShoot, nextStage, pickBubble, pickReaction, REACTION_TIMING, type KeeperEvent, type KeeperStage } from "../reactions";
+import { Egg, EggSplat, Field } from "./Artwork";
+import { KeeperRig, type KeeperRigHandle } from "./KeeperRig";
 
 const NATIVE = Platform.OS !== "web";
 
@@ -38,6 +40,14 @@ export function Arena({
   const audioRef = useRef(audio);
   audioRef.current = audio;
   const [focusedZone, setFocusedZone] = useState<number | null>(null);
+  // Visual-only keeper stages; the engine phase still decides when a shot is accepted.
+  const [stage, setStage] = useState<KeeperStage>("IDLE");
+  const go = (event: KeeperEvent) => setStage((s) => nextStage(s, event));
+  const [held, setHeld] = useState(false);
+  const [bubble, setBubble] = useState<string | null>(null);
+  const bubbleOpacity = useRef(new Animated.Value(0)).current;
+  const rig = useRef<KeeperRigHandle>(null);
+  const recent = useRef<number[]>([]);
   useEffect(() => {
     if (state.phase !== "READY") setFocusedZone(null);
   }, [state.phase]);
@@ -80,6 +90,7 @@ export function Arena({
   // While the server answers: the egg winds up, the keeper bounces on its knees, ready.
   useEffect(() => {
     if (state.phase !== "SHOOTING") return;
+    setStage((s) => nextStage(s, "shot"));
     feedback("shot", reduced, audioRef.current);
     if (reduced) return;
     const anim = Animated.loop(
@@ -132,15 +143,41 @@ export function Arena({
           isInteraction: false,
         }),
       ]),
-      Animated.delay(reduced ? 480 : 560),
+      // A goal: a short beat, then recovery. A save: the egg is secured, then the taunt.
+      Animated.delay(goal ? (reduced ? 480 : 560) : REACTION_TIMING.holdMs),
     ]);
     let active = true;
     flight.start(({ finished }) => {
       if (!finished || !active) return;
       feedback(goal ? "goal" : "catch", reduced, audioRef.current);
       if (goal) feedback("eggBreak", reduced, audioRef.current);
+      else setHeld(true); // the egg now travels with the keeper's gloves
+      setStage((s) => nextStage(s, goal ? "scored" : "caught"));
       impact.start(({ finished: done }) => {
-        if (done && active) controller.beginReset();
+        if (!done || !active) return;
+        if (goal) {
+          controller.beginReset();
+          return;
+        }
+        // Random taunt, never one of the last two; sometimes a short line.
+        const index = pickReaction(recent.current);
+        recent.current = [...recent.current, index].slice(-4);
+        const line = pickBubble(index);
+        setBubble(line);
+        if (line) {
+          bubbleOpacity.setValue(0);
+          Animated.sequence([
+            motion(bubbleOpacity, 1, 140),
+            Animated.delay(REACTION_TIMING.bubbleMs - 280),
+            motion(bubbleOpacity, 0, 140),
+          ]).start();
+        }
+        setStage((s) => nextStage(s, "hold-done"));
+        rig.current?.play(index, () => {
+          if (!active) return;
+          setStage((s) => nextStage(s, "reaction-done"));
+          controller.beginReset();
+        });
       });
     });
     return () => {
@@ -148,7 +185,16 @@ export function Arena({
       flight.stop();
       impact.stop();
     };
-  }, [controller, reduced, shot, state.phase, values]);
+  }, [controller, reduced, shot, state.phase, values, bubbleOpacity]);
+  // Tap during a taunt: skip it (only then — never while the next shot could collide).
+  const skip = () => {
+    if (stage !== "REACTION" || state.phase !== "RESOLVING") return;
+    rig.current?.stop();
+    bubbleOpacity.setValue(0);
+    setBubble(null);
+    go("skip");
+    controller.beginReset();
+  };
   // Recovery: get up, walk back to the centre, then the next shot.
   useEffect(() => {
     if (state.phase !== "RESETTING" || state.error) return;
@@ -162,14 +208,22 @@ export function Arena({
     anim.start(({ finished }) => {
       if (finished) {
         [values.fly, values.dive, values.land, values.rise, values.home, values.crouch].forEach((v) => v.setValue(0));
+        // Egg cleanup and a neutral keeper before the next shot.
+        setHeld(false);
+        setBubble(null);
+        rig.current?.reset();
+        setStage((s) => nextStage(nextStage(s, "recovered"), "ready"));
         void controller.completeReset();
       }
     });
     return () => anim.stop();
   }, [controller, reduced, state.phase, state.error, values]);
   useEffect(() => {
-    if (["READY", "IDLE", "STARTING"].includes(state.phase))
+    if (["READY", "IDLE", "STARTING"].includes(state.phase)) {
       Object.values(values).forEach((v) => v.setValue(0));
+      setHeld(false);
+      setStage("IDLE");
+    }
   }, [state.phase, values]);
 
   // Feet offset from home = leap + landing + walk back (each one a 0 → 1 phase).
@@ -200,7 +254,8 @@ export function Arena({
     values.dive.interpolate({ inputRange: [0, 0.55, 1], outputRange: [1, 0.55, 1 - airborne] }),
     values.land.interpolate({ inputRange: [0, 1], outputRange: [0, airborne] }),
   );
-  const showEgg = state.phase !== "RESETTING" && state.phase !== "FINISHED";
+  const showEgg = state.phase !== "RESETTING" && state.phase !== "FINISHED" && !held;
+  const shootable = state.phase === "READY" && canShoot(stage);
   return (
     <View
       style={{
@@ -230,8 +285,8 @@ export function Arena({
             accessibilityRole="button"
             accessibilityLabel={`${z.label}, ${z.id}`}
             testID={`safi-zone-${z.id}`}
-            accessibilityState={{ disabled: state.phase !== "READY" }}
-            disabled={state.phase !== "READY"}
+            accessibilityState={{ disabled: !shootable }}
+            disabled={!shootable}
             onPress={() => void controller.submitShot(z.id)}
             onFocus={() => setFocusedZone(z.id)}
             onBlur={() => setFocusedZone(null)}
@@ -306,7 +361,7 @@ export function Arena({
           ],
         }}
       >
-        <Chicken caught={shot?.result === "CATCH"} shadow={false} />
+        <KeeperRig ref={rig} size={keeperSize} holding={held} reduced={reduced} />
       </Animated.View>
       {showEgg ? (
         <Animated.View
@@ -383,6 +438,45 @@ export function Arena({
         >
           <EggSplat />
         </Animated.View>
+      ) : null}
+      {/* A short line from the keeper, beside its head, never past the arena edge */}
+      {bubble && stage === "REACTION" ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: "absolute",
+              top: plan.land.y - keeperSize * 1.12 - 10,
+              maxWidth: width * 0.46,
+              backgroundColor: t.white,
+              borderRadius: 14,
+              paddingHorizontal: 11,
+              paddingVertical: 6,
+              opacity: bubbleOpacity,
+              shadowColor: "#000",
+              shadowOpacity: 0.18,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 2 },
+              elevation: 3,
+            },
+            plan.land.x < width * 0.55
+              ? { left: plan.land.x + keeperSize * 0.18 }
+              : { right: width - (plan.land.x - keeperSize * 0.18) },
+          ]}
+        >
+          <Text numberOfLines={1} style={{ color: t.foreground, fontSize: 13, fontWeight: "700" }}>
+            {bubble}
+          </Text>
+        </Animated.View>
+      ) : null}
+      {/* Tap to skip a taunt; the zones stay closed until the keeper is ready again */}
+      {stage === "REACTION" ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Keyingi zarbaga o‘tish"
+          onPress={skip}
+          style={StyleSheet.absoluteFill}
+        />
       ) : null}
     </View>
   );
