@@ -14,7 +14,8 @@ import { safiTheme as t } from "../config";
 import { arenaLayout } from "../physics";
 
 /** Original vector goalkeeper. Gloves frame the projectile at the shared catch anchor. */
-export function Chicken({ caught = false }: { caught?: boolean }) {
+/** `shadow` draws a soft contact shadow under the feet; the arena draws its own on the grass instead. */
+export function Chicken({ caught = false, shadow = true }: { caught?: boolean; shadow?: boolean }) {
   const id = useId().replace(/:/g, "");
   return (
     <Svg width="100%" height="100%" viewBox="0 0 160 180">
@@ -28,14 +29,16 @@ export function Chicken({ caught = false }: { caught?: boolean }) {
           <Stop offset="1" stopColor={t.arena} />
         </LinearGradient>
       </Defs>
-      <Ellipse
-        cx="81"
-        cy="168"
-        rx="40"
-        ry="7"
-        fill={t.arenaDeep}
-        opacity=".22"
-      />
+      {shadow ? (
+        <Ellipse
+          cx="81"
+          cy="168"
+          rx="40"
+          ry="7"
+          fill={t.arenaDeep}
+          opacity=".22"
+        />
+      ) : null}
       <Path
         d="M62 140L58 160M99 139L104 160"
         stroke={t.yolk}
@@ -207,7 +210,7 @@ export function Field({ width }: { width: number }) {
       </Defs>
       <Rect width={width} height={h} rx="28" fill={`url(#${id})`} />
       <Path
-        d={`M0 ${h * 0.62}L${width} ${h * 0.62}L${width} ${h}H0Z`}
+        d={`M0 ${gy + gh}L${width} ${gy + gh}L${width} ${h}H0Z`}
         fill={t.primary}
         opacity=".17"
       />
