@@ -8,6 +8,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { formatShortDateTime } from '@/lib/time';
 import { useNav } from '@/lib/routes';
 import { blockedReason, fetchMyGames, type Game } from './api';
+import { safiTheme } from '@/game-center/games/safi-penalty/config';
+import { Chicken } from '@/game-center/games/safi-penalty/components/Artwork';
 import { DIFFICULTY_LABEL } from './physics';
 
 /** Akkaunt → O‘yinlar: the client's branded campaigns with their real rules and when the next game opens. */
@@ -37,22 +39,23 @@ export function GamesScreen() {
 export function GameCard({ game, compact = false }: { game: Game; compact?: boolean }) {
   const { colors } = useTheme();
   const nav = useNav();
-  const blocked = blockedReason(game);
-  const primary = game.brand.primary ?? colors.accent;
+  const penalty = game.template === 'penalty';
+  const blocked = penalty ? null : blockedReason(game);
+  const primary = penalty ? safiTheme.primary : game.brand.primary ?? colors.accent;
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={game.title} onPress={() => nav.go(`/games/${game.id}`)}>
-      <Card style={[styles.card, { borderColor: primary, backgroundColor: game.brand.background ?? colors.surface }]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={game.title} onPress={() => nav.go(game.template === 'penalty' ? '/games/safi-penalty' : `/games/${game.id}`)}>
+      <Card style={[styles.card, { borderColor: primary, backgroundColor: penalty ? safiTheme.arenaDeep : game.brand.background ?? colors.surface }]}>
         <View style={styles.top}>
-          <Text style={styles.icon}>{game.template === 'pour' ? '🥤' : '🐔'}</Text>
+          <View style={{ width: 40, height: 46 }}>{penalty ? <Chicken /> : <Text style={styles.icon}>{game.template === 'pour' ? '🥤' : '🐔'}</Text>}</View>
           <View style={styles.text}>
             <Text variant="label" style={{ color: primary }}>
               {game.client_name}
             </Text>
-            <Text variant="heading" style={{ color: game.brand.text ?? colors.text }}>
+            <Text variant="heading" style={{ color: penalty ? safiTheme.white : game.brand.text ?? colors.text }}>
               {game.title}
             </Text>
           </View>
-          <Badge label={`${game.reward_days} kun Pro`} tone="accent" />
+          {!penalty ? <Badge label={`${game.reward_days} kun Pro`} tone="accent" /> : null}
         </View>
         {!compact ? (
           <>

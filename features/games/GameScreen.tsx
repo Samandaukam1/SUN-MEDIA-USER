@@ -10,7 +10,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { toUserMessage } from '@/lib/errors';
 import { useNav } from '@/lib/routes';
 import { blockedReason, fetchMyGames, finishGame, gameErrorMessage, nextAttempt, openBox, startGame, submitAttempt, type Game } from './api';
-import { PenaltyAttempts } from './PenaltyGame';
+import { SafiPenaltyGame } from '@/game-center/games/safi-penalty/SafiPenaltyGame';
 import { aimX, chickenX, DIFFICULTY_LABEL, pourCentre, pourLevel, pourOverflowAt, type CatchParams, type PourParams } from './physics';
 
 type Phase = 'intro' | 'playing' | 'result' | 'reveal';
@@ -28,6 +28,11 @@ const haptic = (kind: 'tap' | 'hit' | 'miss') => {
 export function GameScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const games = useQuery({ queryKey: ['games', 'mine'], queryFn: fetchMyGames });
+  const nav = useNav();
+  // Keep campaign deep links compatible with the permanent game module.
+  if (games.data?.find((game) => game.id === id)?.template === 'penalty') {
+    return <><Stack.Screen options={{ headerShown: false }} /><SafiPenaltyGame onBack={() => nav.back()} /></>;
+  }
   return (
     <Screen edges={[]} scroll={false} contentStyle={styles.bleed}>
       <Stack.Screen options={{ title: games.data?.find((g) => g.id === id)?.title ?? 'O‘yin' }} />
@@ -136,9 +141,6 @@ function Play({ game }: { game: Game }) {
         </View>
       ) : null}
 
-      {phase === 'playing' && session && game.template === 'penalty' ? (
-        <PenaltyAttempts game={game} session={session} brand={brand} marks={marks} onMark={(goal) => setMarks((m) => [...m, goal])} onDone={() => done(session)} onError={fail} />
-      ) : null}
       {phase === 'playing' && session && game.template !== 'penalty' ? (
         <Attempts game={game} session={session} brand={brand} marks={marks} onMark={(hit) => setMarks((m) => [...m, hit])} onDone={() => done(session)} onError={fail} />
       ) : null}

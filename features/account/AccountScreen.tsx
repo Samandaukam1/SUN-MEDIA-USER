@@ -12,7 +12,6 @@ import { useTheme } from '@/hooks/useTheme';
 import { useStrings } from '@/lib/i18n';
 import { useNav } from '@/lib/routes';
 import { setThemePreference, useThemePreference, type ThemePreference } from '@/lib/themePreference';
-import { fetchMyGames } from '@/features/games/api';
 import { ProStatusCard } from '@/features/pro/ProStatusCard';
 import { ResultsDoors } from '@/features/results/components/ResultsCards';
 import { TemporaryPasswordNotice } from './TemporaryPasswordNotice';
@@ -171,7 +170,6 @@ function ClientSections() {
   const { can } = useAuth();
   const nav = useNav();
   const resultsClient = me.clients.find((c) => c.permissions.includes('client.results.view'));
-  const games = useQuery({ queryKey: ['games', 'mine'], queryFn: fetchMyGames });
   return (
     <>
       {resultsClient ? (
@@ -185,9 +183,7 @@ function ClientSections() {
           {can('client.reports.view') && !resultsClient ? <ListRow icon="bar-chart-2" title="Oylik hisobot" subtitle="Bu oy nima qilindi va natijalar" onPress={() => nav.go('/reports')} /> : null}
           <ListRow icon="folder" title="Fayllar" subtitle="Tayyor videolar va brend fayllari" onPress={nav.files} />
           <ListRow icon="message-circle" title="SUN MEDIA bilan chat" subtitle="Savol, fikr yoki taklif yozing" onPress={() => nav.tab('inbox')} />
-          {games.data && games.data.length > 0 ? (
-            <ListRow icon="gift" iconTone="brand" title="O‘yinlar" subtitle={`${games.data[0].title} — Pro yutib oling`} onPress={() => nav.go('/games')} />
-          ) : null}
+          <ListRow icon="gift" iconTone="brand" title="Game Center" subtitle="SAFI Penalty · Free va Pro uchun" onPress={() => nav.go('/games')} />
         </ListGroup>
       </Section>
       <Section title="SUN MEDIA Pro">

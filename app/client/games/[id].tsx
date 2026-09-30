@@ -1,1 +1,1 @@
-export { GameScreen as default } from '@/features/games/GameScreen';
+export { GameRoute as default } from '@/game-center/GameRoute';
