@@ -20,6 +20,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useMe } from "@/features/auth/AuthProvider";
+import { formatSunCoin, SunCoinIcon, sunCoinWalletKey, type SunCoinWallet } from "@/features/sun-coin";
 import { GameSession } from "../../engine/gameSession";
 import { feedback, motion, useReduceMotion } from "../../engine/animationUtils";
 import {
@@ -27,10 +29,17 @@ import {
   rewardModeLabel,
   rewardReasonText,
 } from "../../engine/rewardClient";
-import type { GameFeedback, GameTransport } from "../../engine/types";
+import type { GameFeedback, GameTransport, Session } from "../../engine/types";
 import { safiTheme as t } from "./config";
 import { Arena } from "./components/Arena";
 import { Gift } from "./components/Artwork";
+import { RewardModePicker } from "./components/RewardModePicker";
+
+function modeLabel(session: Session) {
+  if (session.mode === "free") return "Sovg‘ali · bepul urinish";
+  if (session.mode === "paid") return "Sovg‘ali · SUN Coin urinish";
+  return rewardModeLabel(session.rewardEligible);
+}
 
 export function SafiPenaltyGame({
   transport = rewardClient,
@@ -54,6 +63,7 @@ export function SafiPenaltyGame({
   const insets = useSafeAreaInsets();
   const reduced = useReduceMotion();
   const queryClient = useQueryClient();
+  const me = useMe();
   const [reveal, setReveal] = useState(false);
   const [containerWidth, setContainerWidth] = useState(width);
   const arenaWidth = Math.max(240, Math.min(containerWidth - 32, 480));
@@ -64,6 +74,17 @@ export function SafiPenaltyGame({
     void queryClient.invalidateQueries({ queryKey: ["plan"] });
     void queryClient.invalidateQueries({ queryKey: ["pro"] });
   }, [state.reward, reduced, audio, queryClient]);
+  // The wallet follows the server at once: a paid start debits, a finished round may credit.
+  const sessionId = state.session?.sessionId;
+  const coinBalance = state.finish?.coinBalance ?? state.session?.coinBalance;
+  useEffect(() => {
+    if (!sessionId) return;
+    if (coinBalance != null) {
+      queryClient.setQueryData<SunCoinWallet>(sunCoinWalletKey(me.userId), (w) => (w ? { ...w, balance: coinBalance } : w));
+    }
+    void queryClient.invalidateQueries({ queryKey: ["sun-coin"] });
+  }, [sessionId, coinBalance, state.finish, me.userId, queryClient]);
+  const coinWon = finish?.coinAmount ?? 0;
   const starting = state.phase === "IDLE" || state.phase === "STARTING";
   const message =
     state.phase === "READY"
@@ -109,9 +130,7 @@ export function SafiPenaltyGame({
         <View style={s.tag}>
           <View style={s.greenDot} />
           <Text style={s.tagText}>
-            {state.session
-              ? rewardModeLabel(state.session.rewardEligible)
-              : "10 zarba · 15 nishon"}
+            {state.session ? modeLabel(state.session) : "10 zarba · 15 nishon"}
           </Text>
         </View>
       </View>
@@ -167,19 +186,14 @@ export function SafiPenaltyGame({
                   Tovuq — darvozabon. Sizning to‘pingiz — tuxum.{`\n`}10 ta
                   zarba. Nechtasini gol qilasiz?
                 </Text>
-                <Action
-                  title={
-                    state.phase === "STARTING"
-                      ? "Tayyorlanmoqda…"
-                      : "O‘yinni boshlash"
-                  }
-                  busy={state.busy}
-                  onPress={() => void controller.startGame()}
-                />
-                <Text style={s.footnote}>
-                  Free va Pro uchun ochiq. Sovg‘alar kampaniya shartlariga
-                  bog‘liq.
-                </Text>
+                {state.phase === "STARTING" ? (
+                  <Action title="Tayyorlanmoqda…" busy onPress={() => undefined} />
+                ) : (
+                  <RewardModePicker
+                    busy={state.busy}
+                    onStart={(mode) => void controller.startGame(mode)}
+                  />
+                )}
               </>
             ) : state.session && !state.session.rewardEligible ? (
               <Text style={s.footnote}>
@@ -210,20 +224,37 @@ export function SafiPenaltyGame({
             <Text style={s.resultTotal}> / {finish.attempts}</Text>
           </Text>
           <Text style={s.resultTitle}>
-            {finish.score >= 7
-              ? "Yaxshi zarbalar!"
-              : finish.score >= 4
-                ? "Yaxshi boshlanish!"
-                : "Yana urinib ko‘ramiz!"}
+            {coinWon > 0 || finish.boxes
+              ? "AJOYIB!"
+              : finish.score >= 7
+                ? "Yaxshi zarbalar!"
+                : finish.score >= 4
+                  ? "Yaxshi boshlanish!"
+                  : "Yana urinib ko‘ramiz!"}
           </Text>
-          <Text style={s.description}>Har bir zarba — yangi imkoniyat.</Text>
+          {coinWon > 0 ? (
+            <View accessibilityLiveRegion="polite" style={s.coinWin}>
+              <SunCoinIcon size={44} />
+              <View>
+                <Text style={s.coinAmount}>+{coinWon} SUN COIN</Text>
+                {finish.coinBalance != null ? (
+                  <Text style={s.footnote}>Balans: {formatSunCoin(finish.coinBalance)}</Text>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+          <Text style={s.description}>
+            {state.session?.mode === "practice"
+              ? "Mashq rejimi: sovg‘alar faqat sovg‘ali o‘yinda."
+              : "Har bir zarba — yangi imkoniyat."}
+          </Text>
           <View style={s.resultActions}>
             <Action
               title="Yana o‘ynash"
               busy={state.busy}
               onPress={() => {
                 setReveal(false);
-                void controller.startGame();
+                controller.leaveRound();
               }}
             />
             {finish.boxes && !reveal ? (
@@ -261,7 +292,7 @@ export function SafiPenaltyGame({
               <Gift index={state.reward.box} />
               <Text style={s.resultTitle}>
                 {state.reward.won
-                  ? `${state.reward.days} kunlik Pro!`
+                  ? `+${state.reward.days} KUN PRO`
                   : state.reward.sold_out
                     ? "Sovg‘alar tugagan"
                     : "Bu safar quti bo‘sh chiqdi"}
@@ -281,7 +312,7 @@ export function SafiPenaltyGame({
           style={[s.error, { width: arenaWidth }]}
         >
           <Text style={s.errorText}>{state.error}</Text>
-          {state.phase !== "FINISHED" ? (
+          {state.phase !== "FINISHED" && state.phase !== "IDLE" ? (
             <Action
               title="Qayta urinish"
               busy={state.busy}
@@ -538,4 +569,6 @@ const s = StyleSheet.create({
   },
   errorText: { color: t.foreground, fontSize: 13, textAlign: "center" },
   cancel: { padding: 12 },
+  coinWin: { flexDirection: "row", alignItems: "center", gap: 12 },
+  coinAmount: { fontSize: 22, fontWeight: "700", color: t.foreground, letterSpacing: -0.5 },
 });

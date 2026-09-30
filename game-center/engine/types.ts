@@ -6,6 +6,8 @@ export type GamePhase =
   | "RESOLVING"
   | "RESETTING"
   | "FINISHED";
+/** practice: free and unlimited, no rewards · free: the daily Reward Mode attempt · paid: a Reward Mode attempt for 10 SC. */
+export type GameMode = "practice" | "free" | "paid";
 export type Session = {
   sessionId: string;
   gameId: string;
@@ -16,6 +18,10 @@ export type Session = {
   rewardReason: string | null;
   expiresAt: string;
   targetScore: number;
+  mode?: GameMode | "legacy";
+  proRewardEligible?: boolean;
+  coinRewardEligible?: boolean;
+  coinBalance?: number;
 };
 export type ShotRequest = {
   sessionId: string;
@@ -38,6 +44,9 @@ export type Finish = {
   attempts: number;
   boxes: boolean;
   flagged: boolean;
+  /** SUN Coin credited by the server for this round (0 when none), and the wallet balance after it. */
+  coinAmount?: number;
+  coinBalance?: number;
 };
 export type Reward = {
   box: number;
@@ -47,7 +56,7 @@ export type Reward = {
   sold_out?: boolean;
 };
 export interface GameTransport {
-  startGame(gameId: string, requestId: string): Promise<Session>;
+  startGame(gameId: string, requestId: string, mode: GameMode): Promise<Session>;
   submitShot(request: ShotRequest): Promise<Shot>;
   finishGame(sessionId: string): Promise<Finish>;
   claimReward(sessionId: string, box: number): Promise<Reward>;

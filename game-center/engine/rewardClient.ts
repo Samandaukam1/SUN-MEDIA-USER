@@ -12,6 +12,10 @@ const sessionSchema = z.object({
   rewardReason: z.string().nullable(),
   expiresAt: z.string(),
   targetScore: z.number().int(),
+  mode: z.enum(["practice", "free", "paid", "legacy"]).optional(),
+  proRewardEligible: z.boolean().optional(),
+  coinRewardEligible: z.boolean().optional(),
+  coinBalance: z.number().int().nonnegative().safe().optional(),
 });
 const shotSchema = z.object({
   attemptId: z.string().uuid(),
@@ -28,6 +32,8 @@ const finishSchema = z.object({
   attempts: z.number().int(),
   boxes: z.boolean(),
   flagged: z.boolean(),
+  coinAmount: z.number().int().nonnegative().safe().optional(),
+  coinBalance: z.number().int().nonnegative().safe().optional(),
 });
 const rewardSchema = z.object({
   box: z.number().int(),
@@ -49,10 +55,10 @@ async function requestWithTimeout<T>(
   }
 }
 export const rewardClient: GameTransport = {
-  async startGame(gameId, requestId) {
+  async startGame(gameId, requestId, mode) {
     const { data, error } = await requestWithTimeout((signal) =>
       getSupabase()
-        .rpc("game_center_start", { p_game_key: gameId, p_request: requestId })
+        .rpc("game_center_start_mode", { p_game_key: gameId, p_request: requestId, p_mode: mode })
         .abortSignal(signal),
     );
     if (error) throw error;

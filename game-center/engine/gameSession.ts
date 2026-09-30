@@ -1,4 +1,4 @@
-import type { GameState, GameTransport, ShotRequest } from "./types.ts";
+import type { GameMode, GameState, GameTransport, ShotRequest } from "./types.ts";
 
 const INITIAL: GameState = {
   phase: "IDLE",
@@ -11,6 +11,17 @@ const INITIAL: GameState = {
   busy: false,
 };
 export const CONNECTION_ERROR = "Ulanishda muammo. Qayta urinib ko‘ring.";
+/** Server refusals that are final for the chosen mode (not network trouble): shown as-is and never retried. */
+const START_REFUSALS: Record<string, string> = {
+  COIN_INSUFFICIENT_BALANCE: "SUN Coin yetarli emas. Mashq rejimi doim bepul.",
+  GAME_FREE_COOLDOWN: "Bugungi bepul sovg‘ali urinish ishlatilgan.",
+  GAME_REWARD_UNAVAILABLE: "Hozir sovg‘a kampaniyasi yo‘q. Mashq rejimi ochiq.",
+  GAME_INVALID_MODE: "Bu rejim mavjud emas.",
+};
+export function startRefusal(error: unknown): string | null {
+  const message = (error as { message?: string } | null)?.message ?? "";
+  return START_REFUSALS[message] ?? null;
+}
 export function canAccessGameCenter(
   appInterface: string | null,
   _plan?: string,
@@ -28,6 +39,7 @@ export class GameSession {
   private state: GameState = { ...INITIAL };
   private listeners = new Set<() => void>();
   private startId: string | null = null;
+  private startMode: GameMode = "practice";
   private generation = 0;
   private readonly transport: GameTransport;
   private readonly uuid: () => string;
@@ -52,17 +64,20 @@ export class GameSession {
     this.state = { ...this.state, ...patch };
     this.listeners.forEach((fn) => fn());
   }
-  async startGame() {
+  /** A retry after an ambiguous failure repeats the same request and mode, so a paid start is never charged twice. */
+  async startGame(mode: GameMode = this.startMode) {
     if (
       this.state.busy ||
       !["IDLE", "STARTING", "FINISHED"].includes(this.state.phase)
     )
       return;
     const generation = ++this.generation;
+    if (mode !== this.startMode) this.startId = null;
+    this.startMode = mode;
     this.startId ??= this.uuid();
     this.set({ ...INITIAL, phase: "STARTING", busy: true });
     try {
-      const session = await this.transport.startGame(this.gameId, this.startId);
+      const session = await this.transport.startGame(this.gameId, this.startId, mode);
       if (generation !== this.generation) return;
       this.set({
         session,
@@ -70,9 +85,14 @@ export class GameSession {
         busy: false,
       });
       if (session.attemptsUsed >= session.attempts) await this.finishGame();
-    } catch {
-      if (generation === this.generation)
-        this.set({ error: CONNECTION_ERROR, busy: false });
+    } catch (error) {
+      if (generation !== this.generation) return;
+      const refusal = startRefusal(error);
+      if (refusal) {
+        // Nothing was started or charged: back to the mode choice with a fresh request next time.
+        this.startId = null;
+        this.set({ ...INITIAL, error: refusal });
+      } else this.set({ error: CONNECTION_ERROR, busy: false });
     }
   }
   async submitShot(selectedZone: number) {

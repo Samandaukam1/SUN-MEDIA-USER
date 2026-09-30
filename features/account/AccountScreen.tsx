@@ -13,6 +13,7 @@ import { useStrings } from '@/lib/i18n';
 import { useNav } from '@/lib/routes';
 import { setThemePreference, useThemePreference, type ThemePreference } from '@/lib/themePreference';
 import { ProStatusCard } from '@/features/pro/ProStatusCard';
+import { formatSunCoin, SunCoinIcon, useSunCoinWallet } from '@/features/sun-coin';
 import { ResultsDoors } from '@/features/results/components/ResultsCards';
 import { TemporaryPasswordNotice } from './TemporaryPasswordNotice';
 
@@ -169,6 +170,7 @@ function ClientSections() {
   const me = useMe();
   const { can } = useAuth();
   const nav = useNav();
+  const wallet = useSunCoinWallet();
   const resultsClient = me.clients.find((c) => c.permissions.includes('client.results.view'));
   return (
     <>
@@ -179,6 +181,7 @@ function ClientSections() {
       ) : null}
       <Section title="Mening">
         <ListGroup>
+          <ListRow leading={<SunCoinIcon size={34} />} title="SUN Coin" subtitle="Balans va operatsiyalar tarixi" value={wallet.data ? formatSunCoin(wallet.data.balance) : wallet.isPending ? 'Yuklanmoqda' : '— SC'} onPress={() => nav.go('/account/sun-coin')} />
           {can('client.plan.view') ? <ListRow icon="credit-card" iconTone="brand" title="Mening tarifim" subtitle="Nima kiradi va qancha qoldi" onPress={() => nav.go('/plan')} /> : null}
           {can('client.reports.view') && !resultsClient ? <ListRow icon="bar-chart-2" title="Oylik hisobot" subtitle="Bu oy nima qilindi va natijalar" onPress={() => nav.go('/reports')} /> : null}
           <ListRow icon="folder" title="Fayllar" subtitle="Tayyor videolar va brend fayllari" onPress={nav.files} />
