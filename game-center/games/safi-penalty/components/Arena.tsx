@@ -5,7 +5,7 @@ import { feedback, motion } from "../../../engine/animationUtils";
 import type { GameFeedback, GameState } from "../../../engine/types";
 import { safiTheme as t } from "../config";
 import { arenaLayout, eggTrajectory, KEEPER_FEET, keeperBox, keeperDive, ZONES, zonePoint } from "../physics";
-import { canShoot, nextStage, pickBubble, pickReaction, REACTION_TIMING, type KeeperEvent, type KeeperStage } from "../reactions";
+import { ANGRY_REACTIONS, canShoot, canSkip, HAPPY_REACTIONS, nextStage, pickFrom, REACTION_TIMING, type KeeperEvent, type KeeperStage } from "../reactions";
 import { Egg, EggSplat, Field } from "./Artwork";
 import { KeeperRig, type KeeperRigHandle } from "./KeeperRig";
 
@@ -29,25 +29,25 @@ export function Arena({
     fly: new Animated.Value(0),
     impact: new Animated.Value(0),
     anticipation: new Animated.Value(0),
-    // Keeper: breathing, crouch (anticipation / push-off), leap, landing, getting up, walking back.
-    idle: new Animated.Value(0),
+    // Keeper travel: crouch / push-off, leap, ground contact, slide, getting up, walking back.
     crouch: new Animated.Value(0),
     dive: new Animated.Value(0),
     land: new Animated.Value(0),
+    slide: new Animated.Value(0),
     rise: new Animated.Value(0),
     home: new Animated.Value(0),
   }).current;
   const audioRef = useRef(audio);
   audioRef.current = audio;
   const [focusedZone, setFocusedZone] = useState<number | null>(null);
-  // Visual-only keeper stages; the engine phase still decides when a shot is accepted.
+  // Keeper animation state (visual); the engine phase still decides when a shot is accepted.
   const [stage, setStage] = useState<KeeperStage>("IDLE");
   const go = (event: KeeperEvent) => setStage((s) => nextStage(s, event));
   const [held, setHeld] = useState(false);
   const [bubble, setBubble] = useState<string | null>(null);
   const bubbleOpacity = useRef(new Animated.Value(0)).current;
   const rig = useRef<KeeperRigHandle>(null);
-  const recent = useRef<number[]>([]);
+  const recent = useRef({ happy: [] as number[], angry: [] as number[] });
   useEffect(() => {
     if (state.phase !== "READY") setFocusedZone(null);
   }, [state.phase]);
@@ -61,9 +61,9 @@ export function Arena({
   const plan = useMemo(
     () =>
       shot
-        ? // A save may come from the dive's reach (the game's level): the keeper then ends on the ball.
+        ? // A save ends on the ball; a goal dives where the server sent the keeper.
           keeperDive(layout, shot.result === "CATCH" ? shot.selectedZone : shot.goalkeeperZone, keeperSize, shot.result, shot.selectedZone)
-        : { dir: 0 as const, reach: home, angle: 0, lift: 0, land: home, landAngle: 0 },
+        : { dir: 0 as const, reach: home, angle: 0, lift: 0, land: home, landAngle: 0, slide: 0 },
     [shot, layout, keeperSize, home],
   );
   const inputs = Array.from({ length: 17 }, (_, i) => i / 16);
@@ -71,26 +71,30 @@ export function Arena({
     eggTrajectory(layout.shooter, target, p, width * 0.085),
   );
   const direction = plan.dir || (target.x < home.x ? -1 : 1);
+  const fallDir = Math.sign(plan.landAngle) || 1;
+  const slideAngle = shot?.result === "GOAL" ? -fallDir * 5 : 0;
 
-  // Idle: slow breathing about the feet — the soles never leave the ground.
-  useEffect(() => {
-    if (reduced || !["IDLE", "READY"].includes(state.phase)) return;
-    const anim = Animated.loop(
-      Animated.sequence([
-        motion(values.idle, 1, 1100),
-        motion(values.idle, 0, 1100),
-      ]),
-    );
-    anim.start();
-    return () => {
-      anim.stop();
-      values.idle.setValue(0);
-    };
-  }, [state.phase, reduced, values]);
-  // While the server answers: the egg winds up, the keeper bounces on its knees, ready.
+  const showBubble = (line: string | null, ms: number = REACTION_TIMING.bubbleMs) => {
+    setBubble(line);
+    if (!line) return;
+    bubbleOpacity.setValue(0);
+    Animated.sequence([motion(bubbleOpacity, 1, 140), Animated.delay(Math.max(0, ms - 280)), motion(bubbleOpacity, 0, 140)]).start();
+  };
+  // Values the running shot needs without restarting its effect on every render.
+  const live = useRef({ showBubble, goalSide: 1 as -1 | 1 });
+  live.current = { showBubble, goalSide: (Math.sign(target.x - (plan.land.x + plan.slide)) || 1) as -1 | 1 };
+  // Idle taunts come from the rig; the keeper stays ready for a shot during them.
+  const onTaunt = (on: boolean, line: string | null) => {
+    go(on ? "taunt" : "taunt-done");
+    if (on) showBubble(line, 1200);
+  };
+
+  // A shot: whatever the keeper was doing stops; it faces the ball and bounces on its knees while the server answers.
   useEffect(() => {
     if (state.phase !== "SHOOTING") return;
-    setStage((s) => nextStage(s, "shot"));
+    go("shot");
+    setBubble(null);
+    rig.current?.focus();
     feedback("shot", reduced, audioRef.current);
     if (reduced) return;
     const anim = Animated.loop(
@@ -111,104 +115,108 @@ export function Arena({
       values.anticipation.setValue(0);
     };
   }, [state.phase, reduced, values]);
+
   useEffect(() => {
     if (state.phase !== "RESOLVING" || !shot) return;
     const goal = shot.result === "GOAL";
+    go("focused");
+    rig.current?.dive();
+    const timed = (v: Animated.Value, ms: number, easing: (x: number) => number) =>
+      Animated.timing(v, { toValue: 1, duration: reduced ? Math.min(ms, 120) : ms, easing, useNativeDriver: NATIVE, isInteraction: false });
     // Anticipation → push-off from the ground → dive; the egg flies at the same time.
     const flight = Animated.parallel([
       motion(values.fly, 1, reduced ? 120 : 500),
       Animated.sequence([
         motion(values.crouch, 1, reduced ? 0 : 90),
-        Animated.parallel([
-          motion(values.crouch, 0, reduced ? 0 : 150),
-          Animated.timing(values.dive, {
-            toValue: 1,
-            duration: reduced ? 120 : 380,
-            easing: Easing.out(Easing.quad),
-            useNativeDriver: NATIVE,
-            isInteraction: false,
-          }),
-        ]),
+        Animated.parallel([motion(values.crouch, 0, reduced ? 0 : 150), timed(values.dive, 380, Easing.out(Easing.quad))]),
       ]),
-    ]);
-    // Landing: on its feet with the egg, or on its side and sliding after a goal.
-    const impact = Animated.sequence([
-      Animated.parallel([
-        motion(values.impact, 1, reduced ? 0 : 170),
-        Animated.timing(values.land, {
-          toValue: 1,
-          duration: reduced ? 0 : goal ? 360 : 260,
-          easing: goal ? Easing.in(Easing.quad) : Easing.out(Easing.quad),
-          useNativeDriver: NATIVE,
-          isInteraction: false,
-        }),
-      ]),
-      // A goal: a short beat, then recovery. A save: the egg is secured, then the taunt.
-      Animated.delay(goal ? (reduced ? 480 : 560) : REACTION_TIMING.holdMs),
     ]);
     let active = true;
+    const running: Animated.CompositeAnimation[] = [flight];
+    const run = (anim: Animated.CompositeAnimation, next: () => void) => {
+      running.push(anim);
+      anim.start(({ finished }) => finished && active && next());
+    };
     flight.start(({ finished }) => {
       if (!finished || !active) return;
       feedback(goal ? "goal" : "catch", reduced, audioRef.current);
-      if (goal) feedback("eggBreak", reduced, audioRef.current);
-      else setHeld(true); // the egg now travels with the keeper's gloves
-      setStage((s) => nextStage(s, goal ? "scored" : "caught"));
-      impact.start(({ finished: done }) => {
-        if (!done || !active) return;
-        if (goal) {
-          controller.beginReset();
-          return;
-        }
-        // Random taunt, never one of the last two; sometimes a short line.
-        const index = pickReaction(recent.current);
-        recent.current = [...recent.current, index].slice(-4);
-        const line = pickBubble(index);
-        setBubble(line);
-        if (line) {
-          bubbleOpacity.setValue(0);
-          Animated.sequence([
-            motion(bubbleOpacity, 1, 140),
-            Animated.delay(REACTION_TIMING.bubbleMs - 280),
-            motion(bubbleOpacity, 0, 140),
-          ]).start();
-        }
-        setStage((s) => nextStage(s, "hold-done"));
-        rig.current?.play(index, () => {
-          if (!active) return;
-          setStage((s) => nextStage(s, "reaction-done"));
-          controller.beginReset();
+      if (!goal) {
+        // CATCH → the egg is in the glove, fingers close → a short hold → a happy reaction.
+        setHeld(true);
+        rig.current?.caught();
+        go("caught");
+        run(Animated.parallel([motion(values.impact, 1, reduced ? 0 : 170), timed(values.land, 260, Easing.out(Easing.quad))]), () => {
+          go("secured");
+          run(Animated.delay(REACTION_TIMING.holdMs), () => {
+            go("hold-done");
+            const i = pickFrom(HAPPY_REACTIONS.length, recent.current.happy);
+            recent.current.happy = [...recent.current.happy, i].slice(-4);
+            live.current.showBubble(
+              rig.current?.happy(i, () => {
+                if (!active) return;
+                go("reaction-done");
+                controller.beginReset();
+              }) ?? null,
+            );
+          });
         });
-      });
+        return;
+      }
+      // GOAL → the egg breaks in the net; the keeper hits the ground, slides, looks at the goal, gets up angry.
+      feedback("eggBreak", reduced, audioRef.current);
+      go("scored");
+      rig.current?.fallen(live.current.goalSide);
+      run(
+        Animated.sequence([
+          Animated.parallel([motion(values.impact, 1, reduced ? 0 : 170), timed(values.land, 300, Easing.in(Easing.quad))]),
+          reduced ? Animated.delay(0) : timed(values.slide, 380, Easing.out(Easing.cubic)),
+        ]),
+        () => {
+          go("fell");
+          run(Animated.delay(reduced ? 250 : 420), () => {
+            rig.current?.standAngry();
+            run(timed(values.rise, 340, Easing.out(Easing.back(1.4))), () => {
+              go("hold-done");
+              const i = pickFrom(ANGRY_REACTIONS.length, recent.current.angry);
+              recent.current.angry = [...recent.current.angry, i].slice(-4);
+              live.current.showBubble(
+                rig.current?.angry(i, () => {
+                  if (!active) return;
+                  go("reaction-done");
+                  controller.beginReset();
+                }) ?? null,
+              );
+            });
+          });
+        },
+      );
     });
     return () => {
       active = false;
-      flight.stop();
-      impact.stop();
+      running.forEach((a) => a.stop());
     };
-  }, [controller, reduced, shot, state.phase, values, bubbleOpacity]);
-  // Tap during a taunt: skip it (only then — never while the next shot could collide).
+  }, [controller, reduced, shot, state.phase, values]);
+
+  // Tap during a reaction: skip it — only then, never while a shot could collide.
   const skip = () => {
-    if (stage !== "REACTION" || state.phase !== "RESOLVING") return;
+    if (!canSkip(stage) || state.phase !== "RESOLVING") return;
     rig.current?.stop();
     bubbleOpacity.setValue(0);
     setBubble(null);
     go("skip");
     controller.beginReset();
   };
-  // Recovery: get up, walk back to the centre, then the next shot.
+
+  // Recovery: (get up,) walk back to the centre; then egg cleanup and back to the living idle.
   useEffect(() => {
     if (state.phase !== "RESETTING" || state.error) return;
     const anim = Animated.sequence([
-      Animated.parallel([
-        motion(values.rise, 1, reduced ? 0 : 260),
-        motion(values.impact, 0, 180),
-      ]),
-      motion(values.home, 1, reduced ? 0 : 380),
+      Animated.parallel([motion(values.rise, 1, reduced ? 0 : 260), motion(values.impact, 0, 180)]),
+      motion(values.home, 1, reduced ? 0 : 420),
     ]);
     anim.start(({ finished }) => {
       if (finished) {
-        [values.fly, values.dive, values.land, values.rise, values.home, values.crouch].forEach((v) => v.setValue(0));
-        // Egg cleanup and a neutral keeper before the next shot.
+        Object.values(values).forEach((v) => v.setValue(0));
         setHeld(false);
         setBubble(null);
         rig.current?.reset();
@@ -218,21 +226,26 @@ export function Arena({
     });
     return () => anim.stop();
   }, [controller, reduced, state.phase, state.error, values]);
+
   useEffect(() => {
     if (["READY", "IDLE", "STARTING"].includes(state.phase)) {
       Object.values(values).forEach((v) => v.setValue(0));
       setHeld(false);
       setStage("IDLE");
+      rig.current?.idle();
     }
   }, [state.phase, values]);
 
-  // Feet offset from home = leap + landing + walk back (each one a 0 → 1 phase).
+  // Feet offset from home = leap + ground contact + slide + walk back (each one a 0 → 1 phase).
   const feetX = Animated.add(
     Animated.add(
-      values.dive.interpolate({ inputRange: [0, 1], outputRange: [0, plan.reach.x - home.x] }),
-      values.land.interpolate({ inputRange: [0, 1], outputRange: [0, plan.land.x - plan.reach.x] }),
+      Animated.add(
+        values.dive.interpolate({ inputRange: [0, 1], outputRange: [0, plan.reach.x - home.x] }),
+        values.land.interpolate({ inputRange: [0, 1], outputRange: [0, plan.land.x - plan.reach.x] }),
+      ),
+      values.slide.interpolate({ inputRange: [0, 1], outputRange: [0, plan.slide] }),
     ),
-    values.home.interpolate({ inputRange: [0, 1], outputRange: [0, home.x - plan.land.x] }),
+    values.home.interpolate({ inputRange: [0, 1], outputRange: [0, home.x - plan.land.x - plan.slide] }),
   );
   const rise = plan.reach.y - home.y;
   const feetY = Animated.add(
@@ -240,14 +253,21 @@ export function Arena({
       values.dive.interpolate({ inputRange: [0, 0.55, 1], outputRange: [0, Math.min(rise * 0.75, 0) - plan.lift, rise] }),
       values.land.interpolate({ inputRange: [0, 1], outputRange: [0, plan.land.y - plan.reach.y] }),
     ),
-    values.home.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -width * 0.012, 0, -width * 0.012, 0] }),
+    Animated.add(
+      // A small bounce as the body meets the grass, then it settles.
+      values.slide.interpolate({ inputRange: [0, 0.25, 1], outputRange: [0, -width * 0.01, 0] }),
+      values.home.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -width * 0.012, 0, -width * 0.012, 0] }),
+    ),
   );
   const angle = Animated.add(
     Animated.add(
       values.dive.interpolate({ inputRange: [0, 1], outputRange: [0, plan.angle] }),
       values.land.interpolate({ inputRange: [0, 1], outputRange: [0, plan.landAngle - plan.angle] }),
     ),
-    values.rise.interpolate({ inputRange: [0, 1], outputRange: [0, -plan.landAngle] }),
+    Animated.add(
+      values.slide.interpolate({ inputRange: [0, 1], outputRange: [0, slideAngle] }),
+      values.rise.interpolate({ inputRange: [0, 1], outputRange: [0, -plan.landAngle - slideAngle] }),
+    ),
   );
   const airborne = Math.min(0.6, Math.max(0, -rise / (keeperSize * 1.2)) + 0.25);
   const shadowScale = Animated.add(
@@ -256,6 +276,8 @@ export function Arena({
   );
   const showEgg = state.phase !== "RESETTING" && state.phase !== "FINISHED" && !held;
   const shootable = state.phase === "READY" && canShoot(stage);
+  const talking = stage === "HAPPY_REACTION" || stage === "ANGRY_REACTION" || stage === "IDLE_TAUNT";
+  const speakerX = stage === "IDLE_TAUNT" ? home.x : plan.land.x + plan.slide;
   return (
     <View
       style={{
@@ -340,28 +362,13 @@ export function Arena({
                 outputRange: ["-180deg", "180deg"],
               }),
             },
-            {
-              scaleX: Animated.add(
-                1,
-                Animated.add(
-                  Animated.multiply(values.crouch, 0.08),
-                  Animated.multiply(values.idle, -0.012),
-                ),
-              ),
-            },
-            {
-              scaleY: Animated.add(
-                1,
-                Animated.add(
-                  Animated.multiply(values.crouch, -0.15),
-                  Animated.multiply(values.idle, 0.022),
-                ),
-              ),
-            },
+            // Crouch / push-off squash about the feet (breathing lives in the rig).
+            { scaleX: Animated.add(1, Animated.multiply(values.crouch, 0.08)) },
+            { scaleY: Animated.add(1, Animated.multiply(values.crouch, -0.15)) },
           ],
         }}
       >
-        <KeeperRig ref={rig} size={keeperSize} holding={held} reduced={reduced} />
+        <KeeperRig ref={rig} size={keeperSize} holding={held} reduced={reduced} onTaunt={onTaunt} />
       </Animated.View>
       {showEgg ? (
         <Animated.View
@@ -440,13 +447,13 @@ export function Arena({
         </Animated.View>
       ) : null}
       {/* A short line from the keeper, beside its head, never past the arena edge */}
-      {bubble && stage === "REACTION" ? (
+      {bubble && talking ? (
         <Animated.View
           pointerEvents="none"
           style={[
             {
               position: "absolute",
-              top: plan.land.y - keeperSize * 1.12 - 10,
+              top: home.y - keeperSize * 1.12 - 10,
               maxWidth: width * 0.46,
               backgroundColor: t.white,
               borderRadius: 14,
@@ -459,9 +466,9 @@ export function Arena({
               shadowOffset: { width: 0, height: 2 },
               elevation: 3,
             },
-            plan.land.x < width * 0.55
-              ? { left: plan.land.x + keeperSize * 0.18 }
-              : { right: width - (plan.land.x - keeperSize * 0.18) },
+            speakerX < width * 0.55
+              ? { left: speakerX + keeperSize * 0.18 }
+              : { right: width - (speakerX - keeperSize * 0.18) },
           ]}
         >
           <Text numberOfLines={1} style={{ color: t.foreground, fontSize: 13, fontWeight: "700" }}>
@@ -470,7 +477,7 @@ export function Arena({
         </Animated.View>
       ) : null}
       {/* Tap to skip a taunt; the zones stay closed until the keeper is ready again */}
-      {stage === "REACTION" ? (
+      {canSkip(stage) ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Keyingi zarbaga o‘tish"

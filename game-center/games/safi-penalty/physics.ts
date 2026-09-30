@@ -72,9 +72,11 @@ export type KeeperDive = {
   angle: number;
   /** Extra height at the top of the leap. */
   lift: number;
-  /** Feet position and angle after landing: upright after a save, on its side after a goal. */
+  /** Feet position and angle at ground contact: upright after a save, on its side after a goal. */
   land: Point;
   landAngle: number;
+  /** After a goal: how far the body slides on the grass after contact (px, signed). */
+  slide: number;
 };
 
 const REACH_ANGLE = [72, 40, 0, 40, 72];
@@ -107,7 +109,9 @@ export function keeperDive(
   const fallDir = dir !== 0 ? dir : shotCol < 2 ? -1 : 1;
   const lift = size * (row === 2 ? 0.05 : 0.12);
   if (result === "CATCH") {
-    return { dir, reach, angle, lift, land: { x: clampX(reach.x), y: home.y }, landAngle: dir * 10 };
+    return { dir, reach, angle, lift, land: { x: clampX(reach.x), y: home.y }, landAngle: dir * 10, slide: 0 };
   }
-  return { dir, reach, angle, lift, land: { x: clampX(reach.x + fallDir * size * 0.18), y: home.y }, landAngle: fallDir * 92 };
+  // Momentum: contact just past the reach, then a short slide in the same direction.
+  const contact = clampX(reach.x + fallDir * size * 0.05);
+  return { dir, reach, angle, lift, land: { x: contact, y: home.y }, landAngle: fallDir * 92, slide: clampX(contact + fallDir * size * 0.14) - contact };
 }
