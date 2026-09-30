@@ -51,7 +51,8 @@ export function Arena({
   const plan = useMemo(
     () =>
       shot
-        ? keeperDive(layout, shot.goalkeeperZone, keeperSize, shot.result, shot.selectedZone)
+        ? // A save may come from the dive's reach (the game's level): the keeper then ends on the ball.
+          keeperDive(layout, shot.result === "CATCH" ? shot.selectedZone : shot.goalkeeperZone, keeperSize, shot.result, shot.selectedZone)
         : { dir: 0 as const, reach: home, angle: 0, lift: 0, land: home, landAngle: 0 },
     [shot, layout, keeperSize, home],
   );

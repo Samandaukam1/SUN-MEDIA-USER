@@ -129,6 +129,7 @@ function StaffSections() {
     can('crm.manage') ? { icon: 'send' as const, title: 'Lidlar hisobotini yuborish', subtitle: '7 kunlik, 30 kunlik yoki maxsus muddat', path: '/crm/report/new' } : null,
     can('reports.read') || can('reports.manage') ? { icon: 'bar-chart-2' as const, title: 'Oylik hisobotlar', subtitle: 'Mijozlar natijalari', path: '/reports' } : null,
     can('performance.read') ? { icon: 'trending-up' as const, title: 'Jamoa samaradorligi', subtitle: 'Xodimlarning oylik natijalari', path: '/performance' } : null,
+    can('promo.manage') ? { icon: 'award' as const, title: 'Game Center', subtitle: 'SUN Coin, xaridlar, sovg‘a, o‘yin darajasi', path: '/game-center' } : null,
   ].filter((r) => r !== null);
 
   return (
