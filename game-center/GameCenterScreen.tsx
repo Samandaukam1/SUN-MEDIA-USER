@@ -1,7 +1,16 @@
 import { Stack } from "expo-router";
+import { useState } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import { Screen, Text } from "@/components/ui";
 import { useAuth } from "@/features/auth/AuthProvider";
+import {
+  CoinShopSheet,
+  formatSunCoin,
+  FreeAttemptCountdown,
+  rewardReplay,
+  SunCoinHud,
+  useSunCoinWallet,
+} from "@/features/sun-coin";
 import { useNav } from "@/lib/routes";
 import { canAccessGameCenter } from "./engine/gameSession";
 import { safiTheme as t } from "./games/safi-penalty/config";
@@ -11,14 +20,21 @@ import { gameRegistry } from "./registry";
 export function GameCenterScreen() {
   const { appInterface } = useAuth();
   const nav = useNav();
+  const wallet = useSunCoinWallet();
+  const [shop, setShop] = useState(false);
   if (!canAccessGameCenter(appInterface)) return null;
+  const w = wallet.data;
+  const replay = w ? rewardReplay(w) : null;
   return (
     <Screen edges={["bottom"]} contentStyle={s.screen}>
       <Stack.Screen options={{ title: "Game Center" }} />
       <View style={s.heading}>
-        <Text variant="label" tone="secondary">
-          SUN MEDIA
-        </Text>
+        <View style={s.headingTop}>
+          <Text variant="label" tone="secondary">
+            SUN MEDIA
+          </Text>
+          <SunCoinHud balance={w?.balance} onPress={() => setShop(true)} />
+        </View>
         <Text variant="display">Game Center</Text>
         <Text variant="body" tone="secondary">
           Bir oz tanaffus. Bir oz raqobat.
@@ -61,8 +77,28 @@ export function GameCenterScreen() {
             <View style={s.cardFooter}>
               <Text style={s.cardMeta}>10 ZARBA</Text>
               <Text style={s.cardMeta}>15 NISHON</Text>
-              <Text style={s.cardMeta}>FREE + PRO</Text>
+              <Text style={s.cardMeta}>MASHQ + REWARD</Text>
             </View>
+            {/* Reward Mode at a glance: today's free attempt, or when the next one comes and what an extra costs */}
+            {replay && replay.kind !== "closed" && w ? (
+              <View style={s.reward}>
+                <Text style={s.rewardLabel}>REWARD MODE</Text>
+                {replay.kind === "free" ? (
+                  <Text style={s.rewardValue}>Bugungi bepul urinish mavjud</Text>
+                ) : (
+                  <View style={s.rewardRow}>
+                    <Text style={s.rewardMuted}>Keyingi bepul</Text>
+                    <FreeAttemptCountdown
+                      nextFreeAt={w.attempt.nextFreeAt}
+                      offsetMs={w.clockOffsetMs}
+                      onElapsed={() => void wallet.refetch()}
+                      style={s.rewardValue}
+                    />
+                    <Text style={s.rewardMuted}>· qo‘shimcha {formatSunCoin(w.attempt.cost)}</Text>
+                  </View>
+                )}
+              </View>
+            ) : null}
           </Pressable>
         ) : (
           <View key={g.id} style={s.coming}>
@@ -81,6 +117,7 @@ export function GameCenterScreen() {
           </View>
         ),
       )}
+      <CoinShopSheet visible={shop} onClose={() => setShop(false)} onOpenWallet={() => { setShop(false); nav.go("/account/sun-coin"); }} />
       <Text variant="caption" tone="tertiary" style={s.note}>
         O‘yinlar barcha clientlar uchun ochiq. Sovg‘alar faol kampaniya va uning
         shartlariga bog‘liq.
@@ -91,6 +128,12 @@ export function GameCenterScreen() {
 const s = StyleSheet.create({
   screen: { gap: 22, paddingBottom: 32 },
   heading: { gap: 8, marginTop: 8 },
+  headingTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  reward: { paddingHorizontal: 24, paddingVertical: 14, gap: 4, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,.06)" },
+  rewardLabel: { color: t.primary, fontSize: 9, letterSpacing: 2, fontWeight: "700" },
+  rewardRow: { flexDirection: "row", alignItems: "baseline", gap: 6, flexWrap: "wrap" },
+  rewardValue: { color: t.white, fontSize: 14, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  rewardMuted: { color: "#AAB8A6", fontSize: 12 },
   card: {
     backgroundColor: t.arenaDeep,
     borderRadius: 28,

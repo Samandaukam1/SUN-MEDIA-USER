@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button, Card, Icon, ListGroup, ListRow, QueryView, Screen, Section, Text } from '@/components/ui';
@@ -7,6 +8,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { useNav } from '@/lib/routes';
 import { formatShortDateTime } from '@/lib/time';
 import { useSunCoinWallet } from './api';
+import { CoinShopSheet } from './CoinShopSheet';
+import { SunCoin } from './SunCoin';
 import { SunCoinIcon } from './SunCoinIcon';
 import { formatSunCoin, transactionLabel, type SunCoinTransaction } from './types';
 
@@ -14,6 +17,7 @@ export function SunCoinWalletScreen() {
   const wallet = useSunCoinWallet();
   const { colors } = useTheme();
   const nav = useNav();
+  const [shop, setShop] = useState(false);
 
   return (
     <Screen edges={[]} refreshing={wallet.isRefetching} onRefresh={() => { void wallet.refetch(); }}>
@@ -27,13 +31,23 @@ export function SunCoinWalletScreen() {
                   <Text variant="captionMedium" style={{ color: colors.heroTextSecondary }}>Mening SUN Coin balansim</Text>
                   <Text variant="hero" style={{ color: colors.heroText }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.55} accessibilityLiveRegion="polite">{formatSunCoin(data.balance)}</Text>
                 </View>
-                <SunCoinIcon size={88} />
+                <SunCoin size={84} />
               </View>
               <View style={styles.heroFooter}>
                 <View style={styles.dot} />
                 <Text variant="caption" style={{ color: colors.heroTextSecondary }}>SUN MEDIA ichki virtual valyutasi</Text>
               </View>
             </Card>
+
+            <Button title="SUN Coin sotib olish" icon="shopping-bag" onPress={() => setShop(true)} />
+            {data.pendingPurchase ? (
+              <Card style={styles.notice}>
+                <Icon name="clock" size={18} color={colors.warning} />
+                <Text variant="caption" tone="secondary" style={styles.flex}>
+                  {`${formatSunCoin(data.pendingPurchase.coins)} xarid so‘rovi SUN MEDIA’da. To‘lov tasdiqlangach balansga tushadi.`}
+                </Text>
+              </Card>
+            ) : null}
 
             {wallet.isError ? (
               <Card style={styles.notice}>
@@ -71,6 +85,7 @@ export function SunCoinWalletScreen() {
           </>
         )}
       </QueryView>
+      <CoinShopSheet visible={shop} onClose={() => setShop(false)} />
     </Screen>
   );
 }
@@ -78,6 +93,7 @@ export function SunCoinWalletScreen() {
 const SOURCE_LABELS: Record<string, string> = {
   SAFI_PENALTY: 'SAFI Penalty',
   SAFI_PENALTY_REWARD_ATTEMPT: 'SAFI Penalty · sovg‘ali urinish',
+  COIN_SHOP: 'Coin Shop',
 };
 
 function TransactionRow({ transaction }: { transaction: SunCoinTransaction }) {

@@ -21,7 +21,19 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMe } from "@/features/auth/AuthProvider";
-import { formatSunCoin, SunCoinIcon, sunCoinWalletKey, type SunCoinWallet } from "@/features/sun-coin";
+import { GlassSheet } from "@/components/ui";
+import {
+  CoinShopContent,
+  formatSunCoin,
+  FreeAttemptCountdown,
+  rewardReplay,
+  SunCoin,
+  SunCoinHud,
+  sunCoinWalletKey,
+  useSunCoinWallet,
+  type SunCoinWallet,
+} from "@/features/sun-coin";
+import { useNav } from "@/lib/routes";
 import { GameSession } from "../../engine/gameSession";
 import { feedback, motion, useReduceMotion } from "../../engine/animationUtils";
 import {
@@ -29,11 +41,12 @@ import {
   rewardModeLabel,
   rewardReasonText,
 } from "../../engine/rewardClient";
-import type { GameFeedback, GameTransport, Session } from "../../engine/types";
+import type { GameFeedback, GameMode, GameTransport, Session } from "../../engine/types";
 import { safiTheme as t } from "./config";
 import { Arena } from "./components/Arena";
 import { Gift } from "./components/Artwork";
-import { RewardModePicker } from "./components/RewardModePicker";
+import { ModeCards } from "./components/ModeCards";
+import { ReplayContent, replayTitle } from "./components/RewardReplay";
 
 function modeLabel(session: Session) {
   if (session.mode === "free") return "Sovg‘ali · bepul urinish";
@@ -64,7 +77,25 @@ export function SafiPenaltyGame({
   const reduced = useReduceMotion();
   const queryClient = useQueryClient();
   const me = useMe();
+  const nav = useNav();
+  const wallet = useSunCoinWallet();
   const [reveal, setReveal] = useState(false);
+  // One sheet for the replay choice and the shop, so switching between them never stacks two modals.
+  const [sheet, setSheet] = useState<null | "replay" | "shop">(null);
+  const shownSheet = useRef<"replay" | "shop">("replay");
+  if (sheet) shownSheet.current = sheet;
+  const refreshWallet = () => void wallet.refetch();
+  const start = (mode: GameMode) => {
+    setSheet(null);
+    setReveal(false);
+    void controller.startGame(mode);
+  };
+  // "Play Reward Mode again": free if today's attempt is still there, otherwise the 10 SC choice first.
+  const rewardAgain = () => {
+    if (wallet.data && rewardReplay(wallet.data).kind === "free") start("free");
+    else setSheet("replay");
+  };
+  const rewardOpen = wallet.data ? rewardReplay(wallet.data).kind !== "closed" : false;
   const [containerWidth, setContainerWidth] = useState(width);
   const arenaWidth = Math.max(240, Math.min(containerWidth - 32, 480));
   const finish = state.finish;
@@ -120,7 +151,7 @@ export function SafiPenaltyGame({
           <Text style={s.backText}>‹</Text>
         </Pressable>
         <Text style={s.eyebrow}>GAME CENTER</Text>
-        <View style={{ width: 44 }} />
+        <SunCoinHud balance={wallet.data?.balance} onPress={() => setSheet("shop")} />
       </View>
       <View style={[s.titleRow, { width: arenaWidth }]}>
         <View>
@@ -189,9 +220,13 @@ export function SafiPenaltyGame({
                 {state.phase === "STARTING" ? (
                   <Action title="Tayyorlanmoqda…" busy onPress={() => undefined} />
                 ) : (
-                  <RewardModePicker
+                  <ModeCards
+                    wallet={wallet.data}
+                    loading={wallet.isPending}
                     busy={state.busy}
-                    onStart={(mode) => void controller.startGame(mode)}
+                    onStart={start}
+                    onRewardAgain={rewardAgain}
+                    onRefresh={refreshWallet}
                   />
                 )}
               </>
@@ -234,11 +269,11 @@ export function SafiPenaltyGame({
           </Text>
           {coinWon > 0 ? (
             <View accessibilityLiveRegion="polite" style={s.coinWin}>
-              <SunCoinIcon size={44} />
+              <SunCoin size={48} />
               <View>
-                <Text style={s.coinAmount}>+{coinWon} SUN COIN</Text>
+                <Text style={s.coinAmount}>+{coinWon} SC</Text>
                 {finish.coinBalance != null ? (
-                  <Text style={s.footnote}>Balans: {formatSunCoin(finish.coinBalance)}</Text>
+                  <Text style={s.coinBalance}>Balans: {formatSunCoin(finish.coinBalance)}</Text>
                 ) : null}
               </View>
             </View>
@@ -248,23 +283,11 @@ export function SafiPenaltyGame({
               ? "Mashq rejimi: sovg‘alar faqat sovg‘ali o‘yinda."
               : "Har bir zarba — yangi imkoniyat."}
           </Text>
-          <View style={s.resultActions}>
-            <Action
-              title="Yana o‘ynash"
-              busy={state.busy}
-              onPress={() => {
-                setReveal(false);
-                controller.leaveRound();
-              }}
-            />
-            {finish.boxes && !reveal ? (
-              <Action
-                title="Sovg‘ani ochish"
-                secondary
-                onPress={() => setReveal(true)}
-              />
-            ) : null}
-          </View>
+          {finish.boxes && !reveal ? (
+            <View style={s.resultActions}>
+              <Action title="Sovg‘ani ochish" onPress={() => setReveal(true)} />
+            </View>
+          ) : null}
           {reveal && !state.reward ? (
             <View style={s.reveal}>
               <Text style={s.instruction}>Uch qutidan birini tanlang</Text>
@@ -304,6 +327,29 @@ export function SafiPenaltyGame({
               </Text>
             </View>
           ) : null}
+          <View style={s.resultActions}>
+            {rewardOpen ? (
+              <Action
+                title="YANA REWARD O‘YNASH"
+                secondary={finish.boxes && !state.reward}
+                busy={state.busy}
+                onPress={rewardAgain}
+              />
+            ) : null}
+            <Action title="MASHQ REJIMI" secondary busy={state.busy} onPress={() => start("practice")} />
+            <Action title="GAME CENTER" secondary onPress={onBack} />
+          </View>
+          {rewardOpen && wallet.data && !wallet.data.attempt.freeAvailable && wallet.data.attempt.nextFreeAt ? (
+            <View style={s.nextFree}>
+              <Text style={s.footnote}>Keyingi bepul urinish</Text>
+              <FreeAttemptCountdown
+                nextFreeAt={wallet.data.attempt.nextFreeAt}
+                offsetMs={wallet.data.clockOffsetMs}
+                onElapsed={refreshWallet}
+                style={s.nextFreeValue}
+              />
+            </View>
+          ) : null}
         </LinearGradient>
       ) : null}
       {state.error ? (
@@ -332,6 +378,31 @@ export function SafiPenaltyGame({
         </View>
       ) : null}
       <Text style={s.footer}>SAFI × SUN MEDIA</Text>
+      <GlassSheet
+        visible={sheet !== null}
+        onClose={() => setSheet(null)}
+        eyebrow={shownSheet.current === "shop" ? "SUN COIN" : "REWARD MODE"}
+        title={shownSheet.current === "shop" ? "Coin Shop" : replayTitle(wallet.data)}
+      >
+        {shownSheet.current === "shop" ? (
+          <CoinShopContent
+            onOpenWallet={() => {
+              setSheet(null);
+              nav.go("/account/sun-coin");
+            }}
+          />
+        ) : wallet.data ? (
+          <ReplayContent
+            wallet={wallet.data}
+            busy={state.busy}
+            onPlayFree={() => start("free")}
+            onPlayPaid={() => start("paid")}
+            onPractice={() => start("practice")}
+            onBuy={() => setSheet("shop")}
+            onRefresh={refreshWallet}
+          />
+        ) : null}
+      </GlassSheet>
     </ScrollView>
   );
 }
@@ -570,5 +641,8 @@ const s = StyleSheet.create({
   errorText: { color: t.foreground, fontSize: 13, textAlign: "center" },
   cancel: { padding: 12 },
   coinWin: { flexDirection: "row", alignItems: "center", gap: 12 },
-  coinAmount: { fontSize: 22, fontWeight: "700", color: t.foreground, letterSpacing: -0.5 },
+  coinAmount: { fontSize: 30, fontWeight: "800", color: t.foreground, letterSpacing: -0.8, fontVariant: ["tabular-nums"] },
+  coinBalance: { fontSize: 12, color: t.muted, fontVariant: ["tabular-nums"] },
+  nextFree: { alignItems: "center", gap: 2 },
+  nextFreeValue: { fontSize: 18, fontWeight: "700", color: t.foreground, letterSpacing: 1 },
 });
