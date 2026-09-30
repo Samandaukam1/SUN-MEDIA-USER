@@ -10,7 +10,7 @@ const gameSchema = z.object({
   id: z.string(),
   client_id: z.string(),
   client_name: z.string(),
-  template: z.enum(['catch', 'pour']),
+  template: z.enum(['catch', 'pour', 'penalty']),
   title: z.string(),
   subtitle: z.string().nullable(),
   rules: z.string().nullable(),
@@ -49,7 +49,7 @@ export function blockedReason(g: Game, now = Date.now()): string | null {
   return null;
 }
 
-export async function startGame(campaignId: string): Promise<{ session_id: string; attempts: number; target_score: number; template: 'catch' | 'pour' }> {
+export async function startGame(campaignId: string): Promise<{ session_id: string; attempts: number; target_score: number; template: Game['template'] }> {
   const { data, error } = await getSupabase().rpc('game_start', { p_campaign: campaignId });
   if (error) throw error;
   return data as never;
@@ -63,6 +63,13 @@ export async function nextAttempt(sessionId: string): Promise<{ n: number; param
 
 export async function submitAttempt(sessionId: string, n: number, tapMs: number): Promise<{ n: number; hit: boolean; valid: boolean }> {
   const { data, error } = await getSupabase().rpc('game_submit_attempt', { p_session: sessionId, p_n: n, p_tap_ms: Math.round(tapMs) });
+  if (error) throw error;
+  return data as never;
+}
+
+/** Penalty: the shot at zone 0…14; the server answers with the goalkeeper's zone and goal / save. */
+export async function shoot(sessionId: string, n: number, zone: number): Promise<{ n: number; zone: number; keeper: number; goal: boolean; valid: boolean }> {
+  const { data, error } = await getSupabase().rpc('game_shoot', { p_session: sessionId, p_n: n, p_zone: zone });
   if (error) throw error;
   return data as never;
 }

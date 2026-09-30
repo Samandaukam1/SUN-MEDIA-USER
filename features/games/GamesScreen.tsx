@@ -43,7 +43,7 @@ export function GameCard({ game, compact = false }: { game: Game; compact?: bool
     <Pressable accessibilityRole="button" accessibilityLabel={game.title} onPress={() => nav.go(`/games/${game.id}`)}>
       <Card style={[styles.card, { borderColor: primary, backgroundColor: game.brand.background ?? colors.surface }]}>
         <View style={styles.top}>
-          <Text style={styles.icon}>{game.template === 'catch' ? '🐔' : '🥤'}</Text>
+          <Text style={styles.icon}>{game.template === 'pour' ? '🥤' : '🐔'}</Text>
           <View style={styles.text}>
             <Text variant="label" style={{ color: primary }}>
               {game.client_name}

@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { toUserMessage } from '@/lib/errors';
 import { useNav } from '@/lib/routes';
 import { blockedReason, fetchMyGames, finishGame, gameErrorMessage, nextAttempt, openBox, startGame, submitAttempt, type Game } from './api';
+import { PenaltyAttempts } from './PenaltyGame';
 import { aimX, chickenX, DIFFICULTY_LABEL, pourCentre, pourLevel, pourOverflowAt, type CatchParams, type PourParams } from './physics';
 
 type Phase = 'intro' | 'playing' | 'result' | 'reveal';
@@ -45,6 +46,9 @@ function Play({ game }: { game: Game }) {
   const queryClient = useQueryClient();
   const nav = useNav();
   const brand = { primary: game.brand.primary ?? colors.accent, background: game.brand.background ?? colors.surface, text: game.brand.text ?? colors.text };
+  // Panels sit on the client's brand colour, not on the app theme: frosted white on a light brand, smoked on a dark one.
+  const lightBrand = isLightColor(brand.background);
+  const panel = { backgroundColor: lightBrand ? 'rgba(255,255,255,0.78)' : 'rgba(255,255,255,0.08)', borderColor: lightBrand ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.12)' };
   const [phase, setPhase] = useState<Phase>('intro');
   const [session, setSession] = useState<string | null>(null);
   const [marks, setMarks] = useState<(boolean | null)[]>([]);
@@ -114,23 +118,28 @@ function Play({ game }: { game: Game }) {
             {game.title}
           </Text>
           {game.subtitle ? <Text variant="body" style={{ color: brand.text }}>{game.subtitle}</Text> : null}
-          <Card style={styles.rules}>
-            <Text variant="subheading">{game.template === 'catch' ? 'Qanday o‘ynaladi' : 'Qanday o‘ynaladi'}</Text>
-            <Text variant="body" tone="secondary">
-              {game.template === 'catch'
-                ? 'Nishon chapga-o‘ngga yuradi. To‘g‘ri paytda bosing — tuxum uchadi, tovuq uni tutishi kerak.'
-                : 'Stakan to‘lib boradi. Suyuqlik yashil chiziq ichida bo‘lganda bosing.'}
+          <Card style={[styles.rules, panel]}>
+            <Text variant="subheading" style={{ color: brand.text }}>Qanday o‘ynaladi</Text>
+            <Text variant="body" style={[styles.soft, { color: brand.text }]}>
+              {game.template === 'penalty'
+                ? 'Tovuq — darvozabon. Darvozaning istalgan nuqtasini tanlang va tuxumni tebing. Tovuq qayerga sakrashini oldindan bilmaysiz: ushlasa — ochko yo‘q, o‘tkazib yuborsa — gol!'
+                : game.template === 'catch'
+                  ? 'Nishon chapga-o‘ngga yuradi. To‘g‘ri paytda bosing — tuxum uchadi, tovuq uni tutishi kerak.'
+                  : 'Stakan to‘lib boradi. Suyuqlik yashil chiziq ichida bo‘lganda bosing.'}
             </Text>
-            <Text variant="caption" tone="secondary">{`${game.attempts} urinish · ${DIFFICULTY_LABEL[game.difficulty] ?? game.difficulty}`}</Text>
-            <Text variant="captionMedium">{game.rules_text}</Text>
-            {game.rules ? <Text variant="caption" tone="tertiary">{game.rules}</Text> : null}
+            <Text variant="caption" style={[styles.soft, { color: brand.text }]}>{`${game.attempts} urinish · ${DIFFICULTY_LABEL[game.difficulty] ?? game.difficulty}`}</Text>
+            <Text variant="captionMedium" style={{ color: brand.text }}>{game.rules_text}</Text>
+            {game.rules ? <Text variant="caption" style={[styles.soft, { color: brand.text }]}>{game.rules}</Text> : null}
           </Card>
           {error ? <Text variant="caption" tone="danger">{error}</Text> : null}
           <Button title={blocked ?? 'Boshlash'} disabled={!!blocked} loading={busy} onPress={begin} />
         </View>
       ) : null}
 
-      {phase === 'playing' && session ? (
+      {phase === 'playing' && session && game.template === 'penalty' ? (
+        <PenaltyAttempts game={game} session={session} brand={brand} marks={marks} onMark={(goal) => setMarks((m) => [...m, goal])} onDone={() => done(session)} onError={fail} />
+      ) : null}
+      {phase === 'playing' && session && game.template !== 'penalty' ? (
         <Attempts game={game} session={session} brand={brand} marks={marks} onMark={(hit) => setMarks((m) => [...m, hit])} onDone={() => done(session)} onError={fail} />
       ) : null}
 
@@ -154,7 +163,7 @@ function Play({ game }: { game: Game }) {
                   <GiftBox key={b} color={brand.primary} disabled={busy} onPress={() => pick(b)} />
                 ))}
               </View>
-              <Text variant="caption" tone="tertiary">
+              <Text variant="caption" style={[styles.soft, { color: brand.text }]}>
                 {game.rules_text}
               </Text>
             </>
@@ -172,7 +181,7 @@ function Play({ game }: { game: Game }) {
           <Text variant="title" style={{ color: brand.text }}>
             {reveal.won ? `${reveal.days} kunlik SUN MEDIA Pro yutdingiz!` : reveal.sold_out ? 'Sovg‘alar tugab qoldi' : 'Bu safar quti bo‘sh chiqdi'}
           </Text>
-          <Text variant="body" tone="secondary">
+          <Text variant="body" style={[styles.soft, { color: brand.text }]}>
             {reveal.won ? 'Pro darhol faollashdi. Akkaunt bo‘limida muddatini ko‘rasiz.' : 'Keyingi o‘yinda omad!'}
           </Text>
           <Button title="Tayyor" onPress={() => nav.back()} />
@@ -367,7 +376,7 @@ function Attempts({
           </View>
         ) : null}
       </Pressable>
-      <Text variant="caption" tone="tertiary" align="center">
+      <Text variant="caption" align="center" style={[styles.soft, { color: brand.text }]}>
         {tapped ? ' ' : game.template === 'catch' ? 'Ekranni bosing — tuxum nishonga uchadi' : 'Chiziq ichida bosing'}
       </Text>
     </View>
@@ -442,6 +451,7 @@ const styles = StyleSheet.create({
   bleed: { flex: 1, padding: 0, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 0, gap: 0 },
   intro: { flex: 1, padding: spacing.xl, gap: spacing.lg, justifyContent: 'center' },
   rules: { gap: spacing.sm },
+  soft: { opacity: 0.72 },
   play: { flex: 1, alignItems: 'center', paddingTop: spacing.lg, gap: spacing.md },
   hud: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingHorizontal: spacing.xl, gap: spacing.md },
   dots: { flexDirection: 'row', gap: 4, flex: 1, justifyContent: 'center', flexWrap: 'wrap' },
@@ -465,3 +475,12 @@ const styles = StyleSheet.create({
   box: { width: 92, height: 92, borderRadius: 20, borderWidth: 2, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.6)' },
   boxEmoji: { fontSize: 44, lineHeight: 52 },
 });
+
+/** Perceived brightness of a #rgb / #rrggbb colour (unknown formats count as light). */
+function isLightColor(color: string): boolean {
+  const hex = color.replace('#', '');
+  const full = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex.slice(0, 6);
+  if (!/^[0-9a-f]{6}$/i.test(full)) return true;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+  return 0.299 * r + 0.587 * g + 0.114 * b > 150;
+}
