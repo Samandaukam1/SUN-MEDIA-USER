@@ -31,6 +31,7 @@ export const myContextSchema = z.object({
         code: z.string(),
         logo_url: z.string().nullable(),
         home_logo_url: z.string().nullable().optional(),
+        home_logo_dark_url: z.string().nullable().optional(),
         role: z.string(),
         role_name: z.string(),
         permissions: z.array(z.string()),
@@ -40,7 +41,7 @@ export const myContextSchema = z.object({
   // An admin-issued password the person has not replaced yet.
   temporary_password: z.boolean().optional().default(false),
   // Centre Home logo (NULL = the built-in SUN MEDIA logo).
-  branding: z.object({ home_logo_url: z.string().nullable().optional() }).optional(),
+  branding: z.object({ home_logo_url: z.string().nullable().optional(), home_logo_dark_url: z.string().nullable().optional() }).optional(),
 });
 
 export type MyContext = z.infer<typeof myContextSchema>;

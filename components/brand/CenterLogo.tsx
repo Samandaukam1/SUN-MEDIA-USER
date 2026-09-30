@@ -5,7 +5,10 @@ import Svg, { Circle, Defs, RadialGradient, Rect, Stop } from 'react-native-svg'
 
 import { colors as palette } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { Logo } from './Logo';
+
+// Official SUN MEDIA artwork: the original grey logo for light mode, its graphite variant for dark mode.
+const SUNMEDIA_LIGHT = require('@/assets/brand/sunmedia-home-light.jpg');
+const SUNMEDIA_DARK = require('@/assets/brand/sunmedia-home-dark.png');
 
 const NEON = palette.dark.brand; // SUN MEDIA lime
 const SAMPLES = 72;
@@ -60,8 +63,16 @@ function depth(yNorm: number): number {
  * The centre Home button: the workspace's logo with a neon highlight orbiting along the logo's own outline.
  * One looping native-driver animation (transforms + opacity only); paused in background and for Reduce Motion.
  */
-export function CenterLogo({ size = 54, focused, logoUrl }: { size?: number; focused: boolean; logoUrl?: string | null }) {
-  const { colors, scheme } = useTheme();
+export function CenterLogo({ size = 54, focused, lightUrl, darkUrl }: { size?: number; focused: boolean; lightUrl?: string | null; darkUrl?: string | null }) {
+  const { scheme } = useTheme();
+  // Theme-aware artwork: light / dark asset of the workspace (falling back to each other), else SUN MEDIA's.
+  const lightSource = lightUrl ? { uri: lightUrl } : darkUrl ? { uri: darkUrl } : SUNMEDIA_LIGHT;
+  const darkSource = darkUrl ? { uri: darkUrl } : lightUrl ? { uri: lightUrl } : SUNMEDIA_DARK;
+  const themeFade = useRef(new Animated.Value(scheme === 'dark' ? 1 : 0)).current;
+  useEffect(() => {
+    // Both images stay mounted, so switching theme is a crossfade — never a blank frame.
+    Animated.timing(themeFade, { toValue: scheme === 'dark' ? 1 : 0, duration: 320, easing: Easing.inOut(Easing.quad), useNativeDriver: Platform.OS !== 'web' }).start();
+  }, [scheme, themeFade]);
   const progress = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(focused ? 1.07 : 1)).current;
   const intensity = useRef(new Animated.Value(focused ? 1 : 0.72)).current;
@@ -141,16 +152,17 @@ export function CenterLogo({ size = 54, focused, logoUrl }: { size?: number; foc
             width: size,
             height: size,
             borderRadius: size * 0.28,
-            backgroundColor: logoUrl ? colors.surface : '#0B0B0C',
-            borderColor: scheme === 'dark' ? '#2A2A2E' : 'rgba(0,0,0,0.08)',
+            backgroundColor: scheme === 'dark' ? '#0B0B0C' : '#E6E6E8',
+            borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',
           },
         ]}
       >
-        {logoUrl ? (
-          <Image source={{ uri: logoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} accessibilityIgnoresInvertColors />
-        ) : (
-          <Logo width={size * 0.84} onDark compact />
-        )}
+        <Image source={lightSource} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} accessibilityIgnoresInvertColors />
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: themeFade }]}>
+          <Image source={darkSource} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} accessibilityIgnoresInvertColors />
+        </Animated.View>
+        {/* Glass: a soft top highlight over the artwork, like light on a polished tile */}
+        <View pointerEvents="none" style={[styles.sheen, { borderRadius: size * 0.28 }]} />
       </View>
       {/* …and the bright core rides on top, so the front of the orbit passes over the logo's edge */}
       <Animated.View
@@ -196,4 +208,5 @@ function Core({ size }: { size: number }) {
 const styles = StyleSheet.create({
   head: { position: 'absolute', left: 0, top: 0 },
   tile: { position: 'absolute', overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth },
+  sheen: { ...StyleSheet.absoluteFillObject, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.35)', backgroundColor: 'rgba(255,255,255,0.04)' },
 });

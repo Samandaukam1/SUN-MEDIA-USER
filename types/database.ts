@@ -891,6 +891,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           description: string | null
+          home_logo_dark_url: string | null
           home_logo_url: string | null
           id: string
           industry: string | null
@@ -910,6 +911,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           description?: string | null
+          home_logo_dark_url?: string | null
           home_logo_url?: string | null
           id?: string
           industry?: string | null
@@ -929,6 +931,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           description?: string | null
+          home_logo_dark_url?: string | null
           home_logo_url?: string | null
           id?: string
           industry?: string | null
@@ -2027,6 +2030,7 @@ export type Database = {
           submitted_at: string | null
           tap_ms: number | null
           valid: boolean | null
+          zone: number | null
         }
         Insert: {
           error_ratio?: number | null
@@ -2038,6 +2042,7 @@ export type Database = {
           submitted_at?: string | null
           tap_ms?: number | null
           valid?: boolean | null
+          zone?: number | null
         }
         Update: {
           error_ratio?: number | null
@@ -2049,6 +2054,7 @@ export type Database = {
           submitted_at?: string | null
           tap_ms?: number | null
           valid?: boolean | null
+          zone?: number | null
         }
         Relationships: [
           {
@@ -5143,6 +5149,7 @@ export type Database = {
         Row: {
           client_id: string | null
           created_at: string
+          home_logo_dark_url: string | null
           home_logo_url: string | null
           id: string
           inherits_agency_plan: boolean
@@ -5154,6 +5161,7 @@ export type Database = {
         Insert: {
           client_id?: string | null
           created_at?: string
+          home_logo_dark_url?: string | null
           home_logo_url?: string | null
           id?: string
           inherits_agency_plan?: boolean
@@ -5165,6 +5173,7 @@ export type Database = {
         Update: {
           client_id?: string | null
           created_at?: string
+          home_logo_dark_url?: string | null
           home_logo_url?: string | null
           id?: string
           inherits_agency_plan?: boolean
@@ -5397,6 +5406,10 @@ export type Database = {
       game_next_attempt: { Args: { p_session: string }; Returns: Json }
       game_open_box: {
         Args: { p_box: number; p_session: string }
+        Returns: Json
+      }
+      game_shoot: {
+        Args: { p_n: number; p_session: string; p_zone: number }
         Returns: Json
       }
       game_start: { Args: { p_campaign: string }; Returns: Json }
@@ -6058,7 +6071,7 @@ export type Database = {
         }
       }
       set_home_logo: {
-        Args: { p_client: string; p_url: string }
+        Args: { p_client: string; p_url: string; p_variant?: string }
         Returns: undefined
       }
       set_staff_permissions: {
