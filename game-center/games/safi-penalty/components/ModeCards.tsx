@@ -2,7 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import {
   formatSunCoin,
   FreeAttemptCountdown,
-  prizeLines,
+  prizeTeaser,
   rewardReplay,
   SunCoin,
   type SunCoinWallet,
@@ -65,11 +65,7 @@ export function ModeCards({
           <Text style={s.bodyLight}>Hozir faol sovg‘a kampaniyasi yo‘q. Kampaniya boshlanganda shu yerda ochiladi.</Text>
         ) : (
           <>
-            {prizeLines(wallet).map((line) => (
-              <Text key={line} style={s.prize}>
-                {line}
-              </Text>
-            ))}
+            <Text style={s.prize}>{prizeTeaser(wallet.rewardKinds)}</Text>
             <View style={s.facts}>
               <Fact label="Bugungi bepul urinish" value={wallet.attempt.freeAvailable ? "Mavjud" : "Ishlatilgan"} strong={wallet.attempt.freeAvailable} />
               <Fact label="Qo‘shimcha urinish" value={formatSunCoin(wallet.attempt.cost)} />
@@ -164,7 +160,7 @@ const s = StyleSheet.create({
   balance: { flexDirection: "row", alignItems: "center", gap: 2 },
   timer: { backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, alignItems: "center", gap: 2 },
   timerLabel: { fontSize: 9, fontWeight: "700", letterSpacing: 2, color: "#AAB8A6" },
-  timerValue: { fontSize: 26, fontWeight: "700", color: t.white, letterSpacing: 1 },
+  timerValue: { fontSize: 26, lineHeight: 32, fontWeight: "700", color: t.white, letterSpacing: 1 },
   note: { fontSize: 11, lineHeight: 17, color: t.muted, textAlign: "center" },
   cta: { backgroundColor: t.primary, paddingVertical: 16, paddingHorizontal: 18, borderRadius: 16, alignItems: "center", minHeight: 54, justifyContent: "center" },
   ctaSecondary: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.line },

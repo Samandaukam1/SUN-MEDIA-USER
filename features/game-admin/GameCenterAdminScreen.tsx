@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, StyleSheet, View } from 'react-native';
 
-import { Badge, Button, Card, EmptyState, ListGroup, QueryView, Screen, Section, SegmentedControl, SkeletonCards, Text, ToggleRow, useToast } from '@/components/ui';
+import { Badge, Button, Card, Chip, ChipRow, EmptyState, ListGroup, QueryView, Screen, Section, SkeletonCards, Text, ToggleRow, useToast } from '@/components/ui';
 import { spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { formatPrice } from '@/features/pro/api';
@@ -13,20 +13,21 @@ import { formatShortDateTime } from '@/lib/time';
 import {
   confirmPurchase,
   fetchGameAdmin,
-  fetchProCampaigns,
   gameAdminError,
   gameAdminKey,
   rejectPurchase,
+  ruleDraft,
   savePack,
-  setCampaignStatus,
   setLevel,
-  setProCampaignActive,
-  type CoinCampaign,
+  setRewardCampaignStatus,
+  updateRewardRules,
   type CoinPurchase,
   type GameAdminDashboard,
+  type LevelProfile,
+  type RewardCampaign,
 } from './api';
-import { CampaignSheet, GiftSheet, PackSheet } from './GameAdminSheets';
-import { levelOdds, LEVELS, type LevelKey } from './levels';
+import { GiftSheet, PackSheet, RewardRulesSheet } from './GameAdminSheets';
+import { LEVELS, percent, rewardText, ruleOdds, type LevelKey } from './levels';
 
 function confirm(title: string, message: string, action: string, onConfirm: () => void, destructive = false) {
   if (Platform.OS === 'web') {
@@ -39,23 +40,25 @@ function confirm(title: string, message: string, action: string, onConfirm: () =
   ]);
 }
 
-const STATUS: Record<CoinCampaign['status'], { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
-  active: { label: 'Faol', tone: 'success' },
-  paused: { label: 'Pauza', tone: 'warning' },
-  draft: { label: 'Qoralama', tone: 'neutral' },
+const STATUS: Record<RewardCampaign['status'], { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
+  active: { label: 'ON · Faol', tone: 'success' },
+  paused: { label: 'OFF · Pauza', tone: 'warning' },
+  draft: { label: 'OFF · Qoralama', tone: 'neutral' },
   ended: { label: 'Tugagan', tone: 'neutral' },
 };
 
+type Sheet = { kind: 'gift' } | { kind: 'pack' } | { kind: 'rules'; campaign: RewardCampaign | null };
+
 /**
  * Game Center control for SUN MEDIA managers (promo.manage), inside the app: coins in circulation, purchase
- * confirmations, gifts, the game's level, SUN Coin and Pro campaigns and the Coin Shop. Managers do not play;
- * every action is checked again by the server.
+ * confirmations, gifts, the game's hidden level and its balance, reward rules and the Coin Shop. Managers do not
+ * play; every action is checked again by the server.
  */
 export function GameCenterAdminScreen() {
   const { can } = useAuth();
   const allowed = can('promo.manage');
   const dashboard = useQuery({ queryKey: gameAdminKey, queryFn: fetchGameAdmin, enabled: allowed });
-  const [sheet, setSheet] = useState<'gift' | 'campaign' | 'pack' | null>(null);
+  const [sheet, setSheet] = useState<Sheet | null>(null);
 
   if (!allowed) {
     return (
@@ -65,20 +68,28 @@ export function GameCenterAdminScreen() {
       </Screen>
     );
   }
+  const data = dashboard.data;
+  const level = (data?.settings.find((s) => s.gameId === 'safi-penalty')?.difficulty ?? 'easy') as LevelKey;
   return (
     <Screen edges={[]} refreshing={dashboard.isRefetching} onRefresh={() => void dashboard.refetch()}>
       <Stack.Screen options={{ title: 'Game Center' }} />
       <QueryView query={dashboard} skeleton={<SkeletonCards count={3} />}>
-        {(data) => <Dashboard data={data} onSheet={setSheet} />}
+        {(d) => <Dashboard data={d} onSheet={setSheet} />}
       </QueryView>
-      <GiftSheet visible={sheet === 'gift'} onClose={() => setSheet(null)} />
-      <CampaignSheet visible={sheet === 'campaign'} onClose={() => setSheet(null)} hasActive={!!dashboard.data?.campaigns.some((c) => c.status === 'active')} />
-      <PackSheet visible={sheet === 'pack'} onClose={() => setSheet(null)} />
+      <GiftSheet visible={sheet?.kind === 'gift'} onClose={() => setSheet(null)} />
+      <RewardRulesSheet
+        visible={sheet?.kind === 'rules'}
+        onClose={() => setSheet(null)}
+        campaign={sheet?.kind === 'rules' ? sheet.campaign : null}
+        hasActive={!!data?.rewardCampaigns.some((c) => c.status === 'active')}
+        profile={data?.levels.find((l) => l.key === level)}
+      />
+      <PackSheet visible={sheet?.kind === 'pack'} onClose={() => setSheet(null)} />
     </Screen>
   );
 }
 
-function Dashboard({ data, onSheet }: { data: GameAdminDashboard; onSheet: (s: 'gift' | 'campaign' | 'pack') => void }) {
+function Dashboard({ data, onSheet }: { data: GameAdminDashboard; onSheet: (s: Sheet) => void }) {
   const { colors } = useTheme();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -86,9 +97,9 @@ function Dashboard({ data, onSheet }: { data: GameAdminDashboard; onSheet: (s: '
   const act = useMutation({ mutationFn: (fn: () => Promise<unknown>) => fn(), onSuccess: refresh, onError: (e) => toast.show(gameAdminError(e), 'error') });
   const pending = data.purchaseRequests.filter((r) => r.status === 'pending');
   const level = (data.settings.find((s) => s.gameId === 'safi-penalty')?.difficulty ?? 'easy') as LevelKey;
-  const odds = levelOdds(level);
+  const profile = data.levels.find((l) => l.key === level);
   const a = data.analytics;
-  const campaigns = data.campaigns.filter((c) => c.gameId === 'safi-penalty').slice(0, 6);
+  const campaigns = data.rewardCampaigns.filter((c) => c.gameId === 'safi-penalty' && c.status !== 'ended');
 
   return (
     <>
@@ -114,7 +125,7 @@ function Dashboard({ data, onSheet }: { data: GameAdminDashboard; onSheet: (s: '
           ))}
         </View>
       </Card>
-      <Button title="SUN Coin sovg‘a qilish" icon="gift" onPress={() => onSheet('gift')} />
+      <Button title="SUN Coin sovg‘a qilish" icon="gift" onPress={() => onSheet({ kind: 'gift' })} />
 
       <Section title={pending.length ? `Xarid so‘rovlari · ${pending.length}` : 'Xarid so‘rovlari'}>
         {pending.length === 0 ? (
@@ -130,32 +141,44 @@ function Dashboard({ data, onSheet }: { data: GameAdminDashboard; onSheet: (s: '
         )}
       </Section>
 
-      <Section title="O‘yin darajasi · SAFI Penalty">
-        <SegmentedControl<LevelKey>
-          options={LEVELS.map((l) => ({ value: l.key, label: l.label }))}
-          value={level}
-          onChange={(v) => act.mutate(() => setLevel(v))}
-        />
-        <Text variant="caption" tone="secondary">
-          {`Gol ≈ ${odds.goal}% · tovuq ushlaydi ≈ ${odds.save}%. Yangi raundlarga qo‘llanadi; o‘ynalayotgan raund o‘z darajasida tugaydi. Sovg‘a ehtimoli kampaniya sozlamalarida alohida.`}
+      <Section title="Qiyinlik · SAFI Penalty">
+        <ChipRow>
+          {LEVELS.map((l) => (
+            <Chip key={l.key} label={l.label} selected={l.key === level} onPress={() => { if (l.key !== level) act.mutate(() => setLevel(l.key)); }} />
+          ))}
+        </ChipRow>
+        {profile ? <Balance profile={profile} /> : null}
+        <Text variant="caption" tone="tertiary">
+          Ichki sozlama: o‘yinchi darajani, chegarani va qoidalarni ko‘rmaydi. Yangi raundlarga qo‘llanadi; o‘ynalayotgan raund o‘z darajasida tugaydi.
         </Text>
       </Section>
 
-      <Section title="SUN Coin kampaniyalari" actionLabel="Yangi" onAction={() => onSheet('campaign')}>
+      <Section title="Mukofot qoidalari" actionLabel="Yangi" onAction={() => onSheet({ kind: 'rules', campaign: null })}>
         {campaigns.length === 0 ? (
-          <Text variant="caption" tone="tertiary">Hali kampaniya yo‘q.</Text>
+          <Text variant="caption" tone="tertiary">Faol yoki qoralama kampaniya yo‘q — Reward Mode yopiq. “Yangi” orqali qoidalarni yarating.</Text>
         ) : (
-          campaigns.map((c) => <CampaignCard key={c.id} campaign={c} busy={act.isPending} onStatus={(s) => {
-            const run = () => act.mutate(() => setCampaignStatus(c.id, s));
-            if (s === 'ended') confirm('Kampaniyani tugatish', `${c.title} qayta ishga tushirilmaydi. Tarixi saqlanadi.`, 'Tugatish', run, true);
-            else run();
-          }} />)
+          campaigns.map((c) => (
+            <RewardCampaignCard
+              key={c.id}
+              campaign={c}
+              profile={profile}
+              busy={act.isPending}
+              onEdit={() => onSheet({ kind: 'rules', campaign: c })}
+              onToggle={(score, enabled) => act.mutate(() => updateRewardRules(c.id, c.rules.filter((r) => r.score === score).map((r) => ({ ...ruleDraft(r), enabled }))))}
+              onStatus={(s) => {
+                const run = () => act.mutate(() => setRewardCampaignStatus(c.id, s));
+                if (s === 'ended') confirm('Kampaniyani tugatish', `${c.title} qayta yoqilmaydi va o‘zgartirilmaydi. Berilgan mukofotlar tarixi saqlanadi.`, 'Tugatish', run, true);
+                else run();
+              }}
+            />
+          ))
         )}
+        <Text variant="caption" tone="tertiary">
+          {`Jami berilgan: ${formatSunCoin(data.rewardSummary.coins)} · ${data.rewardSummary.proDays} kun Pro · ${data.rewardSummary.winners} g‘olib`}
+        </Text>
       </Section>
 
-      <ProCampaigns />
-
-      <Section title="Coin Shop paketlari" actionLabel="Qo‘shish" onAction={() => onSheet('pack')}>
+      <Section title="Coin Shop paketlari" actionLabel="Qo‘shish" onAction={() => onSheet({ kind: 'pack' })}>
         {data.packs.length === 0 ? (
           <Text variant="caption" tone="tertiary">Paketlar yo‘q — mijozlar “Paketlar hali sozlanmagan” ko‘radi.</Text>
         ) : (
@@ -173,6 +196,86 @@ function Dashboard({ data, onSheet }: { data: GameAdminDashboard; onSheet: (s: '
         )}
       </Section>
     </>
+  );
+}
+
+/** The level's target balance: top result, average and how often each score happens (exact server numbers). */
+function Balance({ profile }: { profile: LevelProfile }) {
+  const { colors } = useTheme();
+  const peak = Math.max(...profile.distribution);
+  return (
+    <Card style={styles.card}>
+      <View style={styles.metricsRow}>
+        <View style={styles.flex}>
+          <Text variant="caption" tone="tertiary">Juda yaxshi natija</Text>
+          <Text variant="subheading">{`${profile.top}/10`}</Text>
+        </View>
+        <View style={styles.flex}>
+          <Text variant="caption" tone="tertiary">O‘rtacha</Text>
+          <Text variant="subheading">{`${profile.average.toFixed(1)} gol`}</Text>
+        </View>
+        <View style={styles.flex}>
+          <Text variant="caption" tone="tertiary">{`${profile.top}/10 chiqadi`}</Text>
+          <Text variant="subheading">{percent(profile.distribution[profile.top] ?? 0)}</Text>
+        </View>
+      </View>
+      <View style={styles.bars} accessibilityLabel="Natijalar taqsimoti">
+        {profile.distribution.map((p, score) => (
+          <View key={score} style={styles.barCol}>
+            <View style={[styles.bar, { height: peak > 0 ? Math.max(2, (p / peak) * 48) : 2, backgroundColor: score === profile.top ? colors.accent : colors.border }]} />
+            <Text variant="caption" tone="tertiary">{score}</Text>
+          </View>
+        ))}
+      </View>
+    </Card>
+  );
+}
+
+function RewardCampaignCard({ campaign: c, profile, busy, onEdit, onToggle, onStatus }: {
+  campaign: RewardCampaign;
+  profile?: LevelProfile;
+  busy: boolean;
+  onEdit: () => void;
+  onToggle: (score: number, enabled: boolean) => void;
+  onStatus: (s: 'active' | 'paused' | 'ended') => void;
+}) {
+  const status = STATUS[c.status];
+  const odds = profile ? ruleOdds(profile.distribution, c.rules) : null;
+  const open = c.rules.some((r) => r.enabled && (r.remaining == null || r.remaining > 0));
+  return (
+    <Card style={styles.card}>
+      <View style={styles.cardTop}>
+        <View style={styles.flex}>
+          <Text variant="bodyMedium">{c.title}</Text>
+          <Text variant="caption" tone="secondary">{`${formatShortDateTime(c.startsAt)} → ${c.endsAt ? formatShortDateTime(c.endsAt) : 'muddatsiz'}`}</Text>
+        </View>
+        <Badge label={status.label} tone={status.tone} dot />
+      </View>
+      {c.status === 'active' && !open ? <Text variant="caption" tone="danger">Yoqilgan va zaxirasi bor qoida yo‘q — Reward Mode yopiq.</Text> : null}
+      <ListGroup>
+        {c.rules.map((r) => {
+          const unreachable = profile && r.score > profile.top;
+          const stock = r.quantity == null ? `berildi ${r.awarded}` : `berildi ${r.awarded}/${r.quantity}`;
+          const chance = !r.enabled ? 'OFF' : unreachable ? 'bu darajada yetib bo‘lmaydi' : odds?.has(r.score) ? `≈ ${percent(odds.get(r.score) ?? 0)} raund` : '';
+          return (
+            <ToggleRow
+              key={r.id}
+              label={`${r.score}/10 gol → ${rewardText(r)}`}
+              description={`${stock} · ${chance}`}
+              value={r.enabled}
+              onChange={(v) => onToggle(r.score, v)}
+            />
+          );
+        })}
+      </ListGroup>
+      <View style={styles.actions}>
+        <Button title="Tahrirlash" size="md" variant="secondary" disabled={busy} onPress={onEdit} style={styles.flex} />
+        {c.status === 'active' ? <Button title="Pauza" size="md" variant="secondary" loading={busy} onPress={() => onStatus('paused')} /> : null}
+        {c.status === 'paused' || c.status === 'draft' ? <Button title="Yoqish" size="md" loading={busy} onPress={() => onStatus('active')} /> : null}
+        {c.status !== 'draft' ? <Button title="Tugatish" size="md" variant="danger" disabled={busy} onPress={() => onStatus('ended')} /> : null}
+      </View>
+      <Text variant="caption" tone="tertiary">{`G‘oliblar: ${c.winners} · ${formatSunCoin(c.coinsGiven)} · ${c.proDaysGiven} kun Pro`}</Text>
+    </Card>
   );
 }
 
@@ -197,73 +300,6 @@ function PurchaseCard({ request, busy, onConfirm, onReject }: { request: CoinPur
   );
 }
 
-function CampaignCard({ campaign: c, busy, onStatus }: { campaign: CoinCampaign; busy: boolean; onStatus: (s: 'active' | 'paused' | 'ended') => void }) {
-  const status = STATUS[c.status];
-  return (
-    <Card style={styles.card}>
-      <View style={styles.cardTop}>
-        <Text variant="bodyMedium" style={styles.flex}>{c.title}</Text>
-        <Badge label={status.label} tone={status.tone} dot />
-      </View>
-      <View style={styles.metricsRow}>
-        {[
-          ['Pool', c.totalPool],
-          ['Tarqatildi', c.distributed],
-          ['Qoldi', c.remaining],
-        ].map(([label, value]) => (
-          <View key={label as string} style={styles.flex}>
-            <Text variant="caption" tone="tertiary">{label as string}</Text>
-            <Text variant="subheading">{formatSunCoin(value as number)}</Text>
-          </View>
-        ))}
-        <View style={styles.flex}>
-          <Text variant="caption" tone="tertiary">G‘oliblar</Text>
-          <Text variant="subheading">{c.totalWinners}</Text>
-        </View>
-      </View>
-      <Text variant="caption" tone="secondary">
-        {`${c.options.map((o) => `${o.amount} SC × ${o.awarded}${o.quantity == null ? '' : `/${o.quantity}`}`).join(' · ')} · min ${c.minimumScore}/10 gol`}
-      </Text>
-      {c.status !== 'ended' ? (
-        <View style={styles.actions}>
-          {c.status === 'active' ? <Button title="Pauza" size="md" variant="secondary" loading={busy} onPress={() => onStatus('paused')} style={styles.flex} /> : null}
-          {c.status === 'paused' || c.status === 'draft' ? <Button title={c.status === 'draft' ? 'Boshlash' : 'Davom ettirish'} size="md" loading={busy} onPress={() => onStatus('active')} style={styles.flex} /> : null}
-          {c.status !== 'draft' ? <Button title="Tugatish" size="md" variant="danger" disabled={busy} onPress={() => onStatus('ended')} /> : null}
-        </View>
-      ) : null}
-    </Card>
-  );
-}
-
-/** Pro reward campaigns of the game (their rules are set in the web panel); on / off from here. */
-function ProCampaigns() {
-  const toast = useToast();
-  const queryClient = useQueryClient();
-  const pro = useQuery({ queryKey: [...gameAdminKey, 'pro'], queryFn: fetchProCampaigns });
-  const toggle = useMutation({
-    mutationFn: ({ id, active }: { id: string; active: boolean }) => setProCampaignActive(id, active),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: [...gameAdminKey, 'pro'] }),
-    onError: (e) => toast.show(gameAdminError(e), 'error'),
-  });
-  const list = (pro.data ?? []).filter((c) => c.template === 'penalty');
-  if (!pro.data || list.length === 0) return null;
-  return (
-    <Section title="Pro sovg‘a kampaniyalari">
-      <ListGroup>
-        {list.map((c) => (
-          <ToggleRow
-            key={c.id}
-            label={`${c.title}${c.client ? ` · ${c.client.name}` : ''}`}
-            description={`${c.reward_days} kun Pro · ${c.target_score}+ gol · berildi ${c.rewards_given}${c.max_rewards_total == null ? '' : `/${c.max_rewards_total}`}`}
-            value={c.is_active}
-            onChange={(v) => toggle.mutate({ id: c.id, active: v })}
-          />
-        ))}
-      </ListGroup>
-    </Section>
-  );
-}
-
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   stack: { gap: spacing.sm },
@@ -275,5 +311,8 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   right: { alignItems: 'flex-end' },
   metricsRow: { flexDirection: 'row', gap: spacing.sm },
-  actions: { flexDirection: 'row', gap: spacing.sm },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
+  barCol: { flex: 1, alignItems: 'center', gap: 2 },
+  bar: { width: '100%', borderRadius: 3 },
 });

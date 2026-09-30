@@ -11,10 +11,7 @@ const sessionSchema = z.object({
   rewardEligible: z.boolean(),
   rewardReason: z.string().nullable(),
   expiresAt: z.string(),
-  targetScore: z.number().int(),
   mode: z.enum(["practice", "free", "paid", "legacy"]).optional(),
-  proRewardEligible: z.boolean().optional(),
-  coinRewardEligible: z.boolean().optional(),
   coinBalance: z.number().int().nonnegative().safe().optional(),
 });
 const shotSchema = z.object({
@@ -32,15 +29,17 @@ const finishSchema = z.object({
   attempts: z.number().int(),
   boxes: z.boolean(),
   flagged: z.boolean(),
+  /** What the server granted for this round under SUN MEDIA's reward rules — never chosen by the app. */
+  reward: z
+    .object({
+      type: z.enum(["SUN_COIN", "PRO_DAYS"]),
+      amount: z.number().int().positive().safe(),
+      endsAt: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
   coinAmount: z.number().int().nonnegative().safe().optional(),
   coinBalance: z.number().int().nonnegative().safe().optional(),
-});
-const rewardSchema = z.object({
-  box: z.number().int(),
-  won: z.boolean(),
-  days: z.number().nullable().optional(),
-  ends_at: z.string().nullable().optional(),
-  sold_out: z.boolean().optional(),
 });
 /** RN and browsers both support AbortController; do not rely on AbortSignal.timeout. */
 async function requestWithTimeout<T>(
@@ -86,15 +85,6 @@ export const rewardClient: GameTransport = {
     );
     if (error) throw error;
     return finishSchema.parse(data);
-  },
-  async claimReward(sessionId, box) {
-    const { data, error } = await requestWithTimeout((signal) =>
-      getSupabase()
-        .rpc("game_center_claim", { p_session: sessionId, p_box: box })
-        .abortSignal(signal),
-    );
-    if (error) throw error;
-    return rewardSchema.parse(data);
   },
 };
 export function rewardModeLabel(eligible: boolean) {

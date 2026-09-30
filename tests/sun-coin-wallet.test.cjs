@@ -17,25 +17,26 @@ function wallet() {
     }],
     attempt: { gameId: 'safi-penalty', freeAvailable: false, nextFreeAt: '2026-10-01T12:00:00.000Z', cost: 10, activeSession: null },
     campaignAvailable: true,
-    campaign: {
-      id: 'dddddddd-dddd-4ddd-addd-dddddddddddd',
-      title: 'SUN Coin',
-      minimumScore: 5,
-      strategy: 'WEIGHTED_RANDOM',
-      remaining: 3,
-      options: [{ amount: 3, minScore: 5, maxScore: 10 }],
-    },
+    rewardKinds: ['SUN_COIN', 'PRO_DAYS'],
+    campaign: null,
     proCampaign: null,
   };
 }
 
-test('wallet preserves signed ledger debits, references and independent coin campaign rules', () => {
+test('wallet preserves signed ledger debits and references, and knows only which kinds of prize exist', () => {
   const parsed = sunCoinWalletSchema.parse(wallet());
   assert.equal(parsed.balance, 13);
   assert.equal(parsed.transactions[0].amount, -10);
   assert.equal(parsed.transactions[0].metadata.game_session_id, parsed.transactions[0].referenceId);
   assert.equal(parsed.attempt.freeAvailable, false);
-  assert.deepEqual(parsed.campaign.options, [{ amount: 3, minScore: 5, maxScore: 10 }]);
+  assert.deepEqual(parsed.rewardKinds, ['SUN_COIN', 'PRO_DAYS']);
+});
+
+test('reward configuration never survives into the app, even if a server sent it', () => {
+  const leaky = { ...wallet(), campaign: { minimumScore: 5, options: [{ amount: 3, minScore: 7, maxScore: 10 }] }, proCampaign: { targetScore: 9, rewardDays: 7 },
+    difficulty: 'hard', levels: [{ top: 8 }], rules: [{ score: 9 }] };
+  const parsed = sunCoinWalletSchema.parse(leaky);
+  for (const key of ['campaign', 'proCampaign', 'difficulty', 'levels', 'rules']) assert.equal(key in parsed, false, key);
 });
 
 test('wallet refuses unsafe, fractional or negative available balances', () => {

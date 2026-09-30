@@ -6,8 +6,19 @@ import { Button, Chip, ChipRow, GlassSheet, Icon, SearchField, SegmentedControl,
 import { radius, spacing } from '@/constants/theme';
 import { formatSunCoin, SunCoin } from '@/features/sun-coin';
 import { useTheme } from '@/hooks/useTheme';
-import { createCampaign, gameAdminError, gameAdminKey, giftCoins, savePack, searchRecipients, type Recipient } from './api';
-import { poolSummary } from './levels';
+import {
+  createRewardCampaign,
+  gameAdminError,
+  gameAdminKey,
+  giftCoins,
+  savePack,
+  searchRecipients,
+  updateRewardRules,
+  type LevelProfile,
+  type Recipient,
+  type RewardCampaign,
+} from './api';
+import { DEFAULT_RULES, percent, ruleOdds, rulesValid, type RewardKind, type RuleDraft } from './levels';
 
 const GIFT_AMOUNTS = [5, 10, 25, 50, 100];
 
@@ -95,112 +106,126 @@ export function GiftSheet({ visible, onClose }: { visible: boolean; onClose: () 
   );
 }
 
-type OptionRow = { key: number; amount: string; quantity: string; weight: string };
+type RuleRow = { key: number; score: string; type: RewardKind; amount: string; quantity: string; enabled: boolean; awarded: number };
+const toRow = (r: RuleDraft & { awarded?: number }, key: number): RuleRow => ({
+  key, score: String(r.score), type: r.type, amount: String(r.amount), quantity: r.quantity == null ? '' : String(r.quantity), enabled: r.enabled, awarded: r.awarded ?? 0,
+});
+const toDraft = (r: RuleRow): RuleDraft => ({
+  score: Number(r.score), type: r.type, amount: Number(r.amount), quantity: r.quantity === '' ? null : Number(r.quantity), enabled: r.enabled,
+});
 
-/** A new SUN Coin campaign for SAFI Penalty: pool, payouts, minimum score and how winners are drawn. */
-export function CampaignSheet({ visible, onClose, hasActive }: { visible: boolean; onClose: () => void; hasActive: boolean }) {
+/**
+ * Reward rules for SAFI Penalty: for each score, SUN Coin or days of Pro, an optional quantity and an on/off switch.
+ * New campaign, or — with `campaign` — the rules of an existing one, changed in place (no app update needed).
+ */
+export function RewardRulesSheet({ visible, onClose, campaign, hasActive, profile }: {
+  visible: boolean;
+  onClose: () => void;
+  campaign?: RewardCampaign | null;
+  hasActive: boolean;
+  profile?: LevelProfile;
+}) {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [title, setTitle] = useState('SAFI SUN Coin');
-  const [pool, setPool] = useState('20');
-  const [minimum, setMinimum] = useState('5');
-  const [strategy, setStrategy] = useState<'FIRST_ELIGIBLE' | 'WEIGHTED_RANDOM'>('FIRST_ELIGIBLE');
-  const [startNow, setStartNow] = useState(!hasActive);
-  const [rows, setRows] = useState<OptionRow[]>([
-    { key: 0, amount: '5', quantity: '2', weight: '20' },
-    { key: 1, amount: '3', quantity: '3', weight: '30' },
-  ]);
-  const [next, setNext] = useState(2);
-  useEffect(() => setStartNow(!hasActive), [hasActive, visible]);
-  const options = rows.map((r) => ({ amount: Number(r.amount), quantity: r.quantity === '' ? null : Number(r.quantity), weight: Number(r.weight) || 1 }));
-  const total = Number(pool);
-  const min = Number(minimum);
-  const summary = useMemo(() => poolSummary(total, options), [total, options]);
-  const valid =
-    title.trim().length > 0 && Number.isInteger(total) && total > 0 && Number.isInteger(min) && min >= 0 && min <= 10 &&
-    options.length > 0 && options.every((o) => Number.isInteger(o.amount) && o.amount > 0 && (o.quantity == null || (Number.isInteger(o.quantity) && o.quantity > 0))) &&
-    !summary.exceeds;
-  const create = useMutation({
+  const [title, setTitle] = useState('');
+  const [startNow, setStartNow] = useState(false);
+  const [rows, setRows] = useState<RuleRow[]>([]);
+  const [removed, setRemoved] = useState<number[]>([]);
+  useEffect(() => {
+    if (!visible) return;
+    setTitle(campaign?.title ?? 'SAFI Penalty mukofotlari');
+    setRows((campaign ? campaign.rules : DEFAULT_RULES).map(toRow));
+    setRemoved([]);
+    setStartNow(!hasActive && !campaign);
+  }, [visible, campaign, hasActive]);
+  const drafts = rows.map(toDraft);
+  const valid = title.trim().length > 0 && rulesValid(drafts) && rows.every((r) => r.quantity === '' || Number(r.quantity) >= r.awarded);
+  const odds = useMemo(() => (profile ? ruleOdds(profile.distribution, drafts) : null), [profile, drafts]);
+  const save = useMutation({
     mutationFn: () =>
-      createCampaign({
-        title: title.trim(), totalPool: total, minimumScore: min, strategy, status: startNow ? 'active' : 'draft',
-        options: options.map((o) => ({ ...o, minScore: min, maxScore: 10 })),
-      }),
+      campaign
+        ? updateRewardRules(campaign.id, drafts, { title: title.trim(), removed: removed.filter((s) => !drafts.some((d) => d.score === s)) })
+        : createRewardCampaign({ title: title.trim(), status: startNow ? 'active' : 'draft', rules: drafts }),
     onSuccess: () => {
-      toast.show(startNow ? 'Kampaniya ishga tushdi' : 'Qoralama saqlandi', 'success');
+      toast.show(campaign ? 'Saqlandi — keyingi raunddan kuchga kiradi' : startNow ? 'Kampaniya yoqildi' : 'Qoralama saqlandi', 'success');
       void queryClient.invalidateQueries({ queryKey: gameAdminKey });
       onClose();
     },
     onError: (e) => toast.show(gameAdminError(e), 'error'),
   });
-  const setRow = (key: number, field: keyof Omit<OptionRow, 'key'>, v: string) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, [field]: v.replace(/\D/g, '') } : r)));
-  const add = (amount: number) => {
-    setRows((rs) => [...rs, { key: next, amount: String(amount), quantity: '', weight: '10' }]);
-    setNext((k) => k + 1);
-  };
+  const setRow = (key: number, patch: Partial<RuleRow>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  const freeScores = Array.from({ length: 10 }, (_, i) => 10 - i).filter((s) => !rows.some((r) => Number(r.score) === s));
 
   return (
-    <GlassSheet visible={visible} onClose={onClose} eyebrow="SAFI PENALTY" title="Yangi SUN Coin kampaniyasi">
+    <GlassSheet visible={visible} onClose={onClose} eyebrow="SAFI PENALTY · REWARD RULES" title={campaign ? 'Qoidalarni tahrirlash' : 'Yangi mukofot kampaniyasi'}>
       <TextField label="Nomi" value={title} onChangeText={setTitle} maxLength={100} />
-      <View style={styles.two}>
-        <View style={styles.flex}>
-          <TextField label="Pool (SC)" keyboardType="number-pad" value={pool} onChangeText={(t) => setPool(t.replace(/\D/g, ''))} />
-        </View>
-        <View style={styles.flex}>
-          <TextField label="Minimal gol (/10)" keyboardType="number-pad" value={minimum} onChangeText={(t) => setMinimum(t.replace(/\D/g, '').slice(0, 2))} />
-        </View>
-      </View>
-      <SegmentedControl
-        options={[
-          { value: 'FIRST_ELIGIBLE', label: 'Tartib bo‘yicha' },
-          { value: 'WEIGHTED_RANDOM', label: 'Vaznli tasodif' },
-        ]}
-        value={strategy}
-        onChange={setStrategy}
-      />
-      <Text variant="label" tone="tertiary">Mukofotlar</Text>
-      {rows.map((r) => (
-        <View key={r.key} style={styles.option}>
-          <View style={styles.flex}>
-            <TextField label="SC" keyboardType="number-pad" value={r.amount} onChangeText={(t) => setRow(r.key, 'amount', t)} />
-          </View>
-          <View style={styles.flex}>
-            <TextField label="G‘oliblar" keyboardType="number-pad" value={r.quantity} placeholder="Poolgacha" onChangeText={(t) => setRow(r.key, 'quantity', t)} />
-          </View>
-          {strategy === 'WEIGHTED_RANDOM' ? (
-            <View style={styles.flex}>
-              <TextField label="Vazn" keyboardType="number-pad" value={r.weight} onChangeText={(t) => setRow(r.key, 'weight', t)} />
+      <Text variant="caption" tone="secondary">
+        O‘yinchi erishgan eng yuqori yoqilgan qoida beriladi — bitta raundga bitta mukofot. O‘yinchi bu qoidalarni ko‘rmaydi.
+      </Text>
+      {rows.map((r) => {
+        const unreachable = profile && r.enabled && Number(r.score) > profile.top;
+        const p = odds?.get(Number(r.score));
+        return (
+          <View key={r.key} style={[styles.rule, { opacity: r.enabled ? 1 : 0.6 }]}>
+            <View style={styles.two}>
+              <View style={styles.score}>
+                <TextField label="Gol (/10)" keyboardType="number-pad" value={r.score} editable={r.awarded === 0} onChangeText={(t) => setRow(r.key, { score: t.replace(/\D/g, '').slice(0, 2) })} />
+              </View>
+              <View style={styles.flex}>
+                <SegmentedControl<RewardKind>
+                  options={[{ value: 'SUN_COIN', label: 'SUN Coin' }, { value: 'PRO_DAYS', label: 'Pro kun' }]}
+                  value={r.type}
+                  onChange={(v) => setRow(r.key, { type: v })}
+                />
+              </View>
             </View>
-          ) : null}
-          <Pressable accessibilityRole="button" accessibilityLabel="Mukofotni olib tashlash" hitSlop={10} onPress={() => setRows((rs) => rs.filter((x) => x.key !== r.key))} style={styles.remove}>
-            <Icon name="trash-2" size={18} color="#E5484D" />
-          </Pressable>
-        </View>
-      ))}
-      <ChipRow>
-        {[1, 3, 5, 10].map((a) => (
-          <Chip key={a} label={`+ ${a} SC`} onPress={() => add(a)} />
-        ))}
-      </ChipRow>
-      <View style={styles.summary}>
-        <View style={styles.flex}>
-          <Text variant="caption" tone="secondary">Maksimal tarqatish</Text>
-          <Text variant="heading">{`${summary.poolLimited ? '≤ ' : ''}${formatSunCoin(summary.maximum)}`}</Text>
-        </View>
-        <View style={styles.flex}>
-          <Text variant="caption" tone="secondary">Taqsimlanmagan</Text>
-          <Text variant="heading" tone={summary.exceeds ? 'danger' : 'primary'}>{summary.unallocated == null ? 'Poolga bog‘liq' : formatSunCoin(summary.unallocated)}</Text>
-        </View>
-      </View>
-      {summary.exceeds ? <Text variant="caption" tone="danger">Mukofotlar pooldan oshib ketdi.</Text> : null}
-      <ToggleRow
-        label="Darhol ishga tushirish"
-        description={hasActive ? 'Faol kampaniya bor: yangisi qoralama sifatida saqlanadi.' : 'O‘chiq bo‘lsa qoralama saqlanadi.'}
-        value={startNow}
-        onChange={setStartNow}
-        disabled={hasActive}
-      />
-      <Button title={startNow ? 'Kampaniyani boshlash' : 'Qoralamani saqlash'} disabled={!valid} loading={create.isPending} onPress={() => create.mutate()} />
+            <View style={styles.two}>
+              <View style={styles.flex}>
+                <TextField label={r.type === 'SUN_COIN' ? 'Miqdor (SC)' : 'Muddat (kun)'} keyboardType="number-pad" value={r.amount} onChangeText={(t) => setRow(r.key, { amount: t.replace(/\D/g, '').slice(0, 7) })} />
+              </View>
+              <View style={styles.flex}>
+                <TextField label={r.awarded ? `Soni (berilgan ${r.awarded})` : 'Soni'} keyboardType="number-pad" value={r.quantity} placeholder="Cheklanmagan" onChangeText={(t) => setRow(r.key, { quantity: t.replace(/\D/g, '').slice(0, 7) })} />
+              </View>
+            </View>
+            <View style={styles.ruleFoot}>
+              <View style={styles.flex}>
+                <ToggleRow
+                  label={r.enabled ? 'ON' : 'OFF'}
+                  description={unreachable ? `Joriy darajada ${profile?.top}/10 dan ortiq bo‘lmaydi` : r.enabled && p != null ? `≈ ${percent(p)} raund` : 'Berilmaydi'}
+                  value={r.enabled}
+                  onChange={(v) => setRow(r.key, { enabled: v })}
+                />
+              </View>
+              {r.awarded === 0 ? (
+                <Pressable accessibilityRole="button" accessibilityLabel={`${r.score}-gol qoidasini olib tashlash`} hitSlop={10} onPress={() => {
+                  setRows((rs) => rs.filter((x) => x.key !== r.key));
+                  if (Number(r.score)) setRemoved((s) => [...s, Number(r.score)]);
+                }} style={styles.remove}>
+                  <Icon name="trash-2" size={18} color="#E5484D" />
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        );
+      })}
+      {freeScores.length > 0 && rows.length < 10 ? (
+        <ChipRow>
+          {freeScores.slice(0, 5).map((s) => (
+            <Chip key={s} label={`+ ${s}/10`} onPress={() => setRows((rs) => [...rs, toRow({ score: s, type: 'SUN_COIN', amount: 1, quantity: null, enabled: true }, rs.reduce((m, x) => Math.max(m, x.key), -1) + 1)])} />
+          ))}
+        </ChipRow>
+      ) : null}
+      {!campaign ? (
+        <ToggleRow
+          label="Darhol yoqish"
+          description={hasActive ? 'Faol kampaniya bor: yangisi qoralama bo‘lib saqlanadi.' : 'O‘chiq bo‘lsa qoralama saqlanadi.'}
+          value={startNow}
+          onChange={setStartNow}
+          disabled={hasActive}
+        />
+      ) : null}
+      {!valid ? <Text variant="caption" tone="danger">Har gol soni (1–10) bir marta, miqdor kamida 1 (Pro ≤ 365 kun), soni berilganidan kam emas.</Text> : null}
+      <Button title={campaign ? 'Saqlash' : startNow ? 'Kampaniyani yoqish' : 'Qoralamani saqlash'} disabled={!valid} loading={save.isPending} onPress={() => save.mutate()} />
     </GlassSheet>
   );
 }
@@ -248,9 +273,10 @@ const styles = StyleSheet.create({
   list: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   picked: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.lg, padding: spacing.lg },
-  two: { flexDirection: 'row', gap: spacing.md },
-  option: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
-  remove: { paddingBottom: 16, paddingHorizontal: 4 },
-  summary: { flexDirection: 'row', gap: spacing.md },
+  two: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.md },
+  score: { width: 96 },
+  rule: { gap: spacing.sm, paddingVertical: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(127,127,127,0.25)' },
+  ruleFoot: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  remove: { paddingHorizontal: 4 },
   center: { alignItems: 'center' },
 });

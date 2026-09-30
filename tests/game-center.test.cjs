@@ -26,7 +26,6 @@ function setup(overrides = {}) {
       rewardEligible: false,
       rewardReason: "COOLDOWN",
       expiresAt: "2099-01-01",
-      targetScore: 7,
     }),
     submitShot: async (r) => {
       calls.push(r);
@@ -50,7 +49,6 @@ function setup(overrides = {}) {
       boxes: false,
       flagged: false,
     }),
-    claimReward: async () => ({ box: 0, won: true, days: 3 }),
     ...overrides,
   };
   return {
@@ -226,7 +224,6 @@ test("finish request can safely retry without a new shot", async () => {
       rewardEligible: true,
       rewardReason: null,
       expiresAt: "2099",
-      targetScore: 7,
     }),
     finishGame: async () => {
       if (++finishCalls === 1) throw Error("offline");
@@ -239,54 +236,29 @@ test("finish request can safely retry without a new shot", async () => {
   assert.equal(engine.getGameState().phase, "FINISHED");
   assert.equal(finishCalls, 2);
 });
-test("reward claim requires server boxes and only one claim runs at a time", async () => {
-  let claims = 0;
-  const { engine } = setup({
-    claimReward: async () => {
-      claims++;
-      return { box: 0, won: true };
-    },
-  });
-  await engine.startGame();
-  await engine.claimReward(0);
-  assert.equal(claims, 0);
-});
 
-test("eligible reveal serializes claims and displays the single server reward", async () => {
-  let resolve,
-    claims = 0;
+test("the server's reward is shown as it came: the engine has no way to pick, claim or change a prize", async () => {
+  let finishCalls = 0;
+  const reward = { type: "PRO_DAYS", amount: 7, endsAt: "2099-01-08T00:00:00Z" };
   const { engine } = setup({
     startGame: async () => ({
       sessionId: "session",
       gameId: "safi-penalty",
       attempts: 10,
       attemptsUsed: 10,
-      score: 8,
+      score: 9,
       rewardEligible: true,
       rewardReason: null,
       expiresAt: "2099",
-      targetScore: 7,
     }),
-    finishGame: async () => ({
-      score: 8,
-      attempts: 10,
-      boxes: true,
-      flagged: false,
-    }),
-    claimReward: async () => {
-      claims++;
-      return new Promise((r) => {
-        resolve = r;
-      });
+    finishGame: async () => {
+      finishCalls++;
+      return { score: 9, attempts: 10, boxes: false, flagged: false, reward, coinAmount: 0 };
     },
   });
   await engine.startGame();
-  const first = engine.claimReward(1);
-  await engine.claimReward(2);
-  assert.equal(claims, 1);
-  resolve({ box: 1, won: true, days: 3 });
-  await first;
-  await engine.claimReward(0);
-  assert.equal(claims, 1);
-  assert.equal(engine.getGameState().reward.days, 3);
+  assert.equal(engine.getGameState().phase, "FINISHED");
+  assert.deepEqual(engine.getGameState().finish.reward, reward);
+  assert.equal(finishCalls, 1);
+  assert.equal(typeof engine.claimReward, "undefined", "no prize boxes");
 });

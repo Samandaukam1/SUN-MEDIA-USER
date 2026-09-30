@@ -5,7 +5,6 @@ const INITIAL: GameState = {
   session: null,
   shot: null,
   finish: null,
-  reward: null,
   pending: null,
   error: null,
   busy: false,
@@ -176,31 +175,6 @@ export class GameSession {
     } catch {
       if (generation === this.generation)
         this.set({ error: CONNECTION_ERROR, busy: false });
-    }
-  }
-  async claimReward(box: number) {
-    if (
-      this.state.phase !== "FINISHED" ||
-      !this.state.finish?.boxes ||
-      !this.state.session ||
-      this.state.busy ||
-      this.state.reward ||
-      !Number.isInteger(box) ||
-      box < 0 ||
-      box > 2
-    )
-      return;
-    this.set({ busy: true, error: null });
-    try {
-      this.set({
-        reward: await this.transport.claimReward(
-          this.state.session.sessionId,
-          box,
-        ),
-        busy: false,
-      });
-    } catch {
-      this.set({ error: CONNECTION_ERROR, busy: false });
     }
   }
   retry = async () => {

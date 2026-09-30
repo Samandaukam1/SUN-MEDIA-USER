@@ -130,10 +130,19 @@ test("every dive pushes off the ground, never sinks below it, and lands back on 
   assert.equal(centreLow.angle, 0);
 });
 
-test("game levels: the app shows the server's save chances (goals ≈ 55 / 35 / 12.5 / 1 %)", () => {
-  const { levelOdds, poolSummary } = require("../features/game-admin/levels.ts");
-  assert.deepEqual(["easy", "normal", "hard", "extreme"].map((k) => levelOdds(k).goal), [55, 35, 12.5, 1]);
-  assert.equal(levelOdds("extreme").save, 99);
-  assert.deepEqual(poolSummary(20, [{ amount: 5, quantity: 2 }, { amount: 3, quantity: 3 }]), { fixed: 19, poolLimited: false, maximum: 19, unallocated: 1, exceeds: false });
-  assert.equal(poolSummary(10, [{ amount: 5, quantity: 3 }]).exceeds, true);
+test("managers' reward rules: five hidden levels, the default example, validation and odds per rule", () => {
+  const { LEVELS, DEFAULT_RULES, rewardText, rulesValid, ruleOdds } = require("../features/game-admin/levels.ts");
+  assert.deepEqual(LEVELS.map((l) => l.key), ["easy", "normal", "hard", "very_hard", "extreme"]);
+  assert.deepEqual(DEFAULT_RULES.map((r) => `${r.score} → ${rewardText(r)}`), ["7 → 3 SC", "8 → 5 SC", "9 → 7 kun Pro", "10 → 30 kun Pro"]);
+  assert.equal(rulesValid(DEFAULT_RULES), true);
+  assert.equal(rulesValid([...DEFAULT_RULES, { ...DEFAULT_RULES[0] }]), false, "one rule per score");
+  assert.equal(rulesValid([{ ...DEFAULT_RULES[3], amount: 366 }]), false, "Pro up to a year");
+  assert.equal(rulesValid([{ ...DEFAULT_RULES[0], quantity: 0 }]), false);
+  assert.equal(rulesValid([]), false);
+  // HARD-like distribution: 8 is the top result; with 9 switched off, 9/10 would pay the 8 rule (it cannot happen here).
+  const dist = [0, 0.01, 0.04, 0.11, 0.2, 0.25, 0.21, 0.13, 0.05, 0, 0];
+  const odds = ruleOdds(dist, DEFAULT_RULES);
+  assert.ok(Math.abs(odds.get(7) - 0.13) < 1e-9 && Math.abs(odds.get(8) - 0.05) < 1e-9 && odds.get(9) === 0 && odds.get(10) === 0);
+  const off = ruleOdds(dist, DEFAULT_RULES.map((r) => ({ ...r, enabled: r.score !== 8 })));
+  assert.ok(Math.abs(off.get(7) - 0.18) < 1e-9, "8 off: 8/10 rounds take the 7 rule");
 });

@@ -1,12 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { GameSession, CONNECTION_ERROR } = require("../game-center/engine/gameSession.ts");
-const { prizeLines } = require("../features/sun-coin/types.ts");
+const { prizeTeaser } = require("../features/sun-coin/types.ts");
 
 const session = (mode, extra = {}) => ({
   sessionId: `s-${mode}`, gameId: "safi-penalty", attempts: 10, attemptsUsed: 0, score: 0,
   rewardEligible: mode !== "practice", rewardReason: mode === "practice" ? "PRACTICE" : null,
-  expiresAt: "2099-01-01", targetScore: 7, mode, ...extra,
+  expiresAt: "2099-01-01", mode, ...extra,
 });
 function setup(startGame) {
   let next = 0;
@@ -80,12 +80,9 @@ test("switching mode never reuses another mode's request id", async () => {
   assert.notEqual(starts[1].requestId, starts[0].requestId);
 });
 
-test("prize lines come from live campaign settings", () => {
-  const campaign = { id: "c", title: "SC", minimumScore: 5, strategy: "WEIGHTED_RANDOM", remaining: 20,
-    options: [{ amount: 1, minScore: 0, maxScore: 10 }, { amount: 5, minScore: 7, maxScore: 10 }] };
-  assert.deepEqual(prizeLines({ campaign, proCampaign: { id: "p", title: "Pro", targetScore: 7, rewardDays: 3 } }),
-    ["SUN Coin: 1–5 SC · 5+ gol", "Pro: 3 kun · 7+ gol"]);
-  assert.deepEqual(prizeLines({ campaign: { ...campaign, options: [{ amount: 3, minScore: 0, maxScore: 10 }] }, proCampaign: null }),
-    ["SUN Coin: 3 SC · 5+ gol"]);
-  assert.deepEqual(prizeLines({ campaign: null, proCampaign: null }), []);
+test("the Reward Mode card names the kinds of prize, never scores, levels or limits", () => {
+  assert.equal(prizeTeaser(["SUN_COIN", "PRO_DAYS"]), "Yaxshi natija uchun sovg‘a: SUN Coin yoki Pro");
+  assert.equal(prizeTeaser(["SUN_COIN"]), "Yaxshi natija uchun sovg‘a: SUN Coin");
+  assert.equal(prizeTeaser([]), "Yaxshi natija uchun sovg‘a");
+  for (const kinds of [["SUN_COIN"], ["PRO_DAYS"], ["SUN_COIN", "PRO_DAYS"]]) assert.doesNotMatch(prizeTeaser(kinds), /\d/);
 });

@@ -44,20 +44,11 @@ export const sunCoinWalletSchema = z.object({
     }).passthrough().nullable(),
   }),
   campaignAvailable: z.boolean(),
-  campaign: z.object({
-    id: z.string().uuid(),
-    title: z.string(),
-    minimumScore: z.number().int(),
-    strategy: z.enum(['FIRST_ELIGIBLE', 'WEIGHTED_RANDOM']),
-    remaining: z.number().int().nonnegative().safe(),
-    options: z.array(z.object({ amount: z.number().int().positive().safe(), minScore: z.number().int(), maxScore: z.number().int() })),
-  }).nullable(),
-  proCampaign: z.object({
-    id: z.string().uuid(),
-    title: z.string(),
-    targetScore: z.number().int(),
-    rewardDays: z.number().int(),
-  }).nullable(),
+  /**
+   * Only the kinds of prize Reward Mode can give right now. Levels, score thresholds, amounts and quantities are
+   * SUN MEDIA's internal configuration and never reach the app.
+   */
+  rewardKinds: z.array(z.enum(['SUN_COIN', 'PRO_DAYS'])).default([]),
 });
 
 export type SunCoinTransaction = z.infer<typeof sunCoinTransactionSchema>;
@@ -123,18 +114,8 @@ export function formatSunCoin(amount: number): string {
   return `${amount.toLocaleString('en-US').replace(/,/g, ' ')} SC`;
 }
 
-/** "SUN Coin: 1–5 SC · 5+ gol" and "Pro: 3 kun · 7+ gol" — from the live campaigns, never hardcoded. */
-export function prizeLines(data: Pick<SunCoinWallet, 'campaign' | 'proCampaign'>): string[] {
-  const lines: string[] = [];
-  const c = data.campaign;
-  if (c && c.options.length > 0) {
-    const amounts = c.options.map((o) => o.amount);
-    const low = Math.min(...amounts);
-    const high = Math.max(...amounts);
-    const minGoals = Math.min(...c.options.map((o) => Math.max(o.minScore, c.minimumScore)));
-    lines.push(`SUN Coin: ${low === high ? formatSunCoin(low) : `${low}–${formatSunCoin(high)}`} · ${minGoals}+ gol`);
-  }
-  const pro = data.proCampaign;
-  if (pro) lines.push(`Pro: ${pro.rewardDays} kun · ${pro.targetScore}+ gol`);
-  return lines;
+/** "Yaxshi natija uchun sovg‘a: SUN Coin yoki Pro" — what can be won, never how (no scores, levels or limits). */
+export function prizeTeaser(kinds: readonly ('SUN_COIN' | 'PRO_DAYS')[]): string {
+  const names = [kinds.includes('SUN_COIN') ? 'SUN Coin' : null, kinds.includes('PRO_DAYS') ? 'Pro' : null].filter(Boolean);
+  return names.length ? `Yaxshi natija uchun sovg‘a: ${names.join(' yoki ')}` : 'Yaxshi natija uchun sovg‘a';
 }

@@ -2,31 +2,39 @@ import { randomUUID } from 'expo-crypto';
 import { z } from 'zod';
 
 import { getSupabase } from '@/lib/supabase';
-import type { LevelKey } from './levels';
+import { LEVEL_KEYS, type LevelKey, type RuleDraft } from './levels';
 
 /** Everything below is enforced by the server for coin managers (promo.manage); the app only asks. */
 const n = z.number().int().nonnegative();
-const optionSchema = z.object({ id: z.string(), amount: n, quantity: n.nullable(), awarded: n, weight: n, minScore: n, maxScore: n, sortOrder: n });
-const campaignSchema = z.object({
-  id: z.string(), gameId: z.string(), title: z.string(), status: z.enum(['draft', 'active', 'paused', 'ended']),
-  totalPool: n, distributed: n, remaining: n, minimumScore: n, strategy: z.enum(['FIRST_ELIGIBLE', 'WEIGHTED_RANDOM']),
-  startsAt: z.string(), endsAt: z.string().nullable(), createdAt: z.string(), totalWinners: n, options: z.array(optionSchema),
-});
 const packSchema = z.object({ id: z.string(), coins: n, priceCents: n, currency: z.string(), isActive: z.boolean(), sortOrder: n });
 const requestSchema = z.object({
   id: z.string(), packId: z.string(), coins: n, priceCents: n, currency: z.string(),
   status: z.enum(['pending', 'fulfilled', 'rejected', 'cancelled']), note: z.string().nullable(), createdAt: z.string(),
   resolvedAt: z.string().nullable(), userName: z.string().nullable(), clientName: z.string().nullable(),
 });
+const levelSchema = z.object({ key: z.enum(LEVEL_KEYS), index: n, top: n, average: z.number(), distribution: z.array(z.number()).length(11) });
+const ruleSchema = z.object({
+  id: z.string(), score: n, type: z.enum(['SUN_COIN', 'PRO_DAYS']), amount: n, quantity: n.nullable(), awarded: n,
+  remaining: n.nullable(), enabled: z.boolean(),
+});
+const rewardCampaignSchema = z.object({
+  id: z.string(), gameId: z.string(), title: z.string(), status: z.enum(['draft', 'active', 'paused', 'ended']),
+  startsAt: z.string(), endsAt: z.string().nullable(), createdAt: z.string(), updatedAt: z.string(), live: z.boolean(),
+  winners: n, coinsGiven: n, proDaysGiven: n, rules: z.array(ruleSchema),
+});
 const dashboardSchema = z.object({
-  campaigns: z.array(campaignSchema),
   analytics: z.object({ purchased: n, spent: n, rewarded: n, gifted: n.default(0), circulating: n, totalWinners: n }),
   packs: z.array(packSchema).default([]),
   purchaseRequests: z.array(requestSchema).default([]),
-  settings: z.array(z.object({ gameId: z.string(), difficulty: z.enum(['easy', 'normal', 'hard', 'extreme']), updatedAt: z.string() })).default([]),
+  settings: z.array(z.object({ gameId: z.string(), difficulty: z.enum(LEVEL_KEYS), updatedAt: z.string() })).default([]),
+  levels: z.array(levelSchema).default([]),
+  rewardCampaigns: z.array(rewardCampaignSchema).default([]),
+  rewardSummary: z.object({ rounds: n, coins: n, proDays: n, winners: n }).default({ rounds: 0, coins: 0, proDays: 0, winners: 0 }),
 });
 export type GameAdminDashboard = z.infer<typeof dashboardSchema>;
-export type CoinCampaign = z.infer<typeof campaignSchema>;
+export type LevelProfile = z.infer<typeof levelSchema>;
+export type RewardCampaign = z.infer<typeof rewardCampaignSchema>;
+export type RewardRule = z.infer<typeof ruleSchema>;
 export type CoinPurchase = z.infer<typeof requestSchema>;
 export type CoinPackRow = z.infer<typeof packSchema>;
 
@@ -46,20 +54,21 @@ async function call(fn: string, args: Record<string, unknown>) {
 
 export const confirmPurchase = (id: string) => call('fulfill_sun_coin_purchase', { p_request: id });
 export const rejectPurchase = (id: string, note: string) => call('reject_sun_coin_purchase', { p_request: id, p_note: note });
-export const setCampaignStatus = (id: string, status: 'active' | 'paused' | 'ended') => call('set_sun_coin_campaign_status', { p_campaign: id, p_status: status });
 export const setLevel = (level: LevelKey) => call('set_game_center_difficulty', { p_game_key: 'safi-penalty', p_difficulty: level });
 export const savePack = (pack: { id?: string; coins?: number; priceCents?: number; currency?: string; isActive?: boolean; sortOrder?: number }) => call('save_sun_coin_pack', { p_pack: pack });
 
-export type NewCampaign = {
-  title: string;
-  totalPool: number;
-  minimumScore: number;
-  strategy: 'FIRST_ELIGIBLE' | 'WEIGHTED_RANDOM';
-  status: 'active' | 'draft';
-  options: { amount: number; quantity: number | null; weight: number; minScore: number; maxScore: number }[];
-};
-export const createCampaign = (c: NewCampaign) =>
-  call('create_sun_coin_campaign', { p_config: { gameId: 'safi-penalty', startsAt: new Date().toISOString(), endsAt: null, ...c } });
+/** Reward rules: score → SUN Coin or days of Pro. The server applies them when a Reward Mode round ends. */
+export const createRewardCampaign = (c: { title: string; status: 'active' | 'draft'; rules: RuleDraft[] }) =>
+  call('create_game_reward_campaign', { p_config: { gameId: 'safi-penalty', startsAt: new Date().toISOString(), endsAt: null, ...c } });
+/** Change rules in place (by score); `removed` drops rules nobody has won. Applies to rounds that end afterwards. */
+export const updateRewardRules = (id: string, rules: RuleDraft[], extra: { title?: string; removed?: number[] } = {}) =>
+  call('update_game_reward_campaign', {
+    p_campaign: id,
+    p_config: { ...(extra.title ? { title: extra.title } : {}), rules: [...rules, ...(extra.removed ?? []).map((score) => ({ score, remove: true }))] },
+  });
+export const setRewardCampaignStatus = (id: string, status: 'active' | 'paused' | 'ended') =>
+  call('set_game_reward_campaign_status', { p_campaign: id, p_status: status });
+export const ruleDraft = (r: RewardRule): RuleDraft => ({ score: r.score, type: r.type, amount: r.amount, quantity: r.quantity, enabled: r.enabled });
 
 const recipientSchema = z.object({ userId: z.string(), name: z.string(), email: z.string().nullable(), clientName: z.string(), balance: n });
 export type Recipient = z.infer<typeof recipientSchema>;
@@ -74,35 +83,17 @@ export async function giftCoins(userId: string, amount: number, note: string, re
     .parse(await call('grant_sun_coin_bonus', { p_user: userId, p_amount: amount, p_note: note || null, p_request: requestId }));
 }
 
-/** Pro reward campaigns of the SAFI game (created in the panel); managers switch them on and off here. */
-const proSchema = z.object({
-  id: z.string(), title: z.string(), template: z.string(), is_active: z.boolean(), reward_days: n, target_score: n,
-  rewards_given: n, max_rewards_total: n.nullable(), client: z.object({ name: z.string() }).nullable(),
-});
-export type ProCampaign = z.infer<typeof proSchema>;
-export async function fetchProCampaigns(): Promise<ProCampaign[]> {
-  const { data, error } = await getSupabase()
-    .from('game_campaigns')
-    .select('id, title, template, is_active, reward_days, target_score, rewards_given, max_rewards_total, client:clients(name)')
-    .order('created_at', { ascending: false })
-    .limit(30);
-  if (error) throw error;
-  return z.array(proSchema).parse(data);
-}
-export async function setProCampaignActive(id: string, active: boolean) {
-  const { error } = await getSupabase().from('game_campaigns').update({ is_active: active }).eq('id', id);
-  if (error) throw error;
-}
-
 const ERRORS: Record<string, string> = {
   COIN_INVALID_AMOUNT: 'Miqdor 1 dan 100 000 SC gacha bo‘lsin.',
   COIN_INVALID_RECIPIENT: 'Bu foydalanuvchiga SUN Coin berib bo‘lmaydi.',
-  COIN_INVALID_CONFIG: 'Kampaniya sozlamalarini tekshiring.',
-  COIN_CAMPAIGN_ALREADY_ACTIVE: 'Bu o‘yinda faol kampaniya bor. Avval uni pauza qiling yoki tugating.',
-  COIN_INVALID_TRANSITION: 'Kampaniyani bu holatga o‘tkazib bo‘lmaydi.',
   COIN_INVALID_PACK: 'Paket ma’lumotlarini tekshiring.',
   COIN_PURCHASE_CLOSED: 'Bu so‘rov allaqachon yopilgan.',
   GAME_INVALID_LEVEL: 'Bunday daraja yo‘q.',
+  GAME_INVALID_REWARD_RULES: 'Qoidalarni tekshiring: gol 1–10, miqdor kamida 1, Pro 365 kungacha, soni berilganidan kam emas.',
+  GAME_REWARD_CAMPAIGN_ACTIVE: 'Faol mukofot kampaniyasi bor. Avval uni pauza qiling yoki tugating.',
+  GAME_REWARD_CAMPAIGN_CLOSED: 'Tugatilgan kampaniyani o‘zgartirib bo‘lmaydi.',
+  GAME_REWARD_INVALID_TRANSITION: 'Kampaniyani bu holatga o‘tkazib bo‘lmaydi.',
+  GAME_REWARD_RULE_IN_USE: 'Bu qoida bo‘yicha mukofot berilgan — faqat o‘chirib qo‘yish mumkin.',
 };
 export function gameAdminError(e: unknown): string {
   return ERRORS[(e as { message?: string } | null)?.message ?? ''] ?? 'Amal bajarilmadi. Qayta urinib ko‘ring.';
