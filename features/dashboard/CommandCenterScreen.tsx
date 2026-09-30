@@ -198,8 +198,9 @@ function NewLeadsRow() {
       <ListRow
         icon="target"
         iconTone="brand"
-        title={s.new > 0 ? `${s.new} ta yangi lid` : `${s.pending} ta lid yuborilmagan`}
-        subtitle={clients.map((c) => `${c.name}: ${c.pending}`).slice(0, 3).join(' · ')}
+        // One measure throughout: the title and the per-client split both count leads not yet sent.
+        title={`${s.pending} ta lid yuborilmagan`}
+        subtitle={[s.new > 0 ? `${s.new} tasi yangi` : null, ...clients.slice(0, 3).map((c) => `${c.name}: ${c.pending}`)].filter(Boolean).join(' · ')}
         onPress={() => nav.go('/crm')}
       />
     </ListGroup>

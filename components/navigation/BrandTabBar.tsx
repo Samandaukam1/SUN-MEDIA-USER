@@ -1,10 +1,11 @@
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { BottomTabBarHeightCallbackContext, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useContext } from 'react';
 import * as Haptics from 'expo-haptics';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CenterLogo } from '@/components/brand/CenterLogo';
-import { Text } from '@/components/ui';
+import { GlassSurface, Text } from '@/components/ui';
 import { radius, spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useTheme } from '@/hooks/useTheme';
@@ -18,22 +19,20 @@ export function BrandTabBar({ state, descriptors, navigation }: BottomTabBarProp
   const { colors, scheme } = useTheme();
   const insets = useSafeAreaInsets();
   const { context } = useAuth();
+  const reportHeight = useContext(BottomTabBarHeightCallbackContext);
   const homeIndex = state.routes.findIndex((r) => r.name === 'index');
   const others = state.routes.map((route, index) => ({ route, index })).filter((x) => x.index !== homeIndex);
   const middle = Math.ceil(others.length / 2);
   const ordered = homeIndex < 0 ? others : [...others.slice(0, middle), { route: state.routes[homeIndex], index: homeIndex }, ...others.slice(middle)];
 
   return (
+    // Floating Liquid Glass bar: content scrolls underneath; screens pad by the reported height.
     <View
-      style={[
-        styles.bar,
-        {
-          backgroundColor: colors.tabBar,
-          borderTopColor: colors.border,
-          paddingBottom: Math.max(insets.bottom, spacing.sm),
-        },
-      ]}
+      pointerEvents="box-none"
+      onLayout={(e) => reportHeight?.(e.nativeEvent.layout.height)}
+      style={[styles.dock, { paddingBottom: Math.max(insets.bottom - 8, spacing.md) }]}
     >
+      <GlassSurface variant="chrome" radius={28} style={styles.bar}>
       {ordered.map(({ route, index }, position) => {
         const { options } = descriptors[route.key];
         const focused = state.index === index;
@@ -60,7 +59,7 @@ export function BrandTabBar({ state, descriptors, navigation }: BottomTabBarProp
               style={styles.center}
             >
               <View style={styles.centerLift}>
-                <CenterLogo focused={focused} logoUrl={context?.branding?.home_logo_url ?? null} />
+                <CenterLogo focused={focused} lightUrl={context?.branding?.home_logo_url ?? null} darkUrl={context?.branding?.home_logo_dark_url ?? null} />
               </View>
             </Pressable>
           );
@@ -101,21 +100,18 @@ export function BrandTabBar({ state, descriptors, navigation }: BottomTabBarProp
           </Pressable>
         );
       })}
+      </GlassSurface>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bar: {
-    flexDirection: 'row',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: spacing.sm,
-    paddingHorizontal: spacing.xs,
-  },
-  item: { flex: 1, alignItems: 'center', gap: 3, minHeight: 48 },
+  dock: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.md + 2 },
+  bar: { flexDirection: 'row', alignItems: 'center', height: 64, paddingHorizontal: spacing.xs },
+  item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, minHeight: 56 },
   // The centre logo floats half above the bar.
-  center: { width: 84, alignItems: 'center', minHeight: 48 },
-  centerLift: { position: 'absolute', top: -40 },
+  center: { width: 84, alignItems: 'center', justifyContent: 'center', minHeight: 56 },
+  centerLift: { position: 'absolute', top: -46 },
   pill: { width: 52, height: 30, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   badge: {
     position: 'absolute',
