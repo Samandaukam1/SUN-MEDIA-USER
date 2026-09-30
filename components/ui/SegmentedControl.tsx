@@ -39,7 +39,7 @@ export function SegmentedControl<T extends string>({
               active && scheme === 'light' && styles.lift,
             ]}
           >
-            <Text variant="captionMedium" style={{ color: active ? colors.text : colors.textSecondary }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+            <Text variant="captionMedium" style={[styles.label, { color: active ? colors.text : colors.textSecondary }]} numberOfLines={1}>
               {option.label}
             </Text>
             {option.count ? <View style={[styles.dot, { backgroundColor: colors.brand, borderColor: colors.accent }]} /> : null}
@@ -53,6 +53,8 @@ export function SegmentedControl<T extends string>({
 const styles = StyleSheet.create({
   track: { flexDirection: 'row', padding: 3, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth },
   segment: { flex: 1, height: 34, borderRadius: radius.sm + 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: spacing.xs + 2 },
+  // No adjustsFontSizeToFit: next to the dot, iOS shrinks the label to a few points.
+  label: { flexShrink: 1 },
   dot: { width: 8, height: 8, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth },
   lift: { shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
 });

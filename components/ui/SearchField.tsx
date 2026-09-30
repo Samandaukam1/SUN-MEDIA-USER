@@ -13,11 +13,12 @@ type Props = {
 };
 
 export function SearchField({ value, onChangeText, placeholder = 'Qidirish', autoFocus, onSubmit }: Props) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   return (
     <View style={[styles.field, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Icon name="search" size={17} color={colors.textTertiary} />
       <TextInput
+        keyboardAppearance={scheme}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}

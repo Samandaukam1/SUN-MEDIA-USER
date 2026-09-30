@@ -14,7 +14,10 @@ type Point = { key: string; value: number | null; label?: string };
 export function TrendBars({ points, height = 72, accessibilityLabel }: { points: Point[]; height?: number; accessibilityLabel: string }) {
   const { colors, scheme } = useTheme();
   const max = Math.max(1, ...points.map((p) => p.value ?? 0));
-  const fill = scheme === 'dark' ? colors.brand : colors.accent;
+  // Muted bars; neon only on the day that matters most (the peak).
+  const muted = scheme === 'dark' ? 'rgba(255,255,255,0.22)' : 'rgba(11,11,12,0.16)';
+  const peak = scheme === 'dark' ? colors.brand : colors.text;
+  const peakKey = points.reduce<Point | null>((best, p) => (p.value != null && (best == null || (p.value ?? 0) > (best.value ?? 0)) ? p : best), null)?.key;
   const first = points[0]?.label;
   const last = points[points.length - 1]?.label;
   return (
@@ -25,7 +28,7 @@ export function TrendBars({ points, height = 72, accessibilityLabel }: { points:
             {p.value == null ? (
               <View style={[styles.missing, { backgroundColor: colors.border }]} />
             ) : (
-              <View style={[styles.bar, { height: Math.max(2, (p.value / max) * height), backgroundColor: fill }]} />
+              <View style={[styles.bar, { height: Math.max(3, (p.value / max) * height), backgroundColor: p.key === peakKey ? peak : muted }]} />
             )}
           </View>
         ))}
@@ -75,7 +78,7 @@ const styles = StyleSheet.create({
   trend: { gap: spacing.xs },
   bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
   slot: { flex: 1, justifyContent: 'flex-end', height: '100%' },
-  bar: { borderRadius: 2, width: '100%' },
+  bar: { borderRadius: 3, width: '100%' },
   missing: { height: 2, borderRadius: 1, width: '100%' },
   edges: { flexDirection: 'row', justifyContent: 'space-between' },
   breakdown: { gap: spacing.md },

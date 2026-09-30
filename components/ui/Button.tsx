@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { radius, spacing } from '@/constants/theme';
+import { motion, radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { Icon, type IconName } from './Icon';
 import { Text } from './Text';
@@ -38,7 +38,7 @@ export function Button({
 
   const background = {
     primary: colors.accent,
-    secondary: colors.surfaceRaised,
+    secondary: colors.glassStrong,
     ghost: 'transparent',
     danger: colors.dangerSoft,
   }[variant];
@@ -64,8 +64,9 @@ export function Button({
       style={({ pressed }) => [
         styles.base,
         size === 'lg' ? styles.lg : styles.md,
-        { backgroundColor: background, opacity: inactive ? 0.5 : pressed ? 0.85 : 1 },
-        variant === 'secondary' && { borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+        { backgroundColor: background, opacity: inactive ? 0.5 : 1, transform: [{ scale: pressed && !inactive ? motion.pressScale : 1 }] },
+        variant === 'primary' && pressed && { opacity: 0.92 },
+        variant === 'secondary' && { borderWidth: StyleSheet.hairlineWidth, borderColor: colors.glassBorder, borderTopColor: colors.glassEdge },
         fullWidth && styles.fullWidth,
         style,
       ]}
@@ -85,7 +86,7 @@ export function Button({
 }
 
 const styles = StyleSheet.create({
-  base: { borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
+  base: { borderRadius: radius.lg - 2, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
   lg: { height: 52 },
   md: { height: 42, paddingHorizontal: spacing.lg },
   fullWidth: { alignSelf: 'stretch' },

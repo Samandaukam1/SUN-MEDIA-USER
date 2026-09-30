@@ -11,7 +11,7 @@ export const brand = {
 
 export const colors = {
   dark: {
-    background: '#09090B',
+    background: '#060607',
     surface: '#141416',
     surfaceRaised: '#1C1C1F',
     surfaceSunken: '#0F0F11',
@@ -46,9 +46,17 @@ export const colors = {
     overlay: 'rgba(0,0,0,0.62)',
     tabBar: '#111113',
     shadow: '#000000',
+    // Liquid Glass material (static approximation on cards; live blur only on chrome: tab bar, sheets)
+    glass: 'rgba(26,26,29,0.72)',
+    glassStrong: 'rgba(18,18,21,0.82)',
+    glassBorder: 'rgba(255,255,255,0.07)',
+    glassEdge: 'rgba(255,255,255,0.16)',
+    glassSheen: 'rgba(255,255,255,0.055)',
+    backdropGlow: 'rgba(212,252,24,0.07)',
+    backdropGlow2: 'rgba(160,160,180,0.08)',
   },
   light: {
-    background: '#F4F4F5',
+    background: '#EEEEF0',
     surface: '#FFFFFF',
     surfaceRaised: '#FFFFFF',
     surfaceSunken: '#EDEDEF',
@@ -81,13 +89,20 @@ export const colors = {
     overlay: 'rgba(9,9,11,0.45)',
     tabBar: '#FFFFFF',
     shadow: '#18181B',
+    glass: 'rgba(255,255,255,0.72)',
+    glassStrong: 'rgba(255,255,255,0.82)',
+    glassBorder: 'rgba(12,12,16,0.06)',
+    glassEdge: 'rgba(255,255,255,1)',
+    glassSheen: 'rgba(255,255,255,0.75)',
+    backdropGlow: 'rgba(212,252,24,0.16)',
+    backdropGlow2: 'rgba(160,160,172,0.22)',
   },
 } as const;
 
 export type ThemeColors = { [K in keyof typeof colors.dark]: string };
 
 export const spacing = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32, huge: 48 } as const;
-export const radius = { xs: 6, sm: 8, md: 12, lg: 16, xl: 22, pill: 999 } as const;
+export const radius = { xs: 6, sm: 8, md: 12, lg: 18, xl: 24, xxl: 30, pill: 999 } as const;
 
 export const fonts = {
   regular: 'Inter_400Regular',
@@ -97,6 +112,7 @@ export const fonts = {
 } as const;
 
 export const typography = {
+  largeTitle: { fontFamily: fonts.bold, fontSize: 34, lineHeight: 40, letterSpacing: -1 },
   display: { fontFamily: fonts.bold, fontSize: 30, lineHeight: 36, letterSpacing: -0.8 },
   title: { fontFamily: fonts.bold, fontSize: 22, lineHeight: 28, letterSpacing: -0.4 },
   heading: { fontFamily: fonts.semibold, fontSize: 17, lineHeight: 22, letterSpacing: -0.2 },
@@ -107,8 +123,8 @@ export const typography = {
   captionMedium: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
   micro: { fontFamily: fonts.medium, fontSize: 11, lineHeight: 14 },
   label: { fontFamily: fonts.semibold, fontSize: 11, lineHeight: 14, letterSpacing: 0.9, textTransform: 'uppercase' },
-  metric: { fontFamily: fonts.bold, fontSize: 28, lineHeight: 32, letterSpacing: -0.8, fontVariant: ['tabular-nums'] },
-  metricSmall: { fontFamily: fonts.bold, fontSize: 20, lineHeight: 24, letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
+  metric: { fontFamily: fonts.bold, fontSize: 30, lineHeight: 34, letterSpacing: -0.9, fontVariant: ['tabular-nums'] },
+  metricSmall: { fontFamily: fonts.bold, fontSize: 22, lineHeight: 26, letterSpacing: -0.6, fontVariant: ['tabular-nums'] },
   hero: { fontFamily: fonts.bold, fontSize: 40, lineHeight: 44, letterSpacing: -1.4, fontVariant: ['tabular-nums'] },
 } satisfies Record<string, TextStyle>;
 
@@ -118,12 +134,19 @@ export const motion = {
   fast: 160,
   base: 240,
   slow: 420,
+  // One press language for every surface: a slight compression, no bounce.
+  pressScale: 0.985,
+  spring: { friction: 9, tension: 170 },
 } as const;
 
-/** Restrained elevation: a soft lift in light mode, borders only in dark mode. */
+/** Restrained elevation: a soft lift in light mode, a deep diffuse shadow under glass in dark mode. */
 export function elevation(scheme: ColorScheme, level: 1 | 2 = 1): ViewStyle {
-  if (scheme === 'dark') return {};
+  if (scheme === 'dark') {
+    return level === 1
+      ? { shadowColor: '#000000', shadowOpacity: 0.35, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 2 }
+      : { shadowColor: '#000000', shadowOpacity: 0.5, shadowRadius: 28, shadowOffset: { width: 0, height: 14 }, elevation: 6 };
+  }
   return level === 1
-    ? { shadowColor: colors.light.shadow, shadowOpacity: 0.04, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 1 }
-    : { shadowColor: colors.light.shadow, shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4 };
+    ? { shadowColor: colors.light.shadow, shadowOpacity: 0.06, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 1 }
+    : { shadowColor: colors.light.shadow, shadowOpacity: 0.1, shadowRadius: 30, shadowOffset: { width: 0, height: 14 }, elevation: 4 };
 }

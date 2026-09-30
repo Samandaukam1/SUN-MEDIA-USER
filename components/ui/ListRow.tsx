@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { GlassSurface } from './Glass';
 import { Icon, type IconName } from './Icon';
 import { Text } from './Text';
 
@@ -77,14 +78,14 @@ export function ListGroup({ children }: { children: ReactNode }) {
   const { colors } = useTheme();
   const items = (Array.isArray(children) ? children : [children]).filter(Boolean);
   return (
-    <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <GlassSurface variant="card" radius={radius.xl} style={styles.group}>
       {items.map((child, i) => (
         <View key={i}>
           {i > 0 ? <View style={[styles.separator, { backgroundColor: colors.border }]} /> : null}
           {child}
         </View>
       ))}
-    </View>
+    </GlassSurface>
   );
 }
 
@@ -93,6 +94,6 @@ const styles = StyleSheet.create({
   icon: { width: 34, height: 34, borderRadius: radius.sm + 2, alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, gap: 1 },
   value: { maxWidth: '40%' },
-  group: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  group: { overflow: 'hidden' },
   separator: { height: StyleSheet.hairlineWidth, marginLeft: spacing.lg },
 });

@@ -60,7 +60,7 @@ function ChatBody({ room }: { room: RoomDetail }) {
   const me = useMe();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const [text, setText] = useState('');
@@ -371,6 +371,7 @@ function ChatBody({ room }: { room: RoomDetail }) {
                   />
                 ) : null}
                 <TextInput
+                  keyboardAppearance={scheme}
                   value={text}
                   onChangeText={onChangeText}
                   placeholder="Xabar yozing…"
@@ -448,7 +449,7 @@ function MessageBubble({
   const files = deleted ? [] : m.attachments.map((a) => a.file).filter((f): f is NonNullable<typeof f> => !!f);
   const images = files.filter((f) => f.kind === 'image');
   const others = files.filter((f) => f.kind !== 'image');
-  const bubbleBg = mine ? colors.hero : colors.surface;
+  const bubbleBg = mine ? colors.hero : colors.glassStrong;
   const textColor = mine ? colors.heroText : colors.text;
   const metaColor = mine ? colors.heroTextSecondary : colors.textTertiary;
 
@@ -461,7 +462,7 @@ function MessageBubble({
         onLongPress={onLongPress}
         delayLongPress={300}
         accessibilityHint="Uzoq bosib turing — javob berish, tahrirlash yoki o‘chirish"
-        style={[styles.bubble, { backgroundColor: bubbleBg, borderColor: mine ? bubbleBg : colors.border }, mine ? styles.bubbleMine : styles.bubbleTheirs]}
+        style={[styles.bubble, { backgroundColor: bubbleBg, borderColor: mine ? bubbleBg : colors.glassBorder, borderTopColor: mine ? bubbleBg : colors.glassEdge }, mine ? styles.bubbleMine : styles.bubbleTheirs]}
       >
         {m.is_directive ? (
           <View style={[styles.directiveTag, { backgroundColor: mine ? 'rgba(255,255,255,0.12)' : colors.accentSoft }]}>
@@ -472,9 +473,16 @@ function MessageBubble({
           </View>
         ) : null}
         {showName && !mine ? (
-          <Text variant="captionMedium" tone="accent" numberOfLines={1}>
-            {`${m.sender?.full_name ?? 'SUN MEDIA'}${m.sender_label ? ` · ${m.sender_label}` : ''}`}
-          </Text>
+          <View style={styles.senderRow}>
+            <Text variant="captionMedium" tone="accent" numberOfLines={1} style={styles.senderName}>
+              {m.sender?.full_name ?? 'SUN MEDIA'}
+            </Text>
+            {m.sender_label ? (
+              <Text variant="micro" tone="tertiary" style={[styles.roleTag, { borderColor: colors.glassBorder }]}>
+                {m.sender_label}
+              </Text>
+            ) : null}
+          </View>
         ) : null}
         {reply && !deleted ? (
           <View style={[styles.reply, { borderLeftColor: colors.brand, backgroundColor: mine ? 'rgba(255,255,255,0.08)' : colors.surfaceSunken }]}>
@@ -568,6 +576,9 @@ const styles = StyleSheet.create({
   pendingList: { gap: spacing.xs },
   pendingChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.xs },
+  senderRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  senderName: { flexShrink: 1 },
+  roleTag: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, paddingHorizontal: 5, overflow: 'hidden' },
   directiveBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 10 },
   directiveTag: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginBottom: 2 },
   input: { flex: 1, minHeight: 40, maxHeight: 120, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md, paddingTop: 10, paddingBottom: 10, fontSize: 15, fontFamily: 'Inter_400Regular' },

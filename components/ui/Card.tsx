@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 
-import { elevation, radius, spacing } from '@/constants/theme';
+import { motion, radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { GlassSurface } from './Glass';
 
 type Props = {
   children: ReactNode;
@@ -16,18 +17,20 @@ type Props = {
   accessibilityHint?: string;
 };
 
+/** The app's one surface: Liquid Glass material; pressable cards compress slightly and catch more light. */
 export function Card({ children, onPress, onLongPress, style, padded = true, variant = 'default', accessibilityLabel, accessibilityHint }: Props) {
-  const { colors, scheme } = useTheme();
-  const surface =
-    variant === 'hero'
-      ? { backgroundColor: colors.hero, borderColor: colors.heroBorder }
-      : variant === 'sunken'
-        ? { backgroundColor: colors.surfaceSunken, borderColor: colors.border }
-        : { backgroundColor: colors.surface, borderColor: colors.border };
-  const base = [styles.card, surface, variant === 'default' && elevation(scheme), padded && styles.padded, style];
+  const { colors } = useTheme();
+  const glass = variant === 'hero' ? 'hero' : 'card';
+  const sunken = variant === 'sunken' ? { backgroundColor: colors.surfaceSunken, borderColor: colors.border } : null;
   if (!onPress && !onLongPress) {
-    return <View style={base}>{children}</View>;
+    return (
+      <GlassSurface variant={glass} radius={radius.xl} style={[padded && styles.padded, sunken, style]}>
+        {children}
+      </GlassSurface>
+    );
   }
+  // How the card sits in its parent (grid width, margins) belongs to the pressable; the look stays on the glass.
+  const { outer, inner } = splitLayout(StyleSheet.flatten(style) ?? {});
   return (
     <Pressable
       accessibilityRole="button"
@@ -35,15 +38,31 @@ export function Card({ children, onPress, onLongPress, style, padded = true, var
       accessibilityHint={accessibilityHint}
       onPress={onPress}
       onLongPress={onLongPress}
-      style={({ pressed }) => [base, pressed && styles.pressed]}
+      style={({ pressed }) => [outer, { transform: [{ scale: pressed ? motion.pressScale : 1 }] }]}
     >
-      {children}
+      {({ pressed }) => (
+        <GlassSurface variant={glass} radius={radius.xl} lifted={pressed} style={[styles.fill, padded && styles.padded, sunken, inner]}>
+          {children}
+        </GlassSurface>
+      )}
     </Pressable>
   );
 }
 
+const LAYOUT_KEYS = new Set([
+  'flex', 'flexBasis', 'flexGrow', 'flexShrink', 'alignSelf', 'width', 'minWidth', 'maxWidth',
+  'margin', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'marginHorizontal', 'marginVertical',
+  'position', 'top', 'left', 'right', 'bottom', 'zIndex',
+]);
+
+function splitLayout(style: ViewStyle) {
+  const outer: Record<string, unknown> = {};
+  const inner: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(style)) (LAYOUT_KEYS.has(k) ? outer : inner)[k] = v;
+  return { outer: outer as ViewStyle, inner: inner as ViewStyle };
+}
+
 const styles = StyleSheet.create({
-  card: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
-  padded: { padding: spacing.lg },
-  pressed: { opacity: 0.9, transform: [{ scale: 0.992 }] },
+  padded: { padding: spacing.lg + 2 },
+  fill: { flexGrow: 1 },
 });

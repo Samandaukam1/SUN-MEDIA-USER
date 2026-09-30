@@ -4,6 +4,7 @@ import { Animated, Easing, StyleSheet, View, type DimensionValue } from 'react-n
 import { radius, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { USE_NATIVE_DRIVER } from '@/lib/motion';
+import { GlassSurface } from './Glass';
 
 export function Skeleton({ width = '100%', height = 16, rounded = radius.sm }: { width?: DimensionValue; height?: number; rounded?: number }) {
   const { colors } = useTheme();
@@ -31,15 +32,14 @@ export function Skeleton({ width = '100%', height = 16, rounded = radius.sm }: {
 
 /** Card-shaped placeholders for list screens. */
 export function SkeletonCards({ count = 3 }: { count?: number }) {
-  const { colors } = useTheme();
   return (
     <View style={styles.list} accessibilityLabel="Yuklanmoqda">
       {Array.from({ length: count }).map((_, i) => (
-        <View key={i} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Skeleton width="40%" height={12} />
-          <Skeleton width="85%" height={18} />
-          <Skeleton width="60%" height={12} />
-        </View>
+        <GlassSurface key={i} variant="card" radius={radius.xl} style={styles.card}>
+          <Skeleton width="40%" height={12} rounded={6} />
+          <Skeleton width="85%" height={20} rounded={8} />
+          <Skeleton width="60%" height={12} rounded={6} />
+        </GlassSurface>
       ))}
     </View>
   );
@@ -47,5 +47,5 @@ export function SkeletonCards({ count = 3 }: { count?: number }) {
 
 const styles = StyleSheet.create({
   list: { gap: spacing.md },
-  card: { gap: spacing.md, padding: spacing.lg, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
+  card: { gap: spacing.md, padding: spacing.lg + 2 },
 });

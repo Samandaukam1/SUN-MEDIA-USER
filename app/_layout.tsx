@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { RealtimeSync } from '@/features/auth/RealtimeSync';
 import { UploadWatcher } from '@/features/files/UploadWatcher';
 import { PushManager } from '@/features/notifications/PushManager';
+import '@/features/pro/ProLock';
 import { useTheme } from '@/hooks/useTheme';
 import { env } from '@/lib/env';
 import { queryClient } from '@/lib/query-client';

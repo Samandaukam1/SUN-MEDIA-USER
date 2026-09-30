@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Badge, Button, Card, Icon, Text, useToast } from '@/components/ui';
+import { registerProLock } from '@/components/ui/proLockSlot';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { fetchFeatureCatalog, formatPrice, requestProUpgrade, useEntitlements } from './api';
@@ -36,7 +37,10 @@ export function ProLock({ feature, title, description }: { feature: string; titl
         </View>
         <Badge label="PRO" tone="accent" />
       </View>
-      <Text variant="heading">{title ?? meta?.name ?? 'SUN MEDIA Pro imkoniyati'}</Text>
+      <Text variant="label" tone="tertiary">
+        SUN MEDIA PRO
+      </Text>
+      <Text variant="title">{title ?? meta?.name ?? 'SUN MEDIA Pro imkoniyati'}</Text>
       <Text variant="body" tone="secondary">
         {description ?? meta?.description ?? 'Bu bo‘lim SUN MEDIA Pro obunasida ochiladi.'}
       </Text>
@@ -58,3 +62,6 @@ const styles = StyleSheet.create({
   icon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   price: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
 });
+
+// Every QueryView shows this card when the database answers "Pro required".
+registerProLock((feature) => <ProLock feature={feature} />);

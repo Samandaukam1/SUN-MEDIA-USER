@@ -1,4 +1,6 @@
+import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import * as Haptics from 'expo-haptics';
+import { useContext } from 'react';
 import { Platform, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,6 +15,7 @@ import { Icon, type IconName } from './Icon';
 export function Fab({ icon = 'plus', label, onPress, overHomeIndicator = false }: { icon?: IconName; label: string; onPress: () => void; overHomeIndicator?: boolean }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const tabBar = useContext(BottomTabBarHeightContext) ?? 0;
   return (
     <Pressable
       accessibilityRole="button"
@@ -24,7 +27,7 @@ export function Fab({ icon = 'plus', label, onPress, overHomeIndicator = false }
       style={({ pressed }) => [
         styles.fab,
         elevation('light', 2),
-        { backgroundColor: colors.brand, bottom: spacing.lg + (overHomeIndicator ? insets.bottom : 0), transform: [{ scale: pressed ? 0.94 : 1 }] },
+        { backgroundColor: colors.brand, bottom: spacing.lg + (tabBar || (overHomeIndicator ? insets.bottom : 0)), transform: [{ scale: pressed ? 0.94 : 1 }] },
       ]}
     >
       <Icon name={icon} size={24} color={colors.onBrand} />

@@ -4,6 +4,7 @@ import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { isNetworkError, isPermissionError, toUserMessage } from '@/lib/errors';
 import { Button } from './Button';
+import { GlassSurface } from './Glass';
 import { Icon, type IconName } from './Icon';
 import { Text } from './Text';
 
@@ -13,9 +14,10 @@ export function EmptyState({ icon = 'inbox', title, description, actionLabel, on
   const { colors } = useTheme();
   return (
     <View style={styles.container}>
-      <View style={[styles.iconWrap, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-        <Icon name={icon} size={22} color={colors.textSecondary} />
-      </View>
+      <GlassSurface variant="card" radius={32} style={styles.orb}>
+        <View style={[styles.orbRing, { borderColor: colors.accentSoft }]} />
+        <Icon name={icon} size={26} color={colors.text} />
+      </GlassSurface>
       <Text variant="heading" align="center">
         {title}
       </Text>
@@ -57,6 +59,8 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
 }
 
 const styles = StyleSheet.create({
+  orb: { width: 64, height: 64, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  orbRing: { position: 'absolute', top: 6, left: 6, right: 6, bottom: 6, borderRadius: 26, borderWidth: 1 },
   container: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.huge, paddingHorizontal: spacing.xxl, gap: spacing.sm },
   iconWrap: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, marginBottom: spacing.sm },
   description: { maxWidth: 300 },

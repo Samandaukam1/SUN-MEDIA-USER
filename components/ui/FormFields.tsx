@@ -41,7 +41,7 @@ function FieldShell({ label, error, value, placeholder, icon, onPress, required 
         onPress={onPress}
         style={({ pressed }) => [
           styles.box,
-          { backgroundColor: colors.surface, borderColor: error ? colors.danger : colors.border, opacity: pressed ? 0.85 : 1 },
+          { backgroundColor: colors.glassStrong, borderColor: error ? colors.danger : colors.glassBorder, transform: [{ scale: pressed ? 0.99 : 1 }] },
         ]}
       >
         <Icon name={icon} size={17} color={colors.textTertiary} />
@@ -131,7 +131,7 @@ export function OptionSheet<T extends string>({ visible, title, options, selecte
   return (
     <Sheet visible={visible} onClose={onClose} title={title} actionLabel={multiple ? 'Tayyor' : undefined} onAction={multiple ? onClose : undefined}>
       {searchable ? <SearchField value={query} onChangeText={setQuery} /> : null}
-      <View style={[styles.options, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.options, { backgroundColor: colors.glassStrong, borderColor: colors.glassBorder }]}>
         {filtered.length === 0 ? (
           <Text variant="caption" tone="tertiary" style={styles.none}>
             Hech narsa topilmadi
@@ -310,7 +310,7 @@ function ChoiceGrid({ values, selected, onSelect }: { values: string[]; selected
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
             onPress={() => onSelect(v)}
-            style={[styles.choice, { backgroundColor: on ? colors.accent : colors.surface, borderColor: on ? colors.accent : colors.border }]}
+            style={[styles.choice, { backgroundColor: on ? colors.accent : colors.glassStrong, borderColor: on ? colors.accent : colors.glassBorder }]}
           >
             <Text variant="bodyMedium" style={{ color: on ? colors.accentText : colors.text, fontVariant: ['tabular-nums'] }}>
               {v}
@@ -325,7 +325,7 @@ function ChoiceGrid({ values, selected, onSelect }: { values: string[]; selected
 export function ToggleRow({ label, description, value, onChange, disabled }: { label: string; description?: string; value: boolean; onChange: (value: boolean) => void; disabled?: boolean }) {
   const { colors } = useTheme();
   return (
-    <View style={[styles.toggle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.toggle, { backgroundColor: colors.glassStrong, borderColor: colors.glassBorder }]}>
       <View style={styles.optionText}>
         <Text variant="bodyMedium">{label}</Text>
         {description ? (

@@ -16,7 +16,7 @@ export const TextField = forwardRef<TextInput, Props>(function TextField(
   { label, error, hint, secureTextEntry, style, onFocus, onBlur, ...rest },
   ref,
 ) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(true);
   const isSecret = secureTextEntry === true;
@@ -30,12 +30,13 @@ export const TextField = forwardRef<TextInput, Props>(function TextField(
         style={[
           styles.field,
           {
-            backgroundColor: colors.surface,
-            borderColor: error ? colors.danger : focused ? colors.accent : colors.border,
+            backgroundColor: colors.glassStrong,
+            borderColor: error ? colors.danger : focused ? colors.accent : colors.glassBorder,
           },
         ]}
       >
         <TextInput
+          keyboardAppearance={scheme}
           ref={ref}
           {...rest}
           accessibilityLabel={label}

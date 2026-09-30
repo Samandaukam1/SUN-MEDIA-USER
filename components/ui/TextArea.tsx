@@ -9,7 +9,7 @@ type Props = TextInputProps & { label: string; error?: string | null; hint?: str
 
 /** Multi-line text input with a character counter when maxLength is set. */
 export function TextArea({ label, error, hint, minHeight = 120, required, maxLength, value, onFocus, onBlur, style, ...rest }: Props) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const [focused, setFocused] = useState(false);
   return (
     <View style={styles.wrapper}>
@@ -18,6 +18,7 @@ export function TextArea({ label, error, hint, minHeight = 120, required, maxLen
         {required ? <Text variant="captionMedium" tone="danger"> *</Text> : null}
       </Text>
       <TextInput
+        keyboardAppearance={scheme}
         {...rest}
         value={value}
         maxLength={maxLength}
@@ -36,7 +37,7 @@ export function TextArea({ label, error, hint, minHeight = 120, required, maxLen
         }}
         style={[
           styles.input,
-          { minHeight, color: colors.text, backgroundColor: colors.surface, borderColor: error ? colors.danger : focused ? colors.accent : colors.border },
+          { minHeight, color: colors.text, backgroundColor: colors.glassStrong, borderColor: error ? colors.danger : focused ? colors.accent : colors.border },
           style,
         ]}
       />

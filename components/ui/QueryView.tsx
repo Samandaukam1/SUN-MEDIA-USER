@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { proFeatureOf } from '@/lib/errors';
+import { renderProLock } from './proLockSlot';
 import { SkeletonCards } from './Skeleton';
 import { EmptyState, ErrorState } from './States';
 import type { IconName } from './Icon';
@@ -22,7 +24,12 @@ type Props<T> = {
  */
 export function QueryView<T>({ query, children, isEmpty, empty, skeleton }: Props<T>) {
   if (query.isPending) return <>{skeleton ?? <SkeletonCards count={3} />}</>;
-  if (query.error && query.data === undefined) return <ErrorState error={query.error} onRetry={() => query.refetch()} />;
+  if (query.error && query.data === undefined) {
+    // A Pro-only feature on a Free plan: the upgrade card, never a raw error.
+    const pro = proFeatureOf(query.error);
+    const lock = pro !== null ? renderProLock(pro) : null;
+    return lock ? <>{lock}</> : <ErrorState error={query.error} onRetry={() => query.refetch()} />;
+  }
   const data = query.data as T;
   if (isEmpty?.(data) && empty) return <EmptyState {...empty} />;
   return <>{children(data)}</>;
