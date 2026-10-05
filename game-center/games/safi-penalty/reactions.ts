@@ -8,6 +8,7 @@
 export const IDLE_MICRO = [
   "weight-shift", "foot-shuffle", "glove-clap", "shoulder-roll", "head-tilt", "wink",
   "look-at-player", "look-away-back", "small-laugh", "glove-check", "finger-stretch",
+  "weight-right", "double-blink", "look-left", "look-right", "mini-bounce", "chest-puff", "fake-yawn",
 ] as const;
 
 /** Longer pre-shot taunts; any shot interrupts them at once. */
@@ -25,7 +26,7 @@ export const HAPPY_REACTIONS = [
   { id: "eyes-closed", bubbles: ["Juda oson!"], bubbleChance: 0.3 },
   { id: "come-come", bubbles: ["Qani, yana ur!", "Yana!"], bubbleChance: 0.7 },
   { id: "show-egg", bubbles: ["Mana, menda!"], bubbleChance: 0.5 },
-  { id: "head-shake-no", bubbles: ["Shumi?", "Yana urinib ko‘r 😏"], bubbleChance: 0.5 },
+  { id: "head-shake-no", bubbles: ["Shumi?", "Yana urinib ko‘r"], bubbleChance: 0.5 },
   { id: "chest-puff", bubbles: [], bubbleChance: 0 },
   { id: "turn-back", bubbles: [], bubbleChance: 0 },
   { id: "fake-yawn", bubbles: [], bubbleChance: 0 },
@@ -52,7 +53,7 @@ export const ANGRY_REACTIONS = [
 export const REACTIONS = HAPPY_REACTIONS;
 
 /** The last `REACTION_MEMORY` picks of a pool are left out of the next draw — no back-to-back repeats. */
-export const REACTION_MEMORY = 2;
+export const REACTION_MEMORY = 3;
 export const REACTION_TIMING = { holdMs: 250, minMs: 600, maxMs: 1400, bubbleMs: 1000 } as const;
 /** A random pause before the next idle move or taunt. */
 export const IDLE_DELAY = { minMs: 2500, maxMs: 6000 } as const;

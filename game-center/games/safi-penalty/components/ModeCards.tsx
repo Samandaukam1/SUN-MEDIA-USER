@@ -21,6 +21,7 @@ export function ModeCards({
   onStart,
   onRewardAgain,
   onRefresh,
+  practiceEnabled = true,
 }: {
   wallet: SunCoinWallet | undefined;
   loading: boolean;
@@ -28,6 +29,7 @@ export function ModeCards({
   onStart: (mode: GameMode) => void;
   onRewardAgain: () => void;
   onRefresh: () => void;
+  practiceEnabled?: boolean;
 }) {
   const active = wallet?.attempt.activeSession;
   const activeMode = (active as { mode?: string } | null | undefined)?.mode;
@@ -100,7 +102,7 @@ export function ModeCards({
           </View>
         </View>
         <Text style={s.body}>O‘yin xuddi shunday, lekin sovg‘a, SUN Coin va Pro berilmaydi.</Text>
-        <Cta title="MASHQ QILISH" secondary busy={busy} onPress={() => onStart("practice")} />
+        <Cta title={practiceEnabled ? "MASHQ QILISH" : "MASHQ VAQTINCHA YOPIQ"} secondary disabled={!practiceEnabled} busy={busy} onPress={() => onStart("practice")} />
       </View>
     </View>
   );

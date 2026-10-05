@@ -50,6 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ['expo-splash-screen', { image: './assets/splash-icon.png', imageWidth: 220, backgroundColor: BACKGROUND }],
       ['expo-notifications', { color: '#0B0B0C' }],
       'expo-video',
+      ['expo-audio', { microphonePermission: false, recordAudioAndroid: false }],
       [
         'expo-image-picker',
         {

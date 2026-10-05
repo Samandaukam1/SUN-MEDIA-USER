@@ -17,7 +17,7 @@ export type Pose = Record<Joint, number>;
 
 export const FACES = [
   "NEUTRAL", "FOCUSED", "SMUG", "LAUGH", "EYES_CLOSED", "CONFIDENT", "SURPRISED", "ANGRY", "FRUSTRATED",
-  "RECOVERING", "YAWN", "WINK",
+  "RECOVERING", "YAWN", "WINK", "NERVOUS",
 ] as const;
 export type Face = (typeof FACES)[number];
 
@@ -67,6 +67,13 @@ function turnAround(start: number, holdMs: number, turnMs = 420): Key[] {
 
 // ——— Idle micro moves (from READY, back to READY) ———
 export const IDLE_MICRO_TIMELINES: Record<string, Timeline> = {
+  "weight-right": { duration: 1100, tracks: { bodyX: [[380, -2.5], [650, -2.5], [1050, 0]], lean: [[380, -2], [650, -2], [1050, 0]], yaw: [[380, -14], [650, -14], [1050, 0]] } },
+  "double-blink": { duration: 650, tracks: { headY: [[180, 1], [600, 0]] }, faces: [[0, "EYES_CLOSED"], [110, "NEUTRAL"], [240, "EYES_CLOSED"], [350, "NEUTRAL"]] },
+  "look-left": { duration: 1050, tracks: { headYaw: [[200, -38], [600, -38], [1000, 0]], headRot: [[260, -4], [1000, 0]] } },
+  "look-right": { duration: 1050, tracks: { headYaw: [[200, 38], [600, 38], [1000, 0]], headRot: [[260, 4], [1000, 0]] } },
+  "mini-bounce": { duration: 850, tracks: { bodyY: [[120, 2], [260, -3], [440, 1], [650, -1], [800, 0]], lSh: [[200, 65], [800, READY.lSh]], rSh: [[230, 65], [800, READY.rSh]] } },
+  "chest-puff": { duration: 1100, tracks: { puff: [[350, 0.7], [680, 0.7], [1050, 0]], headRot: [[400, -5], [1050, 0]] }, faces: [[0, "CONFIDENT"], [1000, "NEUTRAL"]] },
+  "fake-yawn": { duration: 1300, tracks: { rSh: [[260, 110], [900, 110], [1250, READY.rSh]], rEl: [[300, 80], [900, 80], [1250, READY.rEl]], headRot: [[320, -7], [1200, 0]] }, faces: [[200, "YAWN"], [1100, "NEUTRAL"]] },
   "weight-shift": { duration: 1100, tracks: { bodyX: [[380, 2.5], [650, 2.5], [1050, 0]], lean: [[380, 2], [650, 2], [1050, 0]], yaw: [[380, 14], [650, 14], [1050, 0]] } },
   "foot-shuffle": { duration: 900, tracks: { legL: [[150, -9], [300, 0]], legR: [[500, 9], [650, 0]], bodyY: [[150, 1], [300, 0], [500, 1], [650, 0]], yaw: [[150, -10], [300, 0], [500, 10], [650, 0]] } },
   "glove-clap": {

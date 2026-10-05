@@ -47,7 +47,7 @@ export function feedback(
       /* Optional audio never interrupts play. */
     }
   }
-  if (reduced || Platform.OS === "web" || event === "eggBreak") return;
+  if (reduced || options?.hapticsEnabled === false || Platform.OS === "web" || !["shot", "catch", "criticalSave", "goal", "reward", "achievement"].includes(event)) return;
   const effect =
     event === "shot"
       ? Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)

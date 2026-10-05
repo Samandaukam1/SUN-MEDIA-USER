@@ -11,7 +11,7 @@ const {
   arenaLayout,
   eggTrajectory,
 } = require("../game-center/games/safi-penalty/physics.ts");
-function setup(overrides = {}) {
+function setup(overrides = {}, journal) {
   let next = 0,
     score = 0,
     count = 0;
@@ -52,7 +52,7 @@ function setup(overrides = {}) {
     ...overrides,
   };
   return {
-    engine: new GameSession(transport, () => `id-${++next}`),
+    engine: new GameSession(transport, () => `id-${++next}`, "safi-penalty", journal),
     calls,
     count: () => count,
   };
@@ -75,6 +75,69 @@ test("exactly 3 rows × 5 columns; 15 normalized accessible zones", () => {
     });
   }
   assert.equal(new Set(ZONES.map((z) => z.label)).size, 15);
+});
+
+test("pause blocks new shots while an in-flight authoritative answer remains recoverable", async () => {
+  const { engine, calls } = setup();
+  await engine.startGame();
+  engine.setPaused(true);
+  await engine.submitShot(1);
+  assert.equal(calls.length, 0);
+  engine.setPaused(false);
+  await engine.submitShot(1);
+  assert.equal(engine.getGameState().session.score, 1);
+  engine.setPaused(true);
+  engine.beginReset();
+  await engine.completeReset();
+  await engine.submitShot(5);
+  assert.equal(calls.length, 1);
+  engine.setPaused(false);
+  await engine.submitShot(5);
+  assert.equal(calls.length, 2);
+});
+
+test("app restart restores a response-lost shot with the same key even when the server already accepted it", async () => {
+  let saved = null;
+  const journal = { load: async () => saved, save: async (v) => { saved = v; } };
+  let accepted;
+  const first = setup({ submitShot: async (r) => {
+    accepted = r;
+    throw Error("response lost after commit");
+  } }, journal);
+  await first.engine.startGame("paid");
+  const startRequest = saved.requestId;
+  await first.engine.submitShot(5);
+  assert.deepEqual(saved.pending, accepted);
+  first.engine.dispose();
+  const starts = [], shots = [];
+  const second = setup({ startGame: async (_, request, mode) => {
+    starts.push({ request, mode });
+    return { sessionId: "session", gameId: "safi-penalty", attempts: 10, attemptsUsed: 1, score: 1, rewardEligible: true, rewardReason: null, expiresAt: "2099", mode: "paid" };
+  }, submitShot: async (r) => {
+    shots.push(r);
+    return { ...r, attemptId: r.requestId, goalkeeperZone: 8, result: "GOAL", score: 1, attempts: 10 };
+  } }, journal);
+  await second.engine.restore();
+  assert.deepEqual(starts, [{ request: startRequest, mode: "paid" }]);
+  assert.deepEqual(shots, [accepted]);
+  assert.equal(second.engine.getGameState().session.score, 1);
+  assert.equal(second.engine.getGameState().phase, "RESOLVING");
+  assert.equal(saved.pending, null);
+});
+
+test("finish refuses a forged score or valuable practice reward", async () => {
+  for (const finish of [
+    { score: 10, attempts: 10, boxes: false, flagged: false },
+    { score: 7, attempts: 10, boxes: false, flagged: false, reward: { type: "SUN_COIN", amount: 5 } },
+  ]) {
+    const { engine } = setup({
+      startGame: async () => ({ sessionId: "session", gameId: "safi-penalty", attempts: 10, attemptsUsed: 10, score: 7, mode: "practice", rewardEligible: false, rewardReason: "PRACTICE", expiresAt: "2099" }),
+      finishGame: async () => finish,
+    });
+    await engine.startGame();
+    assert.equal(engine.getGameState().finish, null);
+    assert.ok(engine.getGameState().error);
+  }
 });
 test("only integer zones 1–15 accepted", () => {
   for (const z of [-1, 0, 16, 1.5, NaN, Infinity, null, "1"])
@@ -261,4 +324,16 @@ test("the server's reward is shown as it came: the engine has no way to pick, cl
   assert.deepEqual(engine.getGameState().finish.reward, reward);
   assert.equal(finishCalls, 1);
   assert.equal(typeof engine.claimReward, "undefined", "no prize boxes");
+});
+
+test("disposed restore cannot start a session after its journal finishes loading", async () => {
+  let resolve, starts = 0;
+  const journal = { load: () => new Promise((r) => { resolve = r; }), save: async () => {} };
+  const { engine } = setup({ startGame: async () => { starts++; throw Error("unexpected"); } }, journal);
+  const restoring = engine.restore();
+  engine.dispose();
+  resolve({ requestId: "saved", mode: "paid", pending: null });
+  await restoring;
+  assert.equal(starts, 0);
+  assert.equal(engine.getGameState().phase, "IDLE");
 });

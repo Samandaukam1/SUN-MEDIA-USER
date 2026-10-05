@@ -4,10 +4,10 @@ const r = require("../game-center/games/safi-penalty/reactions.ts");
 const tl = require("../game-center/games/safi-penalty/keeper/timelines.ts");
 const t3 = require("../game-center/games/safi-penalty/keeper/turn3d.ts");
 
-test("reaction pools: 12 happy, 10 angry, 11 idle micro moves, 4 pre-shot taunts — all unique", () => {
+test("reaction pools: 12 happy, 10 angry, at least 20 idle moves and taunts — all unique", () => {
   assert.equal(r.HAPPY_REACTIONS.length, 12);
   assert.equal(r.ANGRY_REACTIONS.length, 10);
-  assert.equal(r.IDLE_MICRO.length, 11);
+  assert.ok(r.IDLE_MICRO.length + r.IDLE_TAUNTS.length >= 20);
   assert.equal(r.IDLE_TAUNTS.length, 4);
   for (const pool of [r.HAPPY_REACTIONS.map((x) => x.id), r.ANGRY_REACTIONS.map((x) => x.id), [...r.IDLE_MICRO], r.IDLE_TAUNTS.map((x) => x.id)]) {
     assert.equal(new Set(pool).size, pool.length);

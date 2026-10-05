@@ -3,6 +3,7 @@ import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useMemo
 import { Animated, AppState, Easing, Platform, StyleSheet, View } from "react-native";
 import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
 import { safiTheme as t } from "../config";
+import type { ChickenMood } from "../presentation";
 import { ANGRY_REACTIONS, HAPPY_REACTIONS, IDLE_MICRO, IDLE_TAUNTS, nextIdleDelay, pickBubble, pickFrom, TAUNT_SHARE } from "../reactions";
 import {
   ANGRY_TIMELINES,
@@ -111,7 +112,7 @@ export type KeeperRigHandle = {
   /** The player shot: cancel whatever is playing, face the ball, gloves ready. */
   focus: () => void;
   /** Arms stretch for the dive. */
-  dive: () => void;
+  dive: (direction?: number) => void;
   /** Egg secured: fingers close round it, gloves to the chest. */
   caught: () => void;
   /** Beaten: sprawled on the grass, surprised, then annoyed and looking at the goal. */
@@ -130,9 +131,16 @@ export type KeeperRigHandle = {
 type Props = {
   size: number;
   holding: boolean;
+  holdingHand?: "l" | "r";
+  goldenEgg?: boolean;
   reduced: boolean;
   /** An idle taunt starts / ends (the keeper stays ready for a shot during it). */
   onTaunt?: (active: boolean, bubble: string | null) => void;
+  mood?: ChickenMood;
+  paused?: boolean;
+  personality?: "CLASSIC" | "SHOWMAN" | "SERIOUS";
+  gloveColor?: string;
+  outfitColor?: string;
 };
 
 /**
@@ -142,7 +150,7 @@ type Props = {
  * instead of flipping a flat picture. Every motion is a native-driver value; face changes are the only re-renders.
  * Poses and timelines live in keeper/timelines.ts, the turning geometry in keeper/turn3d.ts.
  */
-export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({ size, holding, reduced, onTaunt }, ref) {
+export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({ size, holding, holdingHand = "l", goldenEgg = false, reduced, onTaunt, mood = "NEUTRAL", paused = false, personality = "CLASSIC", gloveColor = t.primary, outfitColor = t.primary }, ref) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const s = size / 160;
   const [face, setFace] = useState<Face>("NEUTRAL");
@@ -156,7 +164,21 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
   const recent = useRef({ micro: [] as number[], taunt: [] as number[] });
   const onTauntRef = useRef(onTaunt);
   onTauntRef.current = onTaunt;
-  const [active, setActive] = useState(true);
+  const [visible, setActive] = useState(true);
+  const active = visible && !paused;
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  const moodRef = useRef(mood);
+  moodRef.current = mood;
+  const handRef = useRef(holdingHand);
+  handRef.current = holdingHand;
+  const poseFor = useCallback((name: BaseName): Pose => {
+    const base = BASES[name];
+    if (name !== "HOLD" || handRef.current !== "r") return base;
+    return Object.fromEntries(JOINTS.map((j) => [j, base[(j.startsWith("l") && j !== "lean" && j !== "legL" ? `r${j.slice(1)}` : j.startsWith("r") ? `l${j.slice(1)}` : j) as Joint]])) as Pose;
+  }, []);
+  const restingFace = useCallback((): Face => mode.current !== "idle" ? MODE_FACE[mode.current] : ({ NEUTRAL: "NEUTRAL", CONFIDENT: "CONFIDENT", SMUG: "SMUG", ANGRY: "ANGRY", FRUSTRATED: "FRUSTRATED", NERVOUS: "NERVOUS", DOMINANT: "CONFIDENT" } as const)[moodRef.current], []);
+  const job = useRef<{ tl: Timeline; elapsed: number; started: number; done?: () => void } | null>(null);
 
   // The living idle pauses when the screen loses focus or the app goes to the background.
   useFocusEffect(
@@ -227,11 +249,11 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
 
   /** A keyframed timeline over the current base pose; every joint is back on the base by its end. */
   const build = useCallback(
-    (tl: Timeline, base: Pose) => {
+    (tl: Timeline, base: Pose, offset = 0) => {
       const tracks = (Object.entries(tl.tracks) as [Joint, readonly (readonly [number, number])[]][]).map(([joint, keys]) => {
         const steps: Animated.CompositeAnimation[] = [];
-        let time = 0;
-        for (const [at, value] of keys) {
+        let time = offset;
+        for (const [at, value] of keys.filter(([at]) => at >= offset)) {
           steps.push(to(joint, value, Math.max(0, at - time)));
           time = at;
         }
@@ -239,30 +261,35 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
         if (last !== base[joint]) steps.push(to(joint, base[joint], Math.max(120, tl.duration - time)));
         return Animated.sequence(steps);
       });
-      return Animated.parallel([...tracks, Animated.delay(tl.duration)]);
+      return Animated.parallel([...tracks, Animated.delay(Math.max(0, tl.duration - offset))]);
     },
     [to],
   );
 
   const play = useCallback(
-    (tl: Timeline, onDone?: () => void) => {
-      running.current?.stop();
+    (tl: Timeline, onDone?: () => void, elapsed = 0) => {
+      const old = running.current; running.current = null; old?.stop();
       clearTimers();
-      const base = BASES[MODE_BASE[mode.current]];
-      const restFace = MODE_FACE[mode.current];
-      for (const [at, f] of tl.faces ?? []) timers.current.push(setTimeout(() => setFace(f), at));
+      const base = poseFor(MODE_BASE[mode.current]);
+      job.current = { tl, elapsed, started: performance.now(), done: onDone };
+      if (!activeRef.current) return;
+      for (const [at, f] of tl.faces ?? []) {
+        if (at <= elapsed) setFace(f);
+        else timers.current.push(setTimeout(() => setFace(f), at - elapsed));
+      }
       // Reduce Motion: the faces tell the story, the body barely moves.
-      const anim = reduced ? Animated.delay(Math.min(700, tl.duration)) : build(tl, base);
+      const anim = reduced ? Animated.delay(Math.max(0, Math.min(700, tl.duration) - elapsed)) : build(tl, base, elapsed);
       running.current = anim;
       anim.start(({ finished }) => {
         if (running.current !== anim) return;
         running.current = null;
+        job.current = null;
         clearTimers();
-        setFace(restFace);
+        setFace(restingFace());
         if (finished) onDone?.();
       });
     },
-    [build, reduced],
+    [build, reduced, restingFace, poseFor],
   );
 
   /** Switch the resting pose (and face) for a phase of the shot. */
@@ -270,13 +297,16 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
     (next: Mode, ms: number) => {
       running.current?.stop();
       running.current = null;
+      job.current = null;
       clearTimers();
       stopIdle();
       mode.current = next;
-      setFace(MODE_FACE[next]);
-      settle(BASES[MODE_BASE[next]], reduced ? 0 : ms, next === "dive" ? Easing.out(Easing.cubic) : Easing.out(Easing.quad)).start();
+      setFace(restingFace());
+      const anim = settle(poseFor(MODE_BASE[next]), reduced ? 0 : ms, next === "dive" ? Easing.out(Easing.cubic) : Easing.out(Easing.quad));
+      running.current = anim;
+      if (activeRef.current) anim.start();
     },
-    [settle, reduced],
+    [settle, reduced, restingFace, poseFor],
   );
 
   // The idle scheduler: a random pause (2.5–6 s), then a micro move or, sometimes, a taunt — never the last two.
@@ -285,7 +315,7 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
     if (mode.current !== "idle" || !active) return;
     idleTimer.current = setTimeout(() => {
       if (mode.current !== "idle") return;
-      if (Math.random() < (reduced ? 0.08 : TAUNT_SHARE)) {
+      if (Math.random() < (reduced ? 0.08 : personality === "SHOWMAN" ? 0.6 : personality === "SERIOUS" ? 0.08 : TAUNT_SHARE)) {
         const i = pickFrom(IDLE_TAUNTS.length, recent.current.taunt);
         recent.current.taunt = [...recent.current.taunt, i].slice(-3);
         onTauntRef.current?.(true, pickBubble(i, Math.random, IDLE_TAUNTS));
@@ -294,14 +324,27 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
           scheduleIdle();
         });
       } else {
-        const pool = reduced ? IDLE_MICRO.filter((m) => m === "wink" || m === "look-at-player" || m === "head-tilt") : IDLE_MICRO;
+        const pool = reduced ? IDLE_MICRO.filter((m) => m === "wink" || m === "look-at-player" || m === "head-tilt" || m === "double-blink") : IDLE_MICRO;
         const i = pickFrom(pool.length, recent.current.micro);
         recent.current.micro = [...recent.current.micro, i].slice(-3);
         play(IDLE_MICRO_TIMELINES[pool[i]], scheduleIdle);
       }
     }, nextIdleDelay());
-  }, [active, play, reduced]);
+  }, [active, play, reduced, personality]);
 
+  useEffect(() => {
+    if (!active) {
+      if (job.current) job.current.elapsed += performance.now() - job.current.started;
+      const old = running.current; running.current = null; old?.stop(); clearTimers();
+    } else if (job.current) {
+      const { tl, elapsed, done } = job.current; play(tl, done, elapsed);
+    } else {
+      setFace(restingFace());
+      settle(poseFor(MODE_BASE[mode.current]), reduced ? 0 : 180).start();
+    }
+  }, [active, play, restingFace, settle, reduced, poseFor]);
+  useEffect(() => { if (mode.current === "idle" && !job.current) setFace(restingFace()); }, [mood, restingFace]);
+  useEffect(() => () => { const old = running.current; running.current = null; old?.stop(); clearTimers(); stopIdle(); }, []);
   useEffect(() => {
     if (active && mode.current === "idle") scheduleIdle();
     else stopIdle();
@@ -321,8 +364,15 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
         onTauntRef.current?.(false, null);
         enter("focus", 110);
       },
-      dive() {
+      dive(direction = 0) {
         enter("dive", 220);
+        // Read the target first with the head; the wings extend a beat later.
+        play({ duration: 280, tracks: {
+          headYaw: [[55, direction * 20], [280, 0]], headRot: [[80, direction * 5], [280, 0]],
+          lSh: [[65, BASES.READY.lSh], [230, BASES.DIVE.lSh]],
+          rSh: [[90, BASES.READY.rSh], [260, BASES.DIVE.rSh]],
+          legL: [[90, -direction * 8], [280, 0]], legR: [[110, -direction * 8], [280, 0]],
+        }, faces: [[0, "FOCUSED"]] });
       },
       caught() {
         enter("hold", 180);
@@ -342,7 +392,9 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
       },
       happy(index, onDone) {
         const item = HAPPY_REACTIONS[index] ?? HAPPY_REACTIONS[0];
-        play(HAPPY_TIMELINES[item.id], onDone);
+        const tl = HAPPY_TIMELINES[item.id];
+        const mirrored = handRef.current === "r" ? { ...tl, tracks: Object.fromEntries(Object.entries(tl.tracks).map(([j, keys]) => [/^[lr](Sh|El|Wr|Idx|Mid|Rest|Thumb)$/.test(j) ? `${j[0] === "l" ? "r" : "l"}${j.slice(1)}` : j, keys])) } : tl;
+        play(mirrored, onDone);
         return pickBubble(index, Math.random, HAPPY_REACTIONS);
       },
       angry(index, onDone) {
@@ -353,22 +405,24 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
       stop() {
         const anim = running.current;
         running.current = null;
+        job.current = null;
         anim?.stop();
         clearTimers();
-        setFace(MODE_FACE[mode.current]);
-        settle(BASES[MODE_BASE[mode.current]], reduced ? 0 : 140).start();
+        setFace(restingFace());
+        settle(poseFor(MODE_BASE[mode.current]), reduced ? 0 : 140).start();
       },
       reset() {
         running.current?.stop();
         running.current = null;
+        job.current = null;
         clearTimers();
         stopIdle();
         mode.current = "idle";
-        setFace("NEUTRAL");
+        setFace(restingFace());
         JOINTS.forEach((j) => v[j].setValue(BASES.READY[j]));
       },
     }),
-    [enter, play, scheduleIdle, settle, to, v, reduced],
+    [enter, play, scheduleIdle, settle, to, v, reduced, restingFace, poseFor],
   );
 
   const h = size * (180 / 160);
@@ -476,7 +530,9 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
               >
                 <GloveHand
                   id={`${id}${side}${layer}`}
-                  holding={side === "l" && holding}
+                  holding={side === holdingHand && holding}
+                  color={gloveColor}
+                  golden={goldenEgg}
                   s={s}
                   back={k.gloveBack}
                   idx={j("Idx")}
@@ -524,7 +580,7 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
           ]}
         >
           <Animated.View style={[StyleSheet.absoluteFill, { transformOrigin: px(TORSO.cx, 110), ...k.torso }]}>
-            <TorsoBase id={id} />
+            <TorsoBase id={id} color={outfitColor} />
           </Animated.View>
           {piece(BOX.collar, k.collar, <Collar />)}
           {piece(BOX.number, k.number, <SvgText x="82" y="141" fill={t.white} fontSize="22" fontWeight="700" textAnchor="middle">1</SvgText>)}
@@ -582,7 +638,7 @@ function Piece({ box, s, style, children }: { box: Box; s: number; style: object
 }
 
 /** The body: white feathers and the goalkeeper jersey wrapped round it (the same from every side). */
-function TorsoBase({ id }: { id: string }) {
+function TorsoBase({ id, color }: { id: string; color: string }) {
   return (
     <Svg width="100%" height="100%" viewBox="0 0 160 180">
       <Defs>
@@ -591,7 +647,7 @@ function TorsoBase({ id }: { id: string }) {
           <Stop offset="1" stopColor={t.featherShade} />
         </LinearGradient>
         <LinearGradient id={`${id}j`} x1="0" y1="0" x2="1" y2="1">
-          <Stop stopColor={t.primary} />
+          <Stop stopColor={color} />
           <Stop offset="1" stopColor={t.arena} />
         </LinearGradient>
       </Defs>
@@ -651,6 +707,7 @@ const BROWS: Record<Face, [string, string, number]> = {
   RECOVERING: ["M63 52L75 52", "M88 52L100 52", 2.2],
   YAWN: ["M63 50Q69 47 75 50", "M88 49Q94 46 100 49", 2.2],
   WINK: ["M63 51Q69 48 75 51", "M88 49Q94 45 100 49", 2.4],
+  NERVOUS: ["M63 48Q69 43 75 50", "M88 50Q94 43 100 48", 2.4],
 };
 
 /** One eye with its brow, for every face (each eye turns round the head on its own). */
@@ -684,6 +741,8 @@ function EyeArt({ face, side }: { face: Face; side: "l" | "r" }) {
         return eye(cy, 4.6);
       case "SURPRISED":
         return eye(cy - 1, 7.6, 6);
+      case "NERVOUS":
+        return <>{eye(cy, 5.8, 3.5)}<Path d={`M${cx + 7} 49Q${cx + 11} 55 ${cx + 7} 56Q${cx + 3} 55 ${cx + 7} 49`} fill="#8AD5E8" /></>;
       case "ANGRY":
         return (
           <>
@@ -809,7 +868,9 @@ const FINGERS = [
 
 function GloveHand({
   id,
+  color,
   holding,
+  golden,
   s,
   back,
   idx,
@@ -818,7 +879,9 @@ function GloveHand({
   thumb,
 }: {
   id: string;
+  color: string;
   holding: boolean;
+  golden: boolean;
   s: number;
   /** 1 while the glove shows its back (the keeper has turned away). */
   back: Animated.AnimatedInterpolation<number>;
@@ -834,13 +897,13 @@ function GloveHand({
       <Svg width="100%" height="100%" viewBox={`0 0 ${GLOVE.w} ${GLOVE.l}`} style={StyleSheet.absoluteFill}>
         <Defs>
           <LinearGradient id={`${id}p`} x1="0" y1="0" x2="0" y2="1">
-            <Stop stopColor="#8FD13A" />
-            <Stop offset="1" stopColor={t.primary} />
+            <Stop stopColor={color} stopOpacity={0.72} />
+            <Stop offset="1" stopColor={color} />
           </LinearGradient>
         </Defs>
         {/* Wrist strap */}
         <Rect x={5} y={0} width={22} height={10} rx={3} fill={t.arenaDeep} />
-        <Rect x={5} y={3.5} width={22} height={3} fill={t.primary} />
+        <Rect x={5} y={3.5} width={22} height={3} fill={color} />
         {/* Palm: latex grip framed in white */}
         <Path d="M3.5 9Q16 6.5 28.5 9L29.5 25Q16 28.5 2.5 25Z" fill={t.white} stroke={t.arenaDeep} strokeWidth={1.3} />
         <Path d="M6.5 11.5Q16 9.5 25.5 11.5L26.3 23Q16 25.6 5.7 23Z" fill={`url(#${id}p)`} />
@@ -856,7 +919,7 @@ function GloveHand({
       </Animated.View>
       {holding ? (
         <Svg width="100%" height="100%" viewBox={`0 0 ${GLOVE.w} ${GLOVE.l}`} style={StyleSheet.absoluteFill}>
-          <Path d="M16 13C21 13 24 19.5 24 24.5C24 29.5 20.5 32.5 16 32.5C11.5 32.5 8 29.5 8 24.5C8 19.5 11 13 16 13Z" fill="#FFFDF7" stroke="#D9CDB4" strokeWidth={0.9} />
+          <Path d="M16 13C21 13 24 19.5 24 24.5C24 29.5 20.5 32.5 16 32.5C11.5 32.5 8 29.5 8 24.5C8 19.5 11 13 16 13Z" fill={golden ? "#F8CD58" : "#FFFDF7"} stroke={golden ? "#B5861C" : "#D9CDB4"} strokeWidth={0.9} />
           <Ellipse cx="13" cy="18.5" rx="1.6" ry="2.6" fill="#FFFFFF" />
         </Svg>
       ) : null}
@@ -878,7 +941,7 @@ function GloveHand({
         >
           <Svg width="100%" height="100%" viewBox={`0 0 ${f.w} ${f.l}`}>
             <Rect x={0.5} y={0} width={f.w - 1} height={f.l - 0.5} rx={(f.w - 1) / 2} fill={t.white} stroke={t.arenaDeep} strokeWidth={1.2} />
-            <Rect x={f.w / 2 - 1.2} y={2} width={2.4} height={f.l - 6} rx={1.2} fill={t.primary} />
+            <Rect x={f.w / 2 - 1.2} y={2} width={2.4} height={f.l - 6} rx={1.2} fill={color} />
             {f.key === "rest" ? <Path d={`M${f.w / 2} 3V${f.l - 2}`} stroke={t.arenaDeep} strokeWidth={0.9} /> : null}
           </Svg>
         </Animated.View>

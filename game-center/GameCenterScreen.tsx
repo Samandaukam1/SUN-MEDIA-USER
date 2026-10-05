@@ -13,6 +13,8 @@ import {
 } from "@/features/sun-coin";
 import { useNav } from "@/lib/routes";
 import { canAccessGameCenter } from "./engine/gameSession";
+import { EngagementCards } from "./EngagementCards";
+import { useGameEngagement } from "./engagement";
 import { safiTheme as t } from "./games/safi-penalty/config";
 import { Chicken, Egg } from "./games/safi-penalty/components/Artwork";
 import { gameRegistry } from "./registry";
@@ -21,6 +23,7 @@ export function GameCenterScreen() {
   const { appInterface } = useAuth();
   const nav = useNav();
   const wallet = useSunCoinWallet();
+  const engagement = useGameEngagement();
   const [shop, setShop] = useState(false);
   if (!canAccessGameCenter(appInterface)) return null;
   const w = wallet.data;
@@ -40,6 +43,15 @@ export function GameCenterScreen() {
           Bir oz tanaffus. Bir oz raqobat.
         </Text>
       </View>
+      {engagement.data ? <EngagementCards engagement={engagement.data} /> : null}
+      {engagement.data ? (
+        <Pressable accessibilityRole="button" onPress={() => nav.go("/games/statistics")} style={s.statsLink}>
+          <Text style={s.statsLinkText}>Zarba xaritasi va statistika ↗</Text>
+        </Pressable>
+      ) : null}
+      <Pressable accessibilityRole="button" onPress={() => nav.go("/games/locker")} style={s.statsLink}>
+        <Text style={s.statsLinkText}>SAFI Club · kolleksiya va reyting ↗</Text>
+      </Pressable>
       {gameRegistry.map((g) =>
         g.id === "safi-penalty" ? (
           <Pressable
@@ -129,6 +141,8 @@ const s = StyleSheet.create({
   screen: { gap: 22, paddingBottom: 32 },
   heading: { gap: 8, marginTop: 8 },
   headingTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  statsLink: { alignSelf: "center", width: "100%", maxWidth: 540, paddingHorizontal: 20, paddingVertical: 14, borderRadius: 16, backgroundColor: t.surface },
+  statsLinkText: { color: t.arena, fontSize: 13, fontWeight: "700" },
   reward: { paddingHorizontal: 24, paddingVertical: 14, gap: 4, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,.06)" },
   rewardLabel: { color: t.primary, fontSize: 9, letterSpacing: 2, fontWeight: "700" },
   rewardRow: { flexDirection: "row", alignItems: "baseline", gap: 6, flexWrap: "wrap" },

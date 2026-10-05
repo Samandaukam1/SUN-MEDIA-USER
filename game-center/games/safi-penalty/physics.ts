@@ -27,10 +27,21 @@ export function eggTrajectory(
   arc: number,
 ): Point {
   const t = Math.max(0, Math.min(1, progress));
+  if (t === 0) return start;
+  if (t === 1) return end;
   return {
     x: start.x + (end.x - start.x) * t,
     y: start.y + (end.y - start.y) * t - Math.sin(Math.PI * t) * arc,
   };
+}
+/** A goal crosses the front plane before continuing into the recessed net. */
+export function goalImpactPoint(front: Point, goal: Bounds): Point {
+  return { x: front.x + (goal.x + goal.width / 2 - front.x) * .035, y: front.y - goal.height * .055 };
+}
+export function eggFlight(start: Point, front: Point, goal: Bounds, progress: number, arc: number, scored: boolean): Point {
+  if (!scored) return eggTrajectory(start, front, progress, arc);
+  if (progress <= .83) return eggTrajectory(start, front, progress / .83, arc);
+  return eggTrajectory(front, goalImpactPoint(front, goal), (progress - .83) / .17, 0);
 }
 export function arenaLayout(width: number) {
   const height = width * 1.12;
@@ -66,6 +77,7 @@ export function keeperBox(feet: Point, size: number) {
 }
 
 export type KeeperDive = {
+  hand: "l" | "r";
   dir: -1 | 0 | 1;
   /** Feet position and body angle (degrees, clockwise) when the body reaches the dive zone. */
   reach: Point;
@@ -80,6 +92,13 @@ export type KeeperDive = {
 };
 
 const REACH_ANGLE = [72, 40, 0, 40, 72];
+/** Palm centre of the fully extended rig, in its 160 × 180 drawing. */
+export function diveGloveOffset(size: number, angle: number, hand: "l" | "r"): Point {
+  const rad = angle * Math.PI / 180;
+  const x = (hand === "l" ? -40.85 : 40.85) * size / 160;
+  const y = -130.72 * size / 160;
+  return { x: x * Math.cos(rad) - y * Math.sin(rad), y: x * Math.sin(rad) + y * Math.cos(rad) };
+}
 
 /**
  * The dive, from the ground: the keeper pushes off at home, rotates about its feet so its body centre meets the
@@ -98,10 +117,10 @@ export function keeperDive(
   const col = (keeperZone - 1) % 5;
   const row = Math.floor((keeperZone - 1) / 5);
   const dir = (col < 2 ? -1 : col > 2 ? 1 : 0) as -1 | 0 | 1;
-  const angle = dir * REACH_ANGLE[col];
-  const rad = (angle * Math.PI) / 180;
-  const reachLen = size * KEEPER_ASPECT * (KEEPER_FEET - KEEPER_BODY);
-  const reach = { x: target.x - reachLen * Math.sin(rad), y: Math.min(home.y, target.y + reachLen * Math.cos(rad)) };
+  const angle = row === 2 ? (dir || 1) * 95 : dir * REACH_ANGLE[col];
+  const hand = dir < 0 ? "r" : "l";
+  const palm = diveGloveOffset(size, angle, hand);
+  const reach = { x: target.x - palm.x, y: Math.min(home.y, target.y - palm.y) };
   const minX = layout.goal.x + size * 0.3;
   const maxX = layout.goal.x + layout.goal.width - size * 0.3;
   const clampX = (x: number) => Math.min(maxX, Math.max(minX, x));
@@ -109,9 +128,9 @@ export function keeperDive(
   const fallDir = dir !== 0 ? dir : shotCol < 2 ? -1 : 1;
   const lift = size * (row === 2 ? 0.05 : 0.12);
   if (result === "CATCH") {
-    return { dir, reach, angle, lift, land: { x: clampX(reach.x), y: home.y }, landAngle: dir * 10, slide: 0 };
+    return { dir, hand, reach, angle, lift, land: { x: clampX(reach.x), y: home.y }, landAngle: dir * 10, slide: 0 };
   }
   // Momentum: contact just past the reach, then a short slide in the same direction.
   const contact = clampX(reach.x + fallDir * size * 0.05);
-  return { dir, reach, angle, lift, land: { x: contact, y: home.y }, landAngle: fallDir * 92, slide: clampX(contact + fallDir * size * 0.14) - contact };
+  return { dir, hand, reach, angle, lift, land: { x: contact, y: home.y }, landAngle: fallDir * 92, slide: clampX(contact + fallDir * size * 0.14) - contact };
 }

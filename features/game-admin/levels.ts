@@ -59,4 +59,4 @@ export function ruleOdds(distribution: readonly number[], rules: readonly { scor
   return odds;
 }
 
-export const percent = (p: number) => `${Math.round(p * 1000) / 10}%`;
+export const percent = (p: number) => p > 0 && p < .001 ? "<0.1%" : `${Math.round(p * 1000) / 10}%`;

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getSupabase } from "@/lib/supabase";
 import type { GameTransport } from "./types";
+import { presentationSchema } from "../safiService";
 const zone = z.number().int().min(1).max(15);
 const sessionSchema = z.object({
   sessionId: z.string().uuid(),
@@ -13,8 +14,10 @@ const sessionSchema = z.object({
   expiresAt: z.string(),
   mode: z.enum(["practice", "free", "paid", "legacy"]).optional(),
   coinBalance: z.number().int().nonnegative().safe().optional(),
+  presentation: presentationSchema.optional(),
 });
 const shotSchema = z.object({
+  visualEvent: z.literal("LUCKY_EGG").nullable().optional(),
   attemptId: z.string().uuid(),
   sessionId: z.string().uuid(),
   attempt: z.number().int().positive(),
@@ -40,6 +43,15 @@ const finishSchema = z.object({
     .optional(),
   coinAmount: z.number().int().nonnegative().safe().optional(),
   coinBalance: z.number().int().nonnegative().safe().optional(),
+  engagement: z.object({
+    newPersonalBest: z.boolean(),
+    personalBest: z.number().int().min(0).max(10).optional(),
+    longestCombo: z.number().int().min(0).max(10).optional(),
+    unlockedAchievements: z.array(z.object({ id: z.string().uuid(), code: z.string(), title: z.string() })),
+    completedChallenges: z.array(z.object({ id: z.string().uuid(), code: z.string(), title: z.string(), coinsAwarded: z.number().int().nonnegative() })),
+    coinAmount: z.number().int().nonnegative(),
+    streak: z.number().int().nonnegative(),
+  }).optional(),
 });
 /** RN and browsers both support AbortController; do not rely on AbortSignal.timeout. */
 async function requestWithTimeout<T>(

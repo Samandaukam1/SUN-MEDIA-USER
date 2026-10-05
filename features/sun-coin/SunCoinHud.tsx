@@ -6,7 +6,7 @@ import { SunCoin } from './SunCoin';
 import { formatSunCoin } from './types';
 
 /** Game HUD corner: the turning SUN Coin and the balance on a glass capsule. Tapping opens the coin sheet. */
-export function SunCoinHud({ balance, onPress }: { balance: number | undefined; onPress?: () => void }) {
+export function SunCoinHud({ balance, onPress, animated = true }: { balance: number | undefined; onPress?: () => void; animated?: boolean }) {
   const { colors } = useTheme();
   return (
     <Pressable
@@ -17,7 +17,7 @@ export function SunCoinHud({ balance, onPress }: { balance: number | undefined; 
       style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.97 : 1 }] })}
     >
       <GlassSurface variant="chrome" radius={999} style={styles.capsule}>
-        <SunCoin size={26} />
+        <SunCoin size={26} animated={animated} />
         <Text variant="subheading" style={[styles.amount, { color: colors.text }]}>
           {balance == null ? '— SC' : formatSunCoin(balance)}
         </Text>

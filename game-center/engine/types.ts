@@ -19,6 +19,7 @@ export type Session = {
   expiresAt: string;
   mode?: GameMode | "legacy";
   coinBalance?: number;
+  presentation?: { personality: "CLASSIC" | "SHOWMAN" | "SERIOUS"; arena: "classic" | "night" | "summer" | "new_year" | "ramadan" | "campaign"; boss: boolean; eventTitle?: string | null };
 };
 export type ShotRequest = {
   sessionId: string;
@@ -27,6 +28,7 @@ export type ShotRequest = {
   selectedZone: number;
 };
 export type Shot = {
+  visualEvent?: "LUCKY_EGG" | null;
   attemptId: string;
   sessionId: string;
   attempt: number;
@@ -46,6 +48,15 @@ export type Finish = {
   /** SUN Coin credited by the server for this round (0 when none), and the wallet balance after it. */
   coinAmount?: number;
   coinBalance?: number;
+  engagement?: {
+    newPersonalBest: boolean;
+    personalBest?: number;
+    longestCombo?: number;
+    unlockedAchievements: { id: string; code: string; title: string }[];
+    completedChallenges: { id: string; code: string; title: string; coinsAwarded: number }[];
+    coinAmount: number;
+    streak: number;
+  };
 };
 export interface GameTransport {
   startGame(gameId: string, requestId: string, mode: GameMode): Promise<Session>;
@@ -53,6 +64,7 @@ export interface GameTransport {
   finishGame(sessionId: string): Promise<Finish>;
 }
 export type GameState = {
+  paused: boolean;
   phase: GamePhase;
   session: Session | null;
   shot: Shot | null;
@@ -61,8 +73,11 @@ export type GameState = {
   error: string | null;
   busy: boolean;
 };
-export type SoundEvent = "shot" | "catch" | "eggBreak" | "goal" | "reward";
+export type SoundEvent = "shot" | "catch" | "eggBreak" | "goal" | "reward"
+  | "combo" | "hotStreak" | "nearMiss" | "criticalSave" | "achievement"
+  | "personalBest" | "luckyEgg" | "bossEntrance" | "cosmeticEquip" | "shopPurchase" | "taunt";
 export type GameFeedback = {
   soundEnabled: boolean;
+  hapticsEnabled?: boolean;
   onSound?: (event: SoundEvent) => void;
 };

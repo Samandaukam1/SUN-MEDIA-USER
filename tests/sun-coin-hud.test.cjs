@@ -127,7 +127,7 @@ test("every dive pushes off the ground, never sinks below it, and lands back on 
   assert.equal(side.dir, 1);
   assert.ok(side.angle > 45, "wide zone: a real sideways dive");
   const centreLow = keeperDive(layout, 13, size, "CATCH", 13);
-  assert.equal(centreLow.angle, 0);
+  assert.ok(centreLow.angle > 75, "low saves extend along the grass so the palm reaches the low target");
 });
 
 test("managers' reward rules: five hidden levels, the default example, validation and odds per rule", () => {

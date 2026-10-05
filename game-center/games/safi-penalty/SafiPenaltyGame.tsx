@@ -10,6 +10,7 @@ import {
 } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Animated,
   Image,
   Pressable,
@@ -36,6 +37,12 @@ import {
 import { useNav } from "@/lib/routes";
 import { formatDayMonth } from "@/lib/time";
 import { GameSession } from "../../engine/gameSession";
+import { sessionJournal } from "../../engine/sessionJournal";
+import { useGamePreferences } from "../../engine/useGamePreferences";
+import { useGameAudio } from "../../engine/useGameAudio";
+import { gameEngagementKey, useGameEngagement } from "../../engagement";
+import { useSafiLocker, useSafiPublicConfig } from "../../safiService";
+import { EngagementCards } from "../../EngagementCards";
 import { feedback, motion, useReduceMotion } from "../../engine/animationUtils";
 import {
   rewardClient,
@@ -47,6 +54,8 @@ import { safiTheme as t } from "./config";
 import { Arena } from "./components/Arena";
 import { ModeCards } from "./components/ModeCards";
 import { ReplayContent, replayTitle } from "./components/RewardReplay";
+import { ResultCelebration } from "./components/ResultCelebration";
+import { GameSettings } from "./components/GameSettings";
 
 function modeLabel(session: Session) {
   if (session.mode === "free") return "Sovg‘ali · bepul urinish";
@@ -57,15 +66,16 @@ function modeLabel(session: Session) {
 export function SafiPenaltyGame({
   transport = rewardClient,
   onBack,
-  audio,
+  audio: externalAudio,
 }: {
   transport?: GameTransport;
   onBack: () => void;
   audio?: GameFeedback;
 }) {
+  const me = useMe();
   const controller = useMemo(
-    () => new GameSession(transport, randomUUID),
-    [transport],
+    () => new GameSession(transport, randomUUID, "safi-penalty", sessionJournal(me.userId)),
+    [transport, me.userId],
   );
   const state = useSyncExternalStore(
     controller.subscribe,
@@ -74,15 +84,36 @@ export function SafiPenaltyGame({
   );
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const reduced = useReduceMotion();
+  const systemReduced = useReduceMotion();
+  const { preferences, update, loaded, storageError } = useGamePreferences();
+  const reduced = systemReduced || preferences.reduceMotion;
   const queryClient = useQueryClient();
-  const me = useMe();
   const nav = useNav();
   const wallet = useSunCoinWallet();
+  const engagement = useGameEngagement();
+  const locker = useSafiLocker();
+  const availability = useSafiPublicConfig();
   // One sheet for the replay choice and the shop, so switching between them never stacks two modals.
-  const [sheet, setSheet] = useState<null | "replay" | "shop">(null);
-  const shownSheet = useRef<"replay" | "shop">("replay");
+  const [sheet, setSheet] = useState<null | "replay" | "shop" | "pause" | "settings">(null);
+  const shownSheet = useRef<"replay" | "shop" | "pause" | "settings">("replay");
   if (sheet) shownSheet.current = sheet;
+  const [foreground, setForeground] = useState(AppState.currentState === "active");
+  const [restoring, setRestoring] = useState(true);
+  useEffect(() => {
+    let active = true;
+    void controller.restore().finally(() => { if (active) setRestoring(false); });
+    return () => { active = false; controller.dispose(); };
+  }, [controller]);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (value) => {
+      setForeground(value === "active");
+      if (value !== "active") setSheet((s) => s ?? "pause");
+    });
+    return () => sub.remove();
+  }, []);
+  const paused = !foreground || sheet !== null || restoring;
+  useEffect(() => { controller.setPaused(paused); }, [controller, paused]);
+  const audio = useGameAudio(preferences, state.phase, state.session?.attemptsUsed ?? 0, !paused, loaded, externalAudio);
   const refreshWallet = () => void wallet.refetch();
   const start = (mode: GameMode) => {
     setSheet(null);
@@ -97,16 +128,19 @@ export function SafiPenaltyGame({
   const [containerWidth, setContainerWidth] = useState(width);
   const arenaWidth = Math.max(240, Math.min(containerWidth - 32, 480));
   const finish = state.finish;
+  const notifiedReward = useRef<string | null>(null);
+  const notifiedEngagement = useRef<string | null>(null);
   // The server has already decided and granted the reward; the app only celebrates it.
   const reward = finish?.reward ?? null;
   useEffect(() => {
-    if (!reward) return;
+    if (!reward || paused || notifiedReward.current === state.session?.sessionId) return;
+    notifiedReward.current = state.session?.sessionId ?? null;
     feedback("reward", reduced, audio);
     if (reward.type === "PRO_DAYS") {
       void queryClient.invalidateQueries({ queryKey: ["plan"] });
       void queryClient.invalidateQueries({ queryKey: ["pro"] });
     }
-  }, [reward, reduced, audio, queryClient]);
+  }, [reward, reduced, audio, queryClient, paused, state.session?.sessionId]);
   // The wallet follows the server at once: a paid start debits, a finished round may credit.
   const sessionId = state.session?.sessionId;
   const coinBalance = state.finish?.coinBalance ?? state.session?.coinBalance;
@@ -117,6 +151,15 @@ export function SafiPenaltyGame({
     }
     void queryClient.invalidateQueries({ queryKey: ["sun-coin"] });
   }, [sessionId, coinBalance, state.finish, me.userId, queryClient]);
+  useEffect(() => {
+    if (!state.finish?.engagement || paused || notifiedEngagement.current === sessionId) return;
+    notifiedEngagement.current = sessionId ?? null;
+    void queryClient.invalidateQueries({ queryKey: gameEngagementKey(me.userId) });
+    if (state.finish.engagement.unlockedAchievements.length)
+      feedback("achievement", reduced, audio);
+    else if (state.finish.engagement.newPersonalBest)
+      feedback("personalBest", reduced, audio);
+  }, [state.finish, me.userId, queryClient, reduced, audio, paused, sessionId]);
   const starting = state.phase === "IDLE" || state.phase === "STARTING";
   const message =
     state.phase === "READY"
@@ -144,15 +187,17 @@ export function SafiPenaltyGame({
     >
       <View style={[s.header, { width: arenaWidth }]}>
         <Pressable
-          onPress={onBack}
+          onPress={() => setSheet("pause")}
           accessibilityRole="button"
-          accessibilityLabel="Game Centerga qaytish"
+          accessibilityLabel="O‘yinni pauza qilish"
           style={s.back}
         >
-          <Text style={s.backText}>‹</Text>
+          <Text style={[s.backText, { fontSize: 16 }]}>Ⅱ</Text>
         </Pressable>
-        <Text style={s.eyebrow}>GAME CENTER</Text>
-        <SunCoinHud balance={wallet.data?.balance} onPress={() => setSheet("shop")} />
+        <Pressable accessibilityRole="button" accessibilityLabel={preferences.master ? "Ovozni o‘chirish" : "Ovozni yoqish"} accessibilityState={{ selected: !preferences.master }} onPress={() => update((p) => ({ ...p, master: !p.master }))} style={s.back}>
+          <Text style={[s.eyebrow, { fontSize: 9 }]}>{preferences.master ? "SOUND" : "MUTE"}</Text>
+        </Pressable>
+        <SunCoinHud balance={wallet.data?.balance} animated={!reduced && !paused} onPress={() => setSheet("shop")} />
       </View>
       <View style={[s.titleRow, { width: arenaWidth }]}>
         <View>
@@ -188,6 +233,8 @@ export function SafiPenaltyGame({
             controller={controller}
             reduced={reduced}
             audio={audio}
+            paused={paused}
+            locker={locker.data}
           />
           <View style={[s.below, { width: arenaWidth }]}>
             <View
@@ -212,7 +259,7 @@ export function SafiPenaltyGame({
             <Text accessibilityLiveRegion="polite" style={s.instruction}>
               {message}
             </Text>
-            {starting ? (
+          {restoring ? <ActivityIndicator color={t.primary} /> : starting && availability.data?.enabled === false ? <Text style={s.footnote}>SAFI vaqtincha yopiq. Keyinroq qayta urinib ko‘ring.</Text> : starting ? (
               <>
                 <Text style={s.description}>
                   Tovuq — darvozabon. Sizning to‘pingiz — tuxum.{`\n`}10 ta
@@ -228,6 +275,7 @@ export function SafiPenaltyGame({
                     onStart={start}
                     onRewardAgain={rewardAgain}
                     onRefresh={refreshWallet}
+                    practiceEnabled={availability.data?.practiceEnabled}
                   />
                 )}
               </>
@@ -255,10 +303,7 @@ export function SafiPenaltyGame({
             accessibilityLabel="SAFI"
           />
           <Text style={s.kicker}>O‘YIN YAKUNLANDI</Text>
-          <Text style={s.resultScore}>
-            {finish.score}
-            <Text style={s.resultTotal}> / {finish.attempts}</Text>
-          </Text>
+          <ResultCelebration key={sessionId} score={finish.score} attempts={finish.attempts} reduced={reduced} paused={paused} />
           <Text style={s.resultTitle}>
             {reward
               ? "AJOYIB!"
@@ -270,7 +315,7 @@ export function SafiPenaltyGame({
           </Text>
           {reward?.type === "SUN_COIN" ? (
             <View accessibilityLiveRegion="polite" style={s.coinWin}>
-              <SunCoin size={48} />
+              <SunCoin size={48} animated={!reduced && !paused} />
               <View>
                 <Text style={s.coinAmount}>+{reward.amount} SUN COIN</Text>
                 {finish.coinBalance != null ? (
@@ -291,6 +336,19 @@ export function SafiPenaltyGame({
               ? "Mashq rejimi: sovg‘alar faqat sovg‘ali o‘yinda."
               : "Har bir zarba — yangi imkoniyat."}
           </Text>
+          <View style={{ flexDirection: "row", gap: 20, justifyContent: "center" }}>
+            <Text style={s.footnote}>Rekord: {finish.engagement?.personalBest ?? engagement.data?.stats.personalBest ?? "—"}/10</Text>
+            <Text style={s.footnote}>Kombo: ×{finish.engagement?.longestCombo ?? "—"}</Text>
+          </View>
+          {finish.engagement?.newPersonalBest ? (
+            <View style={s.reveal}><Text style={s.coinAmount}>YANGI SHAXSIY REKORD</Text><Text style={s.coinBalance}>{finish.score} / {finish.attempts} gol</Text></View>
+          ) : null}
+          {finish.engagement?.unlockedAchievements.map((item) => (
+            <View key={item.id} style={s.reveal}><Text style={s.coinAmount}>YUTUQ OCHILDI</Text><Text style={s.coinBalance}>{item.title}</Text></View>
+          ))}
+          {finish.engagement?.completedChallenges.map((item) => (
+            <View key={item.id} style={s.reveal}><Text style={s.coinAmount}>CHALLENGE BAJARILDI</Text><Text style={s.coinBalance}>{item.title}{item.coinsAwarded > 0 ? ` · +${item.coinsAwarded} SC` : ""}</Text></View>
+          ))}
           <View style={s.resultActions}>
             {rewardOpen ? (
               <Action
@@ -315,6 +373,7 @@ export function SafiPenaltyGame({
           ) : null}
         </LinearGradient>
       ) : null}
+      {(starting || finish) && engagement.data ? <View style={{ width: arenaWidth }}><EngagementCards engagement={engagement.data} /></View> : null}
       {state.error ? (
         <View
           accessibilityRole="alert"
@@ -344,10 +403,16 @@ export function SafiPenaltyGame({
       <GlassSheet
         visible={sheet !== null}
         onClose={() => setSheet(null)}
-        eyebrow={shownSheet.current === "shop" ? "SUN COIN" : "REWARD MODE"}
-        title={shownSheet.current === "shop" ? "Coin Shop" : replayTitle(wallet.data)}
+        eyebrow={shownSheet.current === "shop" ? "SUN COIN" : shownSheet.current === "pause" || shownSheet.current === "settings" ? "SAFI PENALTY" : "REWARD MODE"}
+        title={shownSheet.current === "shop" ? "Coin Shop" : shownSheet.current === "pause" ? "Pauza" : shownSheet.current === "settings" ? "O‘yin sozlamalari" : replayTitle(wallet.data)}
       >
-        {shownSheet.current === "shop" ? (
+        {shownSheet.current === "settings" ? <GameSettings value={preferences} update={update} storageError={storageError} /> : shownSheet.current === "pause" ? (
+          <View style={s.resultActions}>
+            <Action title="DAVOM ETISH" onPress={() => setSheet(null)} />
+            <Action title="SOZLAMALAR" secondary onPress={() => setSheet("settings")} />
+            <Action title="GAME CENTERGA QAYTISH" secondary onPress={onBack} />
+          </View>
+        ) : shownSheet.current === "shop" ? (
           <CoinShopContent
             onOpenWallet={() => {
               setSheet(null);

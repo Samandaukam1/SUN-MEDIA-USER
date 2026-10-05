@@ -5,6 +5,7 @@ import Svg, {
   Ellipse,
   G,
   LinearGradient,
+  RadialGradient,
   Path,
   Rect,
   Stop,
@@ -12,6 +13,8 @@ import Svg, {
 } from "react-native-svg";
 import { safiTheme as t } from "../config";
 import { arenaLayout } from "../physics";
+import { ARENA_THEMES } from "../arenaTheme";
+import type { SafiPresentation } from "../../../safiService";
 
 /** Original vector goalkeeper. Gloves frame the projectile at the shared catch anchor. */
 /** `shadow` draws a soft contact shadow under the feet; the arena draws its own on the grass instead. */
@@ -129,15 +132,15 @@ export function Chicken({ caught = false, shadow = true }: { caught?: boolean; s
     </Svg>
   );
 }
-export function Egg() {
+export function Egg({ golden = false }: { golden?: boolean }) {
   const id = useId().replace(/:/g, "");
   return (
     <Svg width="100%" height="100%" viewBox="0 0 48 60">
       <Defs>
         <LinearGradient id={id} x1="0" y1="0" x2="1" y2=".8">
-          <Stop stopColor={t.white} />
-          <Stop offset=".6" stopColor="#F7F5EF" />
-          <Stop offset="1" stopColor="#C9CFBF" />
+          <Stop stopColor={golden ? "#FFF4B8" : t.white} />
+          <Stop offset=".6" stopColor={golden ? "#F8CD58" : "#F7F5EF"} />
+          <Stop offset="1" stopColor={golden ? "#B77A22" : "#C9CFBF"} />
         </LinearGradient>
       </Defs>
       <Path
@@ -194,21 +197,31 @@ export function Gift({ index }: { index: number }) {
     </Svg>
   );
 }
-export function Field({ width }: { width: number }) {
+export function Field({ width, arena = "classic" }: { width: number; arena?: SafiPresentation["arena"] }) {
   const {
     height: h,
     goal: { x: gx, y: gy, width: gw, height: gh },
   } = arenaLayout(width);
   const id = useId().replace(/:/g, "");
+  const theme = ARENA_THEMES[arena];
   return (
     <Svg width={width} height={h} viewBox={`0 0 ${width} ${h}`}>
       <Defs>
         <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <Stop stopColor={t.arenaDeep} />
-          <Stop offset="1" stopColor={t.arena} />
+          <Stop stopColor={theme.sky} />
+          <Stop offset="1" stopColor={theme.turf} />
         </LinearGradient>
+        <RadialGradient id={`${id}light`} cx="50%" cy="10%" rx="65%" ry="65%"><Stop stopColor={theme.light} stopOpacity=".2" /><Stop offset="1" stopColor={theme.light} stopOpacity="0" /></RadialGradient>
       </Defs>
       <Rect width={width} height={h} rx="28" fill={`url(#${id})`} />
+      {/* Stadium seating and distant spectators; deterministic positions, no per-frame work. */}
+      {[0,1,2].map((row) => <G key={row} opacity={.28 - row * .04}>
+        <Path d={`M0 ${gy * (.32 + row * .18)}Q${width / 2} ${gy * (.7 + row * .09)} ${width} ${gy * (.32 + row * .18)}`} stroke={theme.light} strokeWidth={width * .005} fill="none" />
+        {Array.from({ length: 34 }, (_, n) => <Circle key={n} cx={(n + .5) / 34 * width} cy={gy * (.34 + row * .19) + Math.sin(n * .42) * width * .012} r={width * .0037} fill={n % 4 === 0 ? theme.accent : theme.light} />)}
+      </G>)}
+      <Path d={`M${width * .05} 0L${width * .37} ${gy + gh}L${width * .65} ${gy + gh}L${width * .09} 0Z`} fill={theme.light} opacity=".025" />
+      <Path d={`M${width * .91} 0L${width * .35} ${gy + gh}L${width * .63} ${gy + gh}L${width * .95} 0Z`} fill={theme.light} opacity=".025" />
+      <Rect width={width} height={h} rx="28" fill={`url(#${id}light)`} />
       <Path
         d={`M0 ${gy + gh}L${width} ${gy + gh}L${width} ${h}H0Z`}
         fill={t.primary}
@@ -235,6 +248,7 @@ export function Field({ width }: { width: number }) {
         stroke={t.white}
         opacity=".13"
       />
+      <Path d={`M${gx} ${gy}L${gx + gw * .055} ${gy - width * .025}H${gx + gw * .945}L${gx + gw} ${gy}M${gx} ${gy + gh}L${gx + gw * .055} ${gy + gh - width * .045}H${gx + gw * .945}L${gx + gw} ${gy + gh}`} stroke={theme.light} strokeWidth="1.3" opacity=".3" fill="none" />
       <Rect
         x={gx}
         y={gy}

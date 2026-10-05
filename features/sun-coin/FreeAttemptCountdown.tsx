@@ -18,11 +18,13 @@ export function FreeAttemptCountdown({ nextFreeAt, offsetMs = 0, onElapsed, styl
   const elapsed = useRef(onElapsed);
   elapsed.current = onElapsed;
   useEffect(() => {
-    setLeft(remainingMs(nextFreeAt, offsetMs));
+    const initial = remainingMs(nextFreeAt, offsetMs);
+    const anchor = performance.now();
+    setLeft(initial);
     if (!nextFreeAt) return;
     let fired = false;
     const id = setInterval(() => {
-      const next = remainingMs(nextFreeAt, offsetMs);
+      const next = Math.max(0, initial - (performance.now() - anchor));
       setLeft(next);
       if (next <= 0 && !fired) {
         fired = true;
