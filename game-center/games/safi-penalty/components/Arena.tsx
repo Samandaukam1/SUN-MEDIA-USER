@@ -14,6 +14,9 @@ import type { SafiLocker } from "../../../safiService";
 import { equippedAppearance } from "../../../safiService";
 
 const NATIVE = Platform.OS !== "web";
+// Android phones get the lighter presentation: no egg trail, fewer shell pieces, no camera shake.
+const LITE = Platform.OS === "android";
+const FLIGHT_STEPS = Array.from({ length: 17 }, (_, i) => i / 16);
 
 export function Arena({
   width,
@@ -85,10 +88,10 @@ export function Arena({
         : { dir: 0 as const, hand: "l" as const, reach: home, angle: 0, lift: 0, land: home, landAngle: 0, slide: 0 },
     [shot, layout, keeperSize, home],
   );
-  const inputs = Array.from({ length: 17 }, (_, i) => i / 16);
+  const inputs = FLIGHT_STEPS;
   const goal = shot?.result === "GOAL";
   const impactTarget = goal ? goalImpactPoint(target, layout.goal) : target;
-  const path = inputs.map((p) => eggFlight(layout.shooter, target, layout.goal, p, width * .085, goal));
+  const path = useMemo(() => inputs.map((p) => eggFlight(layout.shooter, target, layout.goal, p, width * .085, goal)), [inputs, layout, target.x, target.y, width, goal]); // eslint-disable-line react-hooks/exhaustive-deps
   const direction = plan.dir || (target.x < home.x ? -1 : 1);
   const fallDir = Math.sign(plan.landAngle) || 1;
   const slideAngle = shot?.result === "GOAL" ? -fallDir * 5 : 0;
@@ -136,7 +139,7 @@ export function Arena({
     } else if (phase === "RESOLVING") {
       const impact = shot?.result === "GOAL" ? 1.035 : 1.023;
       Animated.sequence([motion(values.camera, impact, 160), motion(values.camera, 1.015, 340)]).start();
-      if (specialMoment || shot?.result === "GOAL") {
+      if (!LITE && (specialMoment || shot?.result === "GOAL")) {
         Animated.sequence([motion(values.cameraX, 2, 65), motion(values.cameraX, -2, 70), motion(values.cameraX, 0, 70)]).start();
       }
     } else if (phase === "RESETTING" || phase === "READY" || phase === "FINISHED") {
@@ -489,7 +492,7 @@ export function Arena({
           <Egg golden={lucky} />
         </Animated.View>
       ) : null}
-      {!reduced && showEgg && state.phase === "RESOLVING" ? [1,2,3].map((n) => {
+      {!reduced && !LITE && showEgg && state.phase === "RESOLVING" ? [1].map((n) => {
         const trail = inputs.map((p) => eggFlight(layout.shooter, target, layout.goal, Math.max(0,p-n*.035), width*.085, goal));
         return <Animated.View key={`trail${n}`} pointerEvents="none" style={{ position: "absolute", width: eggSize * .36, height: eggSize * .36, borderRadius: eggSize, backgroundColor: trailColor, left: layout.shooter.x - eggSize*.18, top: layout.shooter.y - eggSize*.18,
           opacity: values.fly.interpolate({ inputRange: [0,.1,.8,1], outputRange: [0,.2/n,.2/n,0] }), transform: [
@@ -497,12 +500,12 @@ export function Arena({
             { translateY: values.fly.interpolate({ inputRange: inputs, outputRange: trail.map((p) => p.y-layout.shooter.y) }) },
           ] }} />;
       }) : null}
-      {shot?.result === "GOAL" && !reduced ? Array.from({ length: 8 }, (_, i) => <Animated.View key={`shell${i}`} pointerEvents="none" style={{
+      {shot?.result === "GOAL" && !reduced ? Array.from({ length: LITE ? 4 : 8 }, (_, i) => <Animated.View key={`shell${i}`} pointerEvents="none" style={{
         position: "absolute", left: impactTarget.x, top: impactTarget.y, width: width*.012, height: width*.019, borderRadius: 2,
         backgroundColor: i % 3 ? "#FFF9ED" : equippedAppearance(locker,"goal_effect")?.color ?? "#F2C554",
         opacity: values.burst.interpolate({ inputRange: [0,.02,.65,1], outputRange: [0,1,1,0] }),
-        transform: [ { translateX: values.burst.interpolate({ inputRange: [0,1], outputRange: [0,Math.cos(i*Math.PI/4)*width*.10] }) },
-          { translateY: values.burst.interpolate({ inputRange: [0,.5,1], outputRange: [0,Math.sin(i*Math.PI/4)*width*.05,width*.10] }) },
+        transform: [ { translateX: values.burst.interpolate({ inputRange: [0,1], outputRange: [0,Math.cos(i*(LITE ? Math.PI/2 : Math.PI/4))*width*.10] }) },
+          { translateY: values.burst.interpolate({ inputRange: [0,.5,1], outputRange: [0,Math.sin(i*(LITE ? Math.PI/2 : Math.PI/4))*width*.05,width*.10] }) },
           { rotate: values.burst.interpolate({ inputRange: [0,1], outputRange: ["0deg",`${i%2?1:-1}60deg`] }) } ],
       }} />) : null}
       {bossIntro ? <View pointerEvents="none" style={styles.presentation}><Text style={styles.presentationText}>SUPER CHICKEN</Text><Text style={styles.momentText}>{state.session?.presentation?.eventTitle ?? "SAFI SPECIAL"}</Text></View> : null}
@@ -544,11 +547,8 @@ export function Arena({
               paddingHorizontal: 11,
               paddingVertical: 6,
               opacity: bubbleOpacity,
-              shadowColor: "#000",
-              shadowOpacity: 0.18,
-              shadowRadius: 6,
-              shadowOffset: { width: 0, height: 2 },
-              elevation: 3,
+              borderWidth: 1,
+              borderColor: t.line,
             },
             speakerX < width * 0.55
               ? { left: speakerX + keeperSize * 0.18 }
@@ -568,17 +568,6 @@ export function Arena({
             </Text>
           ) : null}
           {momentLabel ? <Text style={styles.momentText}>{momentLabel}</Text> : null}
-        </View>
-      ) : null}
-      {state.phase === "READY" && presentation.mood !== "NEUTRAL" ? (
-        <View pointerEvents="none" style={styles.mood}>
-          <Text style={styles.moodText}>{presentation.mood === "DOMINANT" ? "SAFI O‘ZIGA ISHONADI" : presentation.mood === "SMUG" ? "SAFI KULMOQDA" : presentation.mood === "FRUSTRATED" ? "SAFI JIDDIYLASHDI" : "SAFI SERGAK"}</Text>
-        </View>
-      ) : null}
-      {equippedAppearance(locker, "nameplate") || equippedAppearance(locker, "badge") ? (
-        <View pointerEvents="none" style={[styles.mood, { right: 12, bottom: 12, flexDirection: "row", gap: 7 }]}>
-          {equippedAppearance(locker, "badge") ? <Text accessibilityLabel="Tanlangan badge" style={{ color: equippedAppearance(locker, "badge")?.color ?? t.primary }}>{equippedAppearance(locker, "badge")?.symbol === "shield" ? "◇" : equippedAppearance(locker, "badge")?.symbol === "egg" ? "◉" : "✦"}</Text> : null}
-          {equippedAppearance(locker, "nameplate") ? <Text numberOfLines={1} style={[styles.moodText, { maxWidth: width * .3, color: equippedAppearance(locker, "nameplate")?.color ?? t.white }]}>{locker?.identity?.nickname ?? "SAFI CLUB"}</Text> : null}
         </View>
       ) : null}
       {/* Tap to skip a taunt; the zones stay closed until the keeper is ready again */}

@@ -44,24 +44,14 @@ import { gameEngagementKey, useGameEngagement } from "../../engagement";
 import { useSafiLocker, useSafiPublicConfig } from "../../safiService";
 import { EngagementCards } from "../../EngagementCards";
 import { feedback, motion, useReduceMotion } from "../../engine/animationUtils";
-import {
-  rewardClient,
-  rewardModeLabel,
-  rewardReasonText,
-} from "../../engine/rewardClient";
-import type { GameFeedback, GameMode, GameTransport, Session } from "../../engine/types";
+import { rewardClient } from "../../engine/rewardClient";
+import type { GameFeedback, GameMode, GameTransport } from "../../engine/types";
 import { safiTheme as t } from "./config";
 import { Arena } from "./components/Arena";
 import { ModeCards } from "./components/ModeCards";
 import { ReplayContent, replayTitle } from "./components/RewardReplay";
 import { ResultCelebration } from "./components/ResultCelebration";
 import { GameSettings } from "./components/GameSettings";
-
-function modeLabel(session: Session) {
-  if (session.mode === "free") return "Sovg‘ali · bepul urinish";
-  if (session.mode === "paid") return "Sovg‘ali · SUN Coin urinish";
-  return rewardModeLabel(session.rewardEligible);
-}
 
 export function SafiPenaltyGame({
   transport = rewardClient,
@@ -163,16 +153,14 @@ export function SafiPenaltyGame({
   const starting = state.phase === "IDLE" || state.phase === "STARTING";
   const message =
     state.phase === "READY"
-      ? "Darvozadagi nuqtani tanlang"
+      ? "Nishonni tanlang"
       : state.phase === "SHOOTING"
         ? "Zarba…"
         : state.phase === "RESOLVING"
           ? state.shot?.result === "GOAL"
-            ? "GOL! Chiroyli zarba."
-            : "Ushlab oldi! Keyingisiga tayyorlaning."
-          : state.phase === "RESETTING"
-            ? "Keyingi zarbaga tayyor…"
-            : "Nishonni tanlang. Tuxumni darvozaga kiriting.";
+            ? "GOL!"
+            : "Ushladi!"
+          : "";
   return (
     <ScrollView
       onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
@@ -187,46 +175,26 @@ export function SafiPenaltyGame({
     >
       <View style={[s.header, { width: arenaWidth }]}>
         <Pressable
-          onPress={() => setSheet("pause")}
+          onPress={() => (starting ? onBack() : setSheet("pause"))}
           accessibilityRole="button"
-          accessibilityLabel="O‘yinni pauza qilish"
+          accessibilityLabel={starting ? "Orqaga" : "O‘yinni pauza qilish"}
           style={s.back}
         >
-          <Text style={[s.backText, { fontSize: 16 }]}>Ⅱ</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={preferences.master ? "Ovozni o‘chirish" : "Ovozni yoqish"} accessibilityState={{ selected: !preferences.master }} onPress={() => update((p) => ({ ...p, master: !p.master }))} style={s.back}>
-          <Text style={[s.eyebrow, { fontSize: 9 }]}>{preferences.master ? "SOUND" : "MUTE"}</Text>
+          <Text style={s.backText}>{starting ? "‹" : "Ⅱ"}</Text>
         </Pressable>
         <SunCoinHud balance={wallet.data?.balance} animated={!reduced && !paused} onPress={() => setSheet("shop")} />
-      </View>
-      <View style={[s.titleRow, { width: arenaWidth }]}>
-        <View>
-          <Text style={s.kicker}>SAFI ORIGINAL</Text>
-          <Text style={s.title}>Penalty</Text>
-        </View>
-        <View style={s.tag}>
-          <View style={s.greenDot} />
-          <Text style={s.tagText}>
-            {state.session ? modeLabel(state.session) : "10 zarba · 15 nishon"}
-          </Text>
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ovoz va sozlamalar"
+          onPress={() => setSheet("settings")}
+          style={s.back}
+        >
+          <Text style={[s.backText, { fontSize: 20, opacity: preferences.master ? 1 : 0.4 }]}>♪</Text>
+        </Pressable>
       </View>
       {state.phase !== "FINISHED" ? (
         <>
-          <View style={[s.scoreboard, { width: arenaWidth }]}>
-            <View>
-              <Text style={s.statLabel}>URINISH</Text>
-              <Text style={s.stat}>
-                {String(state.session?.attemptsUsed ?? 0).padStart(2, "0")}
-                <Text style={s.statSuffix}> / 10</Text>
-              </Text>
-            </View>
-            <View style={s.scoreDivider} />
-            <View style={s.scoreRight}>
-              <Text style={s.statLabel}>GOL</Text>
-              <ScoreValue score={state.session?.score ?? 0} reduced={reduced} />
-            </View>
-          </View>
+          {starting ? <Text style={s.title}>SAFI Penalty</Text> : null}
           <Arena
             width={arenaWidth}
             state={state}
@@ -236,60 +204,40 @@ export function SafiPenaltyGame({
             paused={paused}
             locker={locker.data}
           />
-          <View style={[s.below, { width: arenaWidth }]}>
-            <View
-              style={s.progress}
-              accessibilityLabel={`${state.session?.attemptsUsed ?? 0} / 10 urinish`}
-            >
-              {Array.from({ length: 10 }, (_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    s.dot,
-                    {
-                      backgroundColor:
-                        i < (state.session?.attemptsUsed ?? 0)
-                          ? t.primary
-                          : t.line,
-                    },
-                  ]}
+          {starting ? (
+            <View style={[s.below, { width: arenaWidth }]}>
+              {restoring ? <ActivityIndicator color={t.primary} /> : availability.data?.enabled === false ? <Text style={s.footnote}>SAFI vaqtincha yopiq. Keyinroq qayta urinib ko‘ring.</Text> : state.phase === "STARTING" ? (
+                <Action title="Tayyorlanmoqda…" busy onPress={() => undefined} />
+              ) : (
+                <ModeCards
+                  wallet={wallet.data}
+                  loading={wallet.isPending}
+                  busy={state.busy}
+                  onStart={start}
+                  onRewardAgain={rewardAgain}
+                  onRefresh={refreshWallet}
+                  practiceEnabled={availability.data?.practiceEnabled}
                 />
-              ))}
+              )}
             </View>
-            <Text accessibilityLiveRegion="polite" style={s.instruction}>
-              {message}
-            </Text>
-          {restoring ? <ActivityIndicator color={t.primary} /> : starting && availability.data?.enabled === false ? <Text style={s.footnote}>SAFI vaqtincha yopiq. Keyinroq qayta urinib ko‘ring.</Text> : starting ? (
-              <>
-                <Text style={s.description}>
-                  Tovuq — darvozabon. Sizning to‘pingiz — tuxum.{`\n`}10 ta
-                  zarba. Nechtasini gol qilasiz?
+          ) : (
+            <View style={[s.hud, { width: arenaWidth }]}>
+              <View>
+                <Text style={s.statLabel}>GOL</Text>
+                <ScoreValue score={state.session?.score ?? 0} reduced={reduced} />
+              </View>
+              <Text accessibilityLiveRegion="polite" style={s.instruction}>
+                {message}
+              </Text>
+              <View style={s.scoreRight}>
+                <Text style={s.statLabel}>URINISH</Text>
+                <Text style={s.stat}>
+                  {String(Math.max(0, (state.session?.attempts ?? 10) - (state.session?.attemptsUsed ?? 0))).padStart(2, "0")}
+                  <Text style={s.statSuffix}> qoldi</Text>
                 </Text>
-                {state.phase === "STARTING" ? (
-                  <Action title="Tayyorlanmoqda…" busy onPress={() => undefined} />
-                ) : (
-                  <ModeCards
-                    wallet={wallet.data}
-                    loading={wallet.isPending}
-                    busy={state.busy}
-                    onStart={start}
-                    onRewardAgain={rewardAgain}
-                    onRefresh={refreshWallet}
-                    practiceEnabled={availability.data?.practiceEnabled}
-                  />
-                )}
-              </>
-            ) : state.session && !state.session.rewardEligible ? (
-              <Text style={s.footnote}>
-                {rewardReasonText(state.session.rewardReason)} Istalgancha mashq
-                qiling.
-              </Text>
-            ) : (
-              <Text style={s.footnote}>
-                Sovg‘a imkoniyati natijadan keyin ochiladi.
-              </Text>
-            )}
-          </View>
+              </View>
+            </View>
+          )}
         </>
       ) : finish ? (
         <LinearGradient
@@ -399,7 +347,6 @@ export function SafiPenaltyGame({
           ) : null}
         </View>
       ) : null}
-      <Text style={s.footer}>SAFI × SUN MEDIA</Text>
       <GlassSheet
         visible={sheet !== null}
         onClose={() => setSheet(null)}
@@ -504,7 +451,7 @@ export function Action({
 }
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: t.background },
-  content: { alignItems: "center", gap: 18 },
+  content: { alignItems: "center", gap: 14 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -518,7 +465,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  backText: { fontSize: 32, lineHeight: 36, color: t.foreground },
+  backText: { fontSize: 28, lineHeight: 32, color: t.foreground },
   eyebrow: {
     fontSize: 10,
     fontWeight: "700",
@@ -533,12 +480,12 @@ const s = StyleSheet.create({
   },
   kicker: { fontSize: 10, fontWeight: "700", letterSpacing: 2, color: t.muted },
   title: {
-    fontSize: 44,
-    fontWeight: "700",
-    letterSpacing: -2,
+    fontSize: 30,
+    fontWeight: "800",
+    letterSpacing: -1,
     color: t.foreground,
-    lineHeight: 50,
   },
+  hud: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   tag: {
     flexDirection: "row",
     gap: 5,
@@ -589,10 +536,11 @@ const s = StyleSheet.create({
   progress: { flexDirection: "row", gap: 7, justifyContent: "center" },
   dot: { width: 7, height: 7, borderRadius: 4 },
   instruction: {
+    flex: 1,
     color: t.foreground,
     textAlign: "center",
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
   },
   description: {
     fontSize: 13,

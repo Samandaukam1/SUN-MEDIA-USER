@@ -4,7 +4,6 @@ import {
   FreeAttemptCountdown,
   prizeTeaser,
   rewardReplay,
-  SunCoin,
   type SunCoinWallet,
 } from "@/features/sun-coin";
 import type { GameMode } from "../../../engine/types";
@@ -46,73 +45,44 @@ export function ModeCards({
     );
   }
   const replay = wallet ? rewardReplay(wallet) : null;
+  const rewardOn = !!wallet && replay?.kind !== "closed";
   return (
     <View style={s.stack}>
       <View style={s.reward}>
         <View style={s.head}>
-          <Text style={s.kickerLight}>REWARD MODE</Text>
-          {replay && replay.kind !== "closed" ? (
-            <View style={[s.pill, replay.kind === "free" ? s.pillOn : s.pillOff]}>
-              <Text style={[s.pillText, replay.kind === "free" ? s.pillTextOn : null]}>
-                {replay.kind === "free" ? "BUGUN BEPUL" : "BEPUL ISHLATILGAN"}
-              </Text>
-            </View>
-          ) : null}
+          <Text style={s.kickerLight}>REWARD</Text>
+          {rewardOn ? <Text style={s.deal}>1 bepul urinish / {formatSunCoin(wallet.attempt.cost)}</Text> : null}
         </View>
         {loading && !wallet ? (
           <ActivityIndicator color={t.primary} />
         ) : !wallet ? (
-          <Text style={s.bodyLight}>Sovg‘a ma’lumotlari yuklanmadi. Mashq rejimi ochiq.</Text>
+          <Text style={s.bodyLight}>Sovg‘a ma’lumotlari yuklanmadi. Mashq ochiq.</Text>
         ) : replay?.kind === "closed" ? (
-          <Text style={s.bodyLight}>Hozir faol sovg‘a kampaniyasi yo‘q. Kampaniya boshlanganda shu yerda ochiladi.</Text>
+          <Text style={s.bodyLight}>Hozir sovg‘a kampaniyasi yo‘q.</Text>
         ) : (
           <>
             <Text style={s.prize}>{prizeTeaser(wallet.rewardKinds)}</Text>
-            <View style={s.facts}>
-              <Fact label="Bugungi bepul urinish" value={wallet.attempt.freeAvailable ? "Mavjud" : "Ishlatilgan"} strong={wallet.attempt.freeAvailable} />
-              <Fact label="Qo‘shimcha urinish" value={formatSunCoin(wallet.attempt.cost)} />
-              <View style={s.fact}>
-                <Text style={s.factLabel}>Balans</Text>
-                <View style={s.balance}>
-                  <SunCoin size={18} animated={false} />
-                  <Text style={s.factValue}>{formatSunCoin(wallet.balance)}</Text>
-                </View>
-              </View>
-            </View>
             {!wallet.attempt.freeAvailable && wallet.attempt.nextFreeAt ? (
               <View style={s.timer}>
-                <Text style={s.timerLabel}>KEYINGI BEPUL URINISH</Text>
+                <Text style={s.timerLabel}>KEYINGI BEPUL</Text>
                 <FreeAttemptCountdown nextFreeAt={wallet.attempt.nextFreeAt} offsetMs={wallet.clockOffsetMs} onElapsed={onRefresh} style={s.timerValue} />
               </View>
             ) : null}
             {replay?.kind === "free" ? (
               <Cta title="BEPUL O‘YNASH" busy={busy} onPress={() => onStart("free")} />
             ) : (
-              <Cta title={`YANA REWARD O‘YNASH · ${formatSunCoin(wallet.attempt.cost)}`} busy={busy} onPress={onRewardAgain} />
+              <Cta title={`O‘YNASH · ${formatSunCoin(wallet.attempt.cost)}`} busy={busy} onPress={onRewardAgain} />
             )}
           </>
         )}
       </View>
-
       <View style={s.practice}>
         <View style={s.head}>
-          <Text style={s.kicker}>MASHQ REJIMI</Text>
-          <View style={[s.pill, s.pillSoft]}>
-            <Text style={s.pillText}>BEPUL · CHEKSIZ</Text>
-          </View>
+          <Text style={s.kicker}>MASHQ</Text>
+          <Text style={s.dealDark}>Bepul • Cheksiz</Text>
         </View>
-        <Text style={s.body}>O‘yin xuddi shunday, lekin sovg‘a, SUN Coin va Pro berilmaydi.</Text>
         <Cta title={practiceEnabled ? "MASHQ QILISH" : "MASHQ VAQTINCHA YOPIQ"} secondary disabled={!practiceEnabled} busy={busy} onPress={() => onStart("practice")} />
       </View>
-    </View>
-  );
-}
-
-function Fact({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <View style={s.fact}>
-      <Text style={s.factLabel}>{label}</Text>
-      <Text style={[s.factValue, strong && { color: t.primary }]}>{value}</Text>
     </View>
   );
 }
@@ -141,8 +111,8 @@ export function Cta({ title, onPress, busy = false, disabled = false, secondary 
 
 const s = StyleSheet.create({
   stack: { gap: 12, alignSelf: "stretch" },
-  reward: { backgroundColor: t.arenaDeep, borderRadius: 22, padding: 18, gap: 12, borderWidth: 1, borderColor: "rgba(112,188,34,0.35)" },
-  practice: { backgroundColor: t.surface, borderRadius: 22, padding: 18, gap: 12, borderWidth: 1, borderColor: t.line },
+  reward: { backgroundColor: t.arenaDeep, borderRadius: 22, padding: 16, gap: 10, borderWidth: 1, borderColor: "rgba(112,188,34,0.35)" },
+  practice: { backgroundColor: t.surface, borderRadius: 22, padding: 16, gap: 10, borderWidth: 1, borderColor: t.line },
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   kicker: { fontSize: 11, fontWeight: "700", letterSpacing: 2, color: t.muted },
   kickerLight: { fontSize: 11, fontWeight: "700", letterSpacing: 2, color: "#C7D4C2" },
@@ -152,6 +122,8 @@ const s = StyleSheet.create({
   pillSoft: { backgroundColor: "#E8EFDF" },
   pillText: { fontSize: 9, fontWeight: "700", letterSpacing: 1, color: "#C7D4C2" },
   pillTextOn: { color: t.foreground },
+  deal: { fontSize: 12, fontWeight: "700", color: t.primary },
+  dealDark: { fontSize: 12, fontWeight: "700", color: t.muted },
   prize: { fontSize: 15, fontWeight: "700", color: t.white },
   body: { fontSize: 13, lineHeight: 20, color: t.muted },
   bodyLight: { fontSize: 13, lineHeight: 20, color: "#C7D4C2" },

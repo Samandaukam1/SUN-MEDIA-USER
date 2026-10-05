@@ -1,5 +1,5 @@
 import { useFocusEffect } from "expo-router";
-import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
+import { forwardRef, Fragment, memo, useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Animated, AppState, Easing, Platform, StyleSheet, View } from "react-native";
 import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
 import { safiTheme as t } from "../config";
@@ -18,25 +18,6 @@ import {
   type Pose,
   type Timeline,
 } from "../keeper/timelines";
-import {
-  armBehind,
-  armTrack,
-  AXIS_X,
-  backSide,
-  behind,
-  directionScale,
-  invert,
-  outlineTrack,
-  pointShift,
-  profileOpacity,
-  profileScale,
-  profileVisible,
-  surfaceTrack,
-  YAW_GRID,
-  type Ellipsoid,
-  type Step,
-  type SurfaceTrack,
-} from "../keeper/turn3d";
 
 const NATIVE = Platform.OS !== "web";
 
@@ -48,59 +29,6 @@ const GLOVE = { w: 32, l: 40, base: 22 };
 const NECK = { x: 80, y: 98 };
 const HIP_L = { x: 64, y: 138 };
 const HIP_R = { x: 97, y: 138 };
-const ANKLE_L = { x: 61, y: 160 };
-const ANKLE_R = { x: 100, y: 160 };
-
-// The keeper in 3D: body and head are ellipsoids round the vertical axis (lower cross-sections are narrower), the
-// tail and the ribbon of the headband sit behind, the arms stand a little in front. See keeper/turn3d.ts.
-const TORSO: Ellipsoid = { cx: 84, cz: 0, a: 42, b: 36 };
-const HEAD: Ellipsoid = { cx: 81, cz: 3, a: 28.5, b: 27 };
-const TAIL_ROOT = { x: 114, y: 112, z: -20 };
-const RIBBON = { x: 81, y: 45, z: HEAD.cz - HEAD.b - 1 };
-const ARM_DEPTH = 10;
-const R_SHOULDER_X = 160 - SHOULDER.x;
-
-/** Parts drawn in their own small box of the artwork (x, y, w, h), turning about `o`. */
-type Box = { x: number; y: number; w: number; h: number; o: [number, number] };
-const BOX = {
-  tail: { x: 100, y: 60, w: 54, h: 74, o: [TAIL_ROOT.x, TAIL_ROOT.y] },
-  collar: { x: 64, y: 104, w: 38, h: 42, o: [83, 120] },
-  number: { x: 68, y: 116, w: 28, h: 30, o: [82, 132] },
-  shinL: { x: 54, y: 130, w: 16, h: 36, o: [HIP_L.x, HIP_L.y] },
-  shinR: { x: 91, y: 130, w: 16, h: 36, o: [HIP_R.x, HIP_R.y] },
-  footL: { x: 38, y: 152, w: 36, h: 22, o: [ANKLE_L.x, ANKLE_L.y] },
-  footR: { x: 88, y: 152, w: 36, h: 22, o: [ANKLE_R.x, ANKLE_R.y] },
-  eyeL: { x: 57, y: 37, w: 24, h: 35, o: [69, 60] },
-  eyeR: { x: 82, y: 36, w: 25, h: 35, o: [94, 59] },
-  beak: { x: 64, y: 58, w: 38, h: 42, o: [83, 75] },
-  sideBeak: { x: 76, y: 58, w: 26, h: 32, o: [83, 74] },
-  wattle: { x: 72, y: 82, w: 20, h: 22, o: [81, 90] },
-  nape: { x: 66, y: 80, w: 28, h: 18, o: [80, 90] },
-  ribbon: { x: 68, y: 38, w: 26, h: 32, o: [RIBBON.x, RIBBON.y] },
-} satisfies Record<string, Box>;
-
-/** Every turning curve, sampled once for all keepers. */
-const TRACKS = {
-  torso: outlineTrack(TORSO),
-  collar: surfaceTrack({ ...TORSO, b: 34 }, 0),
-  number: surfaceTrack({ ...TORSO, b: 32 }, 180, 0, 180),
-  tail: { shift: pointShift(TAIL_ROOT.x - AXIS_X, TAIL_ROOT.z), scale: directionScale(0.75, -0.66), behind: behind(TAIL_ROOT.x - AXIS_X, TAIL_ROOT.z) },
-  legL: pointShift(HIP_L.x - AXIS_X, 0),
-  legR: pointShift(HIP_R.x - AXIS_X, 0),
-  foot: directionScale(1, 0),
-  eyeL: surfaceTrack(HEAD, -25),
-  eyeR: surfaceTrack(HEAD, 27),
-  beak: surfaceTrack({ ...HEAD, b: 25 }, 0, 2),
-  wattle: surfaceTrack({ ...HEAD, a: 20, b: 19 }, 0),
-  nape: surfaceTrack({ ...HEAD, a: 22, b: 20 }, 180, 0, 180),
-  ribbon: { shift: pointShift(RIBBON.x - AXIS_X, RIBBON.z), behind: behind(RIBBON.x - AXIS_X, RIBBON.z) },
-  profile: { scale: profileScale(), opacity: profileOpacity(), visible: profileVisible() },
-  // The far (right) arm goes behind the body as soon as the turn takes it there; the near one only once its
-  // plane has turned past 80°, just before a glove would be seen edge-on.
-  armL: { ...armTrack(SHOULDER.x - AXIS_X, ARM_DEPTH), behind: armBehind(80) },
-  armR: { ...armTrack(R_SHOULDER_X - AXIS_X, ARM_DEPTH), behind: behind(R_SHOULDER_X - AXIS_X, ARM_DEPTH, 4) },
-  glove: backSide(),
-};
 
 type Mode = "idle" | "focus" | "dive" | "hold" | "fallen" | "angry";
 const MODE_BASE: Record<Mode, BaseName> = { idle: "READY", focus: "READY", dive: "DIVE", hold: "HOLD", fallen: "FALLEN", angry: "READY" };
@@ -426,219 +354,147 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
   );
 
   const h = size * (180 / 160);
-  const px = (x: number, y: number) => `${Math.round(x * s)}px ${Math.round(y * s)}px`;
-  const u = (val: Animated.Value) => Animated.multiply(val, s);
-  const deg = (val: Animated.Value) => val.interpolate({ inputRange: [-360, 360], outputRange: ["-360deg", "360deg"] });
   const calm = face === "NEUTRAL" || face === "FOCUSED" || face === "CONFIDENT";
   const shownFace: Face = blink && calm ? "EYES_CLOSED" : face;
 
-  // The turn, as native-driver interpolations of the body yaw (and body + head yaw for the face).
+  // Every animated style is built once: a face or blink change re-renders only the face, never the whole rig.
   const k = useMemo(() => {
-    const headYaw = Animated.add(v.yaw, v.headYaw);
-    const at = (val: Animated.Value | Animated.AnimatedAddition<number>, out: readonly number[], mul = 1) =>
-      val.interpolate({ inputRange: [...YAW_GRID], outputRange: out.map((n) => n * mul), extrapolate: "clamp" });
-    const surface = (val: Animated.Value | Animated.AnimatedAddition<number>, tr: SurfaceTrack) => ({
-      opacity: at(val, tr.opacity),
-      transform: [{ translateX: at(val, tr.shift, s) }, { scaleX: at(val, tr.scale) }],
+    const px = (x: number, y: number) => `${Math.round(x * s)}px ${Math.round(y * s)}px`;
+    const u = (val: Animated.Value) => Animated.multiply(val, s);
+    const deg = (val: Animated.Value) => val.interpolate({ inputRange: [-360, 360], outputRange: ["-360deg", "360deg"] });
+    const limb = (left: number, top: number, w: number, l: number, ox: number, oy: number, joint: Joint) => ({
+      position: "absolute" as const,
+      left: left * s,
+      top: top * s,
+      width: w * s,
+      height: l * s,
+      transformOrigin: px(ox, oy),
+      transform: [{ rotate: deg(v[joint]) }],
     });
-    const on = (val: Animated.Value | Animated.AnimatedAddition<number>, st: Step) =>
-      val.interpolate({ inputRange: st.input, outputRange: st.output, extrapolate: "clamp" });
-    const beakShift = at(headYaw, TRACKS.beak.shift, s);
-    const armMotion = (tr: { rotate: number[]; shift: number[]; behind: Step }) => ({
-      transform: [
-        { perspective: size * 4 },
-        { translateX: at(v.yaw, tr.shift, s) },
-        { rotateY: v.yaw.interpolate({ inputRange: [...YAW_GRID], outputRange: tr.rotate.map((d) => `${d}deg`), extrapolate: "clamp" }) },
-      ],
-      back: on(v.yaw, tr.behind),
-      front: on(v.yaw, invert(tr.behind)),
+    const armStyles = (side: "l" | "r") => ({
+      mirror: side === "r" ? { transformOrigin: px(80, 90), transform: [{ scaleX: -1 }] } : null,
+      sh: limb(SHOULDER.x - UA.w / 2, SHOULDER.y - 4, UA.w, UA.l + 8, UA.w / 2, 4, `${side}Sh` as Joint),
+      el: limb(UA.w / 2 - FA.w / 2, UA.l + 2, FA.w, FA.l + 6, FA.w / 2, 2, `${side}El` as Joint),
+      wr: limb(FA.w / 2 - GLOVE.w / 2, FA.l, GLOVE.w, GLOVE.l, GLOVE.w / 2, 2, `${side}Wr` as Joint),
     });
+    // The head only slides its face a little to look left or right (no 3D turn: it is the costly part on phones).
+    const look = v.headYaw.interpolate({ inputRange: [-45, 0, 45], outputRange: [-7 * s, 0, 7 * s], extrapolate: "clamp" });
     return {
-      torso: { transform: [{ translateX: at(v.yaw, TRACKS.torso.shift, s) }, { scaleX: at(v.yaw, TRACKS.torso.scale) }] },
-      collar: surface(v.yaw, TRACKS.collar),
-      number: surface(v.yaw, TRACKS.number),
-      tail: { transform: [{ translateX: at(v.yaw, TRACKS.tail.shift, s) }, { scaleX: at(v.yaw, TRACKS.tail.scale) }] },
-      tailBehind: on(v.yaw, TRACKS.tail.behind),
-      tailFront: on(v.yaw, invert(TRACKS.tail.behind)),
-      legL: at(v.yaw, TRACKS.legL, s),
-      legR: at(v.yaw, TRACKS.legR, s),
-      foot: { transform: [{ scaleX: at(v.yaw, TRACKS.foot) }] },
-      eyeL: surface(headYaw, TRACKS.eyeL),
-      eyeR: surface(headYaw, TRACKS.eyeR),
-      beak: { opacity: at(headYaw, TRACKS.beak.opacity), transform: [{ translateX: beakShift }, { scaleX: at(headYaw, TRACKS.beak.scale) }] },
-      sideBeak: { opacity: Animated.multiply(at(headYaw, TRACKS.profile.opacity), on(headYaw, TRACKS.profile.visible)), transform: [{ translateX: beakShift }, { scaleX: at(headYaw, TRACKS.profile.scale) }] },
-      wattle: surface(headYaw, TRACKS.wattle),
-      nape: surface(headYaw, TRACKS.nape),
-      ribbon: { transform: [{ translateX: at(headYaw, TRACKS.ribbon.shift, s) }] },
-      ribbonBehind: on(headYaw, TRACKS.ribbon.behind),
-      ribbonFront: on(headYaw, invert(TRACKS.ribbon.behind)),
-      arm: { l: armMotion(TRACKS.armL), r: armMotion(TRACKS.armR) },
-      gloveBack: on(v.yaw, TRACKS.glove),
+      legL: { transformOrigin: px(HIP_L.x, HIP_L.y), transform: [{ rotate: deg(v.legL) }] },
+      legR: { transformOrigin: px(HIP_R.x, HIP_R.y), transform: [{ translateY: u(v.stomp) }, { rotate: deg(v.legR) }] },
+      body: { transformOrigin: px(80, 166), transform: [{ translateX: u(v.bodyX) }, { translateY: u(v.bodyY) }, { rotate: deg(v.lean) }] },
+      torso: {
+        transformOrigin: px(84, 140),
+        transform: [
+          { scaleX: Animated.add(1, Animated.multiply(v.puff, 0.09)) },
+          { scaleY: Animated.add(Animated.add(1, Animated.multiply(v.puff, 0.035)), Animated.multiply(breathe, 0.018)) },
+        ],
+      },
+      head: {
+        transformOrigin: px(NECK.x, NECK.y),
+        transform: [{ translateX: u(v.headX) }, { translateY: Animated.add(u(v.headY), Animated.multiply(breathe, -0.8 * s)) }, { rotate: deg(v.headRot) }],
+      },
+      face: { transform: [{ translateX: look }] },
+      armL: armStyles("l"),
+      armR: armStyles("r"),
     };
-  }, [v, s, size]);
+  }, [v, s, breathe]);
 
-  const piece = (box: Box, style: object, children: ReactNode, key?: string) => (
-    <Piece key={key} box={box} s={s} style={style}>
-      {children}
-    </Piece>
-  );
-
-  // Each arm is drawn twice — behind the body and in front of it — and the turn shows the right one.
-  const arm = (side: "l" | "r", layer: "back" | "front") => {
-    const j = (name: "Sh" | "El" | "Wr" | "Idx" | "Mid" | "Rest" | "Thumb") => v[`${side}${name}` as Joint];
+  const arm = (side: "l" | "r") => {
+    const a = side === "l" ? k.armL : k.armR;
+    const j = (name: "Mid" | "Thumb") => v[`${side}${name}` as Joint];
     return (
-      <Animated.View
-        key={`${side}${layer}`}
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { opacity: k.arm[side][layer], transformOrigin: px(AXIS_X, SHOULDER.y), transform: k.arm[side].transform }]}
-      >
-        <View style={[StyleSheet.absoluteFill, side === "r" && { transformOrigin: px(80, 90), transform: [{ scaleX: -1 }] }]}>
-          <Animated.View
-            style={{
-              position: "absolute",
-              left: (SHOULDER.x - UA.w / 2) * s,
-              top: (SHOULDER.y - 4) * s,
-              width: UA.w * s,
-              height: (UA.l + 8) * s,
-              transformOrigin: px(UA.w / 2, 4),
-              transform: [{ rotate: deg(j("Sh")) }],
-            }}
-          >
-            <UpperArm w={UA.w} l={UA.l} />
-            <Animated.View
-              style={{
-                position: "absolute",
-                left: (UA.w / 2 - FA.w / 2) * s,
-                top: (UA.l + 2) * s,
-                width: FA.w * s,
-                height: (FA.l + 6) * s,
-                transformOrigin: px(FA.w / 2, 2),
-                transform: [{ rotate: deg(j("El")) }],
-              }}
-            >
-              <Forearm w={FA.w} l={FA.l} />
-              <Animated.View
-                style={{
-                  position: "absolute",
-                  left: (FA.w / 2 - GLOVE.w / 2) * s,
-                  top: FA.l * s,
-                  width: GLOVE.w * s,
-                  height: GLOVE.l * s,
-                  transformOrigin: px(GLOVE.w / 2, 2),
-                  transform: [{ rotate: deg(j("Wr")) }],
-                }}
-              >
-                <GloveHand
-                  id={`${id}${side}${layer}`}
-                  holding={side === holdingHand && holding}
-                  color={gloveColor}
-                  golden={goldenEgg}
-                  s={s}
-                  back={k.gloveBack}
-                  idx={j("Idx")}
-                  mid={j("Mid")}
-                  rest={j("Rest")}
-                  thumb={j("Thumb")}
-                />
-              </Animated.View>
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, a.mirror]}>
+        <Animated.View style={a.sh}>
+          <UpperArm w={UA.w} l={UA.l} />
+          <Animated.View style={a.el}>
+            <Forearm w={FA.w} l={FA.l} />
+            <Animated.View style={a.wr}>
+              <GloveHand id={`${id}${side}`} holding={side === holdingHand && holding} color={gloveColor} golden={goldenEgg} s={s} grip={j("Mid")} thumb={j("Thumb")} />
             </Animated.View>
           </Animated.View>
-        </View>
-      </Animated.View>
+        </Animated.View>
+      </View>
     );
   };
 
-  const tail = (opacity: Animated.AnimatedInterpolation<number>, key: string) => piece(BOX.tail, { opacity, ...k.tail }, <Path d="M109 96Q146 65 139 104Q149 108 122 129Z" fill={t.featherShade} />, key);
-  const ribbon = (opacity: Animated.AnimatedInterpolation<number>, key: string) => piece(BOX.ribbon, { opacity, ...k.ribbon }, <Ribbon />, key);
-
   return (
     <View style={{ width: size, height: h }}>
-      {/* Legs: the hips swing round the axis, the toes turn with the body */}
-      <Animated.View style={[StyleSheet.absoluteFill, { transformOrigin: px(HIP_L.x, HIP_L.y), transform: [{ translateX: k.legL }, { rotate: deg(v.legL) }] }]}>
-        {piece(BOX.shinL, {}, <Path d="M64 136L61 160" stroke={t.yolk} strokeWidth="9" strokeLinecap="round" />)}
-        {piece(BOX.footL, k.foot, <Path d="M61 160L43 165M61 160L69 167M61 160L54 168" stroke={t.yolk} strokeWidth="6.5" strokeLinecap="round" />)}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, k.legL]}>
+        <Leg left />
       </Animated.View>
-      <Animated.View style={[StyleSheet.absoluteFill, { transformOrigin: px(HIP_R.x, HIP_R.y), transform: [{ translateX: k.legR }, { translateY: u(v.stomp) }, { rotate: deg(v.legR) }] }]}>
-        {piece(BOX.shinR, {}, <Path d="M97 136L100 160" stroke={t.yolk} strokeWidth="9" strokeLinecap="round" />)}
-        {piece(BOX.footR, k.foot, <Path d="M100 160L118 164M100 160L92 168M100 160L107 168" stroke={t.yolk} strokeWidth="6.5" strokeLinecap="round" />)}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, k.legR]}>
+        <Leg />
       </Animated.View>
       {/* Upper body: sways, bobs and leans as one (the feet stay planted) */}
-      <Animated.View style={[StyleSheet.absoluteFill, { transformOrigin: px(80, 166), transform: [{ translateX: u(v.bodyX) }, { translateY: u(v.bodyY) }, { rotate: deg(v.lean) }] }]}>
-        {arm("l", "back")}
-        {arm("r", "back")}
-        {tail(k.tailBehind, "tail-behind")}
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              transformOrigin: px(84, 140),
-              transform: [
-                { scaleX: Animated.add(1, Animated.multiply(v.puff, 0.09)) },
-                { scaleY: Animated.add(Animated.add(1, Animated.multiply(v.puff, 0.035)), Animated.multiply(breathe, 0.018)) },
-              ],
-            },
-          ]}
-        >
-          <Animated.View style={[StyleSheet.absoluteFill, { transformOrigin: px(TORSO.cx, 110), ...k.torso }]}>
-            <TorsoBase id={id} color={outfitColor} />
-          </Animated.View>
-          {piece(BOX.collar, k.collar, <Collar />)}
-          {piece(BOX.number, k.number, <SvgText x="82" y="141" fill={t.white} fontSize="22" fontWeight="700" textAnchor="middle">1</SvgText>)}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, k.body]}>
+        <Tail />
+        <Animated.View style={[StyleSheet.absoluteFill, k.torso]}>
+          <TorsoBase id={id} color={outfitColor} />
+          <TorsoDetails />
         </Animated.View>
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              transformOrigin: px(NECK.x, NECK.y),
-              transform: [{ translateX: u(v.headX) }, { translateY: Animated.add(u(v.headY), Animated.multiply(breathe, -0.8 * s)) }, { rotate: deg(v.headRot) }],
-            },
-          ]}
-        >
-          {ribbon(k.ribbonBehind, "ribbon-behind")}
+        <Animated.View style={[StyleSheet.absoluteFill, k.head]}>
           <HeadBase id={id} />
-          {piece(BOX.nape, k.nape, <Path d="M71 89Q75.5 94 80 89Q84.5 94 89 89" stroke={t.featherShade} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />)}
-          {ribbon(k.ribbonFront, "ribbon-front")}
-          {piece(BOX.wattle, k.wattle, <Path d="M75 85Q80 101 88 85" fill={t.comb} />)}
-          {piece(BOX.eyeL, k.eyeL, <EyeArt face={shownFace} side="l" />)}
-          {piece(BOX.eyeR, k.eyeR, <EyeArt face={shownFace} side="r" />)}
-          {piece(BOX.sideBeak, k.sideBeak, <SideBeak open={face === "LAUGH" || face === "YAWN" || face === "SURPRISED"} />)}
-          {piece(BOX.beak, k.beak, <BeakArt face={shownFace} />)}
+          <Animated.View style={[StyleSheet.absoluteFill, k.face]}>
+            <FaceArt face={shownFace} />
+          </Animated.View>
         </Animated.View>
-        {/* The left glove (the one holding the egg) is drawn last, in front */}
-        {arm("r", "front")}
-        {arm("l", "front")}
-        {tail(k.tailFront, "tail-front")}
+        {arm("r")}
+        {arm("l")}
       </Animated.View>
     </View>
   );
 });
 
-/** A part of the artwork drawn in its own small box (artwork coordinates), turning about the box's `o` point. */
-function Piece({ box, s, style, children }: { box: Box; s: number; style: object; children: ReactNode }) {
+const Leg = memo(function Leg({ left = false }: { left?: boolean }) {
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        {
-          position: "absolute",
-          left: box.x * s,
-          top: box.y * s,
-          width: box.w * s,
-          height: box.h * s,
-          transformOrigin: `${Math.round((box.o[0] - box.x) * s)}px ${Math.round((box.o[1] - box.y) * s)}px`,
-        },
-        style,
-      ]}
-    >
-      <Svg width="100%" height="100%" viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}>
-        {children}
-      </Svg>
-    </Animated.View>
+    <Svg width="100%" height="100%" viewBox="0 0 160 180">
+      {left ? (
+        <>
+          <Path d="M64 136L61 160" stroke={t.yolk} strokeWidth="9" strokeLinecap="round" />
+          <Path d="M61 160L43 165M61 160L69 167M61 160L54 168" stroke={t.yolk} strokeWidth="6.5" strokeLinecap="round" />
+        </>
+      ) : (
+        <>
+          <Path d="M97 136L100 160" stroke={t.yolk} strokeWidth="9" strokeLinecap="round" />
+          <Path d="M100 160L118 164M100 160L92 168M100 160L107 168" stroke={t.yolk} strokeWidth="6.5" strokeLinecap="round" />
+        </>
+      )}
+    </Svg>
   );
-}
+});
+
+const Tail = memo(function Tail() {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 160 180" style={StyleSheet.absoluteFill}>
+      <Path d="M109 96Q146 65 139 104Q149 108 122 129Z" fill={t.featherShade} />
+    </Svg>
+  );
+});
+
+const TorsoDetails = memo(function TorsoDetails() {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 160 180" style={StyleSheet.absoluteFill}>
+      <Collar />
+      <SvgText x="82" y="141" fill={t.white} fontSize="22" fontWeight="700" textAnchor="middle">1</SvgText>
+    </Svg>
+  );
+});
+
+/** Wattle, eyes with brows and beak in one drawing; it redraws only when the face changes. */
+const FaceArt = memo(function FaceArt({ face }: { face: Face }) {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 160 180" style={StyleSheet.absoluteFill}>
+      <Path d="M75 85Q80 101 88 85" fill={t.comb} />
+      <EyeArt face={face} side="l" />
+      <EyeArt face={face} side="r" />
+      <BeakArt face={face} />
+    </Svg>
+  );
+});
 
 /** The body: white feathers and the goalkeeper jersey wrapped round it (the same from every side). */
-function TorsoBase({ id, color }: { id: string; color: string }) {
+const TorsoBase = memo(function TorsoBase({ id, color }: { id: string; color: string }) {
   return (
     <Svg width="100%" height="100%" viewBox="0 0 160 180">
       <Defs>
@@ -655,7 +511,7 @@ function TorsoBase({ id, color }: { id: string; color: string }) {
       <Path d="M43 100Q80 115 123 98L122 130Q111 151 82 149Q54 149 42 131Z" fill={`url(#${id}j)`} />
     </Svg>
   );
-}
+});
 
 function Collar() {
   return (
@@ -667,7 +523,7 @@ function Collar() {
 }
 
 /** Comb, round head and the headband that wraps all the way round. */
-function HeadBase({ id }: { id: string }) {
+const HeadBase = memo(function HeadBase({ id }: { id: string }) {
   return (
     <Svg width="100%" height="100%" viewBox="0 0 160 180" style={StyleSheet.absoluteFill}>
       <Defs>
@@ -681,18 +537,7 @@ function HeadBase({ id }: { id: string }) {
       <Path d="M55.5 45.5Q80 40 104.5 45.5" stroke={t.primary} strokeWidth="7" fill="none" />
     </Svg>
   );
-}
-
-/** The headband's knot and ribbons, at the back of the head. */
-function Ribbon() {
-  return (
-    <>
-      <Path d="M80 46Q75 56 70 65L75 67Q79 57 82 47Z" fill={t.primary} />
-      <Path d="M82 46Q87 56 91 66L86 67Q83 57 80 47Z" fill={t.arena} opacity=".9" />
-      <Circle cx="81" cy="45" r="3.6" fill={t.primary} />
-    </>
-  );
-}
+});
 
 const BROWS: Record<Face, [string, string, number]> = {
   NEUTRAL: ["M63 52Q69 50 75 52", "M88 51Q94 49 100 51", 2.2],
@@ -821,24 +666,7 @@ function BeakArt({ face }: { face: Face }) {
   }
 }
 
-/** The beak's side, pointing out of the head as it turns into profile (it grows with the turn). */
-function SideBeak({ open }: { open: boolean }) {
-  return open ? (
-    <>
-      <Path d="M77 63L100 69L83 73L77 73Z" fill={t.yolk} />
-      <Path d="M77 73L97 73L83 82L77 82Z" fill="#5A1E1A" />
-      <Path d="M77 80L95 84L83 87L77 86Z" fill="#E3A52A" />
-    </>
-  ) : (
-    <>
-      <Path d="M77 65L100 73L84 77L77 77Z" fill={t.yolk} />
-      <Path d="M77 77L96 76L84 82L77 82Z" fill="#E3A52A" />
-      <Circle cx="86" cy="70" r="1.1" fill={t.foreground} opacity=".45" />
-    </>
-  );
-}
-
-function UpperArm({ w, l }: { w: number; l: number }) {
+const UpperArm = memo(function UpperArm({ w, l }: { w: number; l: number }) {
   return (
     <Svg width="100%" height="100%" viewBox={`0 0 ${w} ${l + 8}`}>
       <Rect x={0.8} y={3} width={w - 1.6} height={l + 4} rx={w / 2 - 0.8} fill={t.primary} stroke={t.arena} strokeWidth={1.1} />
@@ -848,34 +676,31 @@ function UpperArm({ w, l }: { w: number; l: number }) {
       <Path d={`M${w / 2 - 4} 7Q${w / 2} 11 ${w / 2 + 4} 7`} stroke={t.featherShade} strokeWidth={1.2} fill="none" />
     </Svg>
   );
-}
+});
 
-function Forearm({ w, l }: { w: number; l: number }) {
+const Forearm = memo(function Forearm({ w, l }: { w: number; l: number }) {
   return (
     <Svg width="100%" height="100%" viewBox={`0 0 ${w} ${l + 6}`}>
       <Rect x={0.8} y={0.5} width={w - 1.6} height={l + 4} rx={w / 2 - 0.8} fill={t.primary} stroke={t.arena} strokeWidth={1.1} />
       <Rect x={0.8} y={l - 3} width={w - 1.6} height={4} fill={t.white} opacity={0.95} />
     </Svg>
   );
-}
+});
 
-/** Fingers of the glove, each bending about its base (curl 0 open … 1 closed). */
 const FINGERS = [
-  { key: "idx", x: 5, w: 6.2, l: 16 },
-  { key: "mid", x: 11.8, w: 6.4, l: 17.5 },
-  { key: "rest", x: 18.8, w: 8.6, l: 14.5 },
+  { x: 5, w: 6.2, l: 16 },
+  { x: 11.8, w: 6.4, l: 17.5 },
+  { x: 18.8, w: 8.6, l: 14.5 },
 ] as const;
 
-function GloveHand({
+/** The glove: palm, one finger group that closes with the grip, and the thumb. Three drawings, two animated. */
+const GloveHand = memo(function GloveHand({
   id,
   color,
   holding,
   golden,
   s,
-  back,
-  idx,
-  mid,
-  rest,
+  grip,
   thumb,
 }: {
   id: string;
@@ -883,15 +708,36 @@ function GloveHand({
   holding: boolean;
   golden: boolean;
   s: number;
-  /** 1 while the glove shows its back (the keeper has turned away). */
-  back: Animated.AnimatedInterpolation<number>;
-  idx: Animated.Value;
-  mid: Animated.Value;
-  rest: Animated.Value;
+  grip: Animated.Value;
   thumb: Animated.Value;
 }) {
-  const curls = { idx, mid, rest };
   const px = (x: number, y: number) => `${Math.round(x * s)}px ${Math.round(y * s)}px`;
+  const fingers = useMemo(
+    () => ({
+      position: "absolute" as const,
+      left: 0,
+      top: GLOVE.base * s,
+      width: GLOVE.w * s,
+      height: 18 * s,
+      transformOrigin: px(GLOVE.w / 2, 1),
+      transform: [{ scaleY: grip.interpolate({ inputRange: [0, 1], outputRange: [1, 0.42] }) }],
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [grip, s],
+  );
+  const thumbStyle = useMemo(
+    () => ({
+      position: "absolute" as const,
+      left: 25 * s,
+      top: 10 * s,
+      width: 7.5 * s,
+      height: 15 * s,
+      transformOrigin: px(2, 2),
+      transform: [{ rotate: thumb.interpolate({ inputRange: [0, 1], outputRange: ["-28deg", "34deg"] }) }],
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [thumb, s],
+  );
   return (
     <>
       <Svg width="100%" height="100%" viewBox={`0 0 ${GLOVE.w} ${GLOVE.l}`} style={StyleSheet.absoluteFill}>
@@ -907,56 +753,24 @@ function GloveHand({
         {/* Palm: latex grip framed in white */}
         <Path d="M3.5 9Q16 6.5 28.5 9L29.5 25Q16 28.5 2.5 25Z" fill={t.white} stroke={t.arenaDeep} strokeWidth={1.3} />
         <Path d="M6.5 11.5Q16 9.5 25.5 11.5L26.3 23Q16 25.6 5.7 23Z" fill={`url(#${id}p)`} />
-        <Path d="M8 17Q16 15 24 17" stroke={t.white} strokeWidth={1} opacity={0.6} fill="none" />
+        {holding ? (
+          <>
+            <Path d="M16 13C21 13 24 19.5 24 24.5C24 29.5 20.5 32.5 16 32.5C11.5 32.5 8 29.5 8 24.5C8 19.5 11 13 16 13Z" fill={golden ? "#F8CD58" : "#FFFDF7"} stroke={golden ? "#B5861C" : "#D9CDB4"} strokeWidth={0.9} />
+            <Ellipse cx="13" cy="18.5" rx="1.6" ry="2.6" fill="#FFFFFF" />
+          </>
+        ) : null}
       </Svg>
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: back }]}>
-        <Svg width="100%" height="100%" viewBox={`0 0 ${GLOVE.w} ${GLOVE.l}`}>
-          {/* The back of the hand: dark backhand with the club stripe */}
-          <Path d="M3.5 9Q16 6.5 28.5 9L29.5 25Q16 28.5 2.5 25Z" fill={t.arena} stroke={t.arenaDeep} strokeWidth={1.3} />
-          <Path d="M7 15Q16 12 25 15" stroke={t.primary} strokeWidth={3} fill="none" />
-          <Path d="M9 21Q16 19.5 23 21" stroke={t.white} strokeWidth={1.2} opacity={0.7} fill="none" />
+      <Animated.View style={fingers}>
+        <Svg width="100%" height="100%" viewBox={`0 0 ${GLOVE.w} 18`}>
+          {FINGERS.map((f) => (
+            <Fragment key={f.x}>
+              <Rect x={f.x + 0.5} y={0} width={f.w - 1} height={f.l - 0.5} rx={(f.w - 1) / 2} fill={t.white} stroke={t.arenaDeep} strokeWidth={1.2} />
+              <Rect x={f.x + f.w / 2 - 1.2} y={2} width={2.4} height={f.l - 6} rx={1.2} fill={color} />
+            </Fragment>
+          ))}
         </Svg>
       </Animated.View>
-      {holding ? (
-        <Svg width="100%" height="100%" viewBox={`0 0 ${GLOVE.w} ${GLOVE.l}`} style={StyleSheet.absoluteFill}>
-          <Path d="M16 13C21 13 24 19.5 24 24.5C24 29.5 20.5 32.5 16 32.5C11.5 32.5 8 29.5 8 24.5C8 19.5 11 13 16 13Z" fill={golden ? "#F8CD58" : "#FFFDF7"} stroke={golden ? "#B5861C" : "#D9CDB4"} strokeWidth={0.9} />
-          <Ellipse cx="13" cy="18.5" rx="1.6" ry="2.6" fill="#FFFFFF" />
-        </Svg>
-      ) : null}
-      {FINGERS.map((f) => (
-        <Animated.View
-          key={f.key}
-          style={{
-            position: "absolute",
-            left: f.x * s,
-            top: GLOVE.base * s,
-            width: f.w * s,
-            height: f.l * s,
-            transformOrigin: px(f.w / 2, 1),
-            transform: [
-              { rotate: curls[f.key].interpolate({ inputRange: [0, 1], outputRange: ["0deg", "16deg"] }) },
-              { scaleY: curls[f.key].interpolate({ inputRange: [0, 1], outputRange: [1, 0.42] }) },
-            ],
-          }}
-        >
-          <Svg width="100%" height="100%" viewBox={`0 0 ${f.w} ${f.l}`}>
-            <Rect x={0.5} y={0} width={f.w - 1} height={f.l - 0.5} rx={(f.w - 1) / 2} fill={t.white} stroke={t.arenaDeep} strokeWidth={1.2} />
-            <Rect x={f.w / 2 - 1.2} y={2} width={2.4} height={f.l - 6} rx={1.2} fill={color} />
-            {f.key === "rest" ? <Path d={`M${f.w / 2} 3V${f.l - 2}`} stroke={t.arenaDeep} strokeWidth={0.9} /> : null}
-          </Svg>
-        </Animated.View>
-      ))}
-      <Animated.View
-        style={{
-          position: "absolute",
-          left: 25 * s,
-          top: 10 * s,
-          width: 7.5 * s,
-          height: 15 * s,
-          transformOrigin: px(2, 2),
-          transform: [{ rotate: thumb.interpolate({ inputRange: [0, 1], outputRange: ["-28deg", "34deg"] }) }],
-        }}
-      >
+      <Animated.View style={thumbStyle}>
         <Svg width="100%" height="100%" viewBox="0 0 7.5 15">
           <Rect x={0.5} y={0.5} width={6.5} height={14} rx={3.2} fill={t.white} stroke={t.arenaDeep} strokeWidth={1.2} />
           <Rect x={2.6} y={3} width={2.2} height={8} rx={1.1} fill={t.primary} />
@@ -964,4 +778,4 @@ function GloveHand({
       </Animated.View>
     </>
   );
-}
+});

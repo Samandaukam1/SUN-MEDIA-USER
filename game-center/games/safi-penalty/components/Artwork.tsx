@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { memo, useId } from "react";
 import Svg, {
   Circle,
   Defs,
@@ -197,7 +197,7 @@ export function Gift({ index }: { index: number }) {
     </Svg>
   );
 }
-export function Field({ width, arena = "classic" }: { width: number; arena?: SafiPresentation["arena"] }) {
+export const Field = memo(function Field({ width, arena = "classic" }: { width: number; arena?: SafiPresentation["arena"] }) {
   const {
     height: h,
     goal: { x: gx, y: gy, width: gw, height: gh },
@@ -339,4 +339,4 @@ export function Field({ width, arena = "classic" }: { width: number; arena?: Saf
       />
     </Svg>
   );
-}
+});
