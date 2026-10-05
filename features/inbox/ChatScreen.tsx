@@ -23,6 +23,7 @@ import { radius, spacing } from '@/constants/theme';
 import { useMe } from '@/features/auth/AuthProvider';
 import { mimeIcon } from '@/features/files/components/UploadList';
 import { pickForUpload } from '@/features/files/pick';
+import { useKeyboardVisible } from '@/hooks/useKeyboard';
 import { useTheme } from '@/hooks/useTheme';
 import { useNav } from '@/lib/routes';
 import { useSignedUrl } from '@/lib/storage';
@@ -63,6 +64,8 @@ function ChatBody({ room }: { room: RoomDetail }) {
   const { colors, scheme } = useTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
+  // With the keyboard up the composer sits right on it: the home-indicator / navigation-bar padding goes away.
+  const keyboard = useKeyboardVisible();
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [editing, setEditing] = useState<ChatMessage | null>(null);
@@ -257,7 +260,7 @@ function ChatBody({ room }: { room: RoomDetail }) {
           data={list}
           keyExtractor={(m) => m.id}
           contentContainerStyle={styles.messages}
-          keyboardDismissMode="interactive"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
           onEndReachedThreshold={0.3}
           onEndReached={() => messages.hasNextPage && !messages.isFetchingNextPage && messages.fetchNextPage()}
@@ -294,7 +297,7 @@ function ChatBody({ room }: { room: RoomDetail }) {
           }}
         />
 
-        <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, spacing.md), borderTopColor: colors.border, backgroundColor: colors.background }]}>
+        <View style={[styles.composer, { paddingBottom: keyboard ? spacing.sm : Math.max(insets.bottom, spacing.md), backgroundColor: colors.background }]}>
           {archived || observer ? (
             <Text variant="caption" tone="tertiary" align="center">
               {observer ? 'Siz bu chatni faqat kuzatasiz — mijozga Admin javob beradi.' : 'Chat arxivlangan — yangi xabar yozib bo‘lmaydi.'}
@@ -359,14 +362,14 @@ function ChatBody({ room }: { room: RoomDetail }) {
                   </Text>
                 </View>
               ) : null}
-              <View style={styles.inputRow}>
-                {editing ? null : <IconButton icon="paperclip" label="Fayl biriktirish" variant="plain" size={40} onPress={attach} />}
+              <View style={[styles.inputRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                {editing ? null : <IconButton icon="paperclip" label="Fayl biriktirish" variant="plain" size={36} onPress={attach} />}
                 {canDirect && !editing ? (
                   <IconButton
                     icon="flag"
                     label={directive ? 'Oddiy xabar' : 'Rahbar topshirig‘i'}
                     variant={directive ? 'brand' : 'plain'}
-                    size={40}
+                    size={36}
                     onPress={() => setDirective((v) => !v)}
                   />
                 ) : null}
@@ -374,11 +377,14 @@ function ChatBody({ room }: { room: RoomDetail }) {
                   keyboardAppearance={scheme}
                   value={text}
                   onChangeText={onChangeText}
-                  placeholder="Xabar yozing…"
+                  placeholder="Xabar yozing..."
                   placeholderTextColor={colors.textTertiary}
+                  selectionColor={colors.accent}
+                  underlineColorAndroid="transparent"
+                  textAlignVertical="center"
                   multiline
                   maxLength={4000}
-                  style={[styles.input, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+                  style={[styles.input, { color: colors.text }, editing && styles.inputEditing]}
                   accessibilityLabel="Xabar matni"
                 />
                 <Pressable
@@ -449,7 +455,7 @@ function MessageBubble({
   const files = deleted ? [] : m.attachments.map((a) => a.file).filter((f): f is NonNullable<typeof f> => !!f);
   const images = files.filter((f) => f.kind === 'image');
   const others = files.filter((f) => f.kind !== 'image');
-  const bubbleBg = mine ? colors.hero : colors.glassStrong;
+  const bubbleBg = mine ? colors.hero : colors.surface;
   const textColor = mine ? colors.heroText : colors.text;
   const metaColor = mine ? colors.heroTextSecondary : colors.textTertiary;
 
@@ -462,7 +468,7 @@ function MessageBubble({
         onLongPress={onLongPress}
         delayLongPress={300}
         accessibilityHint="Uzoq bosib turing — javob berish, tahrirlash yoki o‘chirish"
-        style={[styles.bubble, { backgroundColor: bubbleBg, borderColor: mine ? bubbleBg : colors.glassBorder, borderTopColor: mine ? bubbleBg : colors.glassEdge }, mine ? styles.bubbleMine : styles.bubbleTheirs]}
+        style={[styles.bubble, { backgroundColor: bubbleBg, borderColor: mine ? bubbleBg : colors.border }, mine ? styles.bubbleMine : styles.bubbleTheirs]}
       >
         {m.is_directive ? (
           <View style={[styles.directiveTag, { backgroundColor: mine ? 'rgba(255,255,255,0.12)' : colors.accentSoft }]}>
@@ -563,7 +569,7 @@ const styles = StyleSheet.create({
   msgMine: { justifyContent: 'flex-end', paddingLeft: 56 },
   msgTheirs: { justifyContent: 'flex-start', paddingRight: 40 },
   avatarSlot: { width: 28 },
-  bubble: { maxWidth: '100%', borderRadius: 18, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 4, borderWidth: StyleSheet.hairlineWidth, flexShrink: 1 },
+  bubble: { maxWidth: '100%', borderRadius: 20, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 4, borderWidth: StyleSheet.hairlineWidth, flexShrink: 1 },
   bubbleMine: { borderBottomRightRadius: 6 },
   bubbleTheirs: { borderBottomLeftRadius: 6 },
   reply: { borderLeftWidth: 3, borderRadius: 6, paddingHorizontal: spacing.sm, paddingVertical: 4 },
@@ -571,16 +577,18 @@ const styles = StyleSheet.create({
   image: { borderRadius: 12 },
   fileChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: 12, minWidth: 180 },
   time: { alignSelf: 'flex-end', marginTop: -2 },
-  composer: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.sm },
+  composer: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, gap: spacing.sm },
   quoteBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingLeft: spacing.md, borderRadius: radius.md },
   pendingList: { gap: spacing.xs },
   pendingChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.xs },
+  // One soft pill: [attach] [message…] [send]; it grows with the text up to about five lines.
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, borderRadius: 26, borderWidth: StyleSheet.hairlineWidth, padding: 5, minHeight: 52 },
   senderRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   senderName: { flexShrink: 1 },
   roleTag: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, paddingHorizontal: 5, overflow: 'hidden' },
   directiveBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 10 },
   directiveTag: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginBottom: 2 },
-  input: { flex: 1, minHeight: 40, maxHeight: 120, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: spacing.md, paddingTop: 10, paddingBottom: 10, fontSize: 15, fontFamily: 'Inter_400Regular' },
-  send: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  input: { flex: 1, minHeight: 42, maxHeight: 122, paddingHorizontal: spacing.sm, paddingVertical: 10, fontSize: 16, lineHeight: 20, fontFamily: 'Inter_400Regular', includeFontPadding: false },
+  inputEditing: { paddingLeft: spacing.md },
+  send: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
 });

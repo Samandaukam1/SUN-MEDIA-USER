@@ -1,4 +1,4 @@
-import type { TextStyle, ViewStyle } from 'react-native';
+import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 
 export type ColorScheme = 'light' | 'dark';
 
@@ -139,8 +139,14 @@ export const motion = {
   spring: { friction: 9, tension: 170 },
 } as const;
 
-/** Restrained elevation: a soft lift in light mode, a deep diffuse shadow under glass in dark mode. */
-export function elevation(scheme: ColorScheme, level: 1 | 2 = 1): ViewStyle {
+/**
+ * Restrained elevation: a soft lift in light mode, a deep diffuse shadow under glass in dark mode.
+ * Android draws `elevation` from the view's outline, which for a rounded, translucent surface is a hard
+ * rectangle showing through the glass — so only solid views (`solid`, e.g. the FAB) get it there; glass keeps its
+ * edge and sheen for depth instead.
+ */
+export function elevation(scheme: ColorScheme, level: 1 | 2 = 1, solid = false): ViewStyle {
+  if (Platform.OS === 'android' && !solid) return {};
   if (scheme === 'dark') {
     return level === 1
       ? { shadowColor: '#000000', shadowOpacity: 0.35, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 2 }

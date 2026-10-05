@@ -3,7 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -15,6 +15,7 @@ import { RealtimeSync } from '@/features/auth/RealtimeSync';
 import { UploadWatcher } from '@/features/files/UploadWatcher';
 import { PushManager } from '@/features/notifications/PushManager';
 import '@/features/pro/ProLock';
+import { useKeyboardLift } from '@/hooks/useKeyboard';
 import { useTheme } from '@/hooks/useTheme';
 import { env } from '@/lib/env';
 import { queryClient } from '@/lib/query-client';
@@ -56,9 +57,12 @@ function RootNavigator() {
   const [splashVisible, setSplashVisible] = useState(true);
   const hideSplash = useCallback(() => setSplashVisible(false), []);
   const ready = status === 'ready';
+  // Android: the app area ends where the keyboard begins (see useKeyboardLift); iOS handles it per screen.
+  const rootRef = useRef<View>(null);
+  const lift = useKeyboardLift(rootRef);
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <View ref={rootRef} collapsable={false} style={[styles.root, { backgroundColor: colors.background, paddingBottom: lift }]}>
       <StatusBar style={splashVisible || scheme === 'dark' ? 'light' : 'dark'} />
       {/* Until the session is known no route is decided, so a refreshed or shared deep link (web) keeps its URL
           instead of falling back to Home; the splash covers this moment. */}

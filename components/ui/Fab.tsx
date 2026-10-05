@@ -26,7 +26,7 @@ export function Fab({ icon = 'plus', label, onPress, overHomeIndicator = false }
       }}
       style={({ pressed }) => [
         styles.fab,
-        elevation('light', 2),
+        elevation('light', 2, true),
         { backgroundColor: colors.brand, bottom: spacing.lg + (tabBar || (overHomeIndicator ? insets.bottom : 0)), transform: [{ scale: pressed ? 0.94 : 1 }] },
       ]}
     >

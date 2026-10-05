@@ -8,6 +8,7 @@ import { CenterLogo } from '@/components/brand/CenterLogo';
 import { GlassSurface, Text } from '@/components/ui';
 import { radius, spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { useKeyboardVisible } from '@/hooks/useKeyboard';
 import { useTheme } from '@/hooks/useTheme';
 
 /**
@@ -20,11 +21,13 @@ export function BrandTabBar({ state, descriptors, navigation }: BottomTabBarProp
   const insets = useSafeAreaInsets();
   const { context } = useAuth();
   const reportHeight = useContext(BottomTabBarHeightCallbackContext);
+  const keyboard = useKeyboardVisible();
   const homeIndex = state.routes.findIndex((r) => r.name === 'index');
   const others = state.routes.map((route, index) => ({ route, index })).filter((x) => x.index !== homeIndex);
   const middle = Math.ceil(others.length / 2);
   const ordered = homeIndex < 0 ? others : [...others.slice(0, middle), { route: state.routes[homeIndex], index: homeIndex }, ...others.slice(middle)];
 
+  if (Platform.OS === 'android' && keyboard) return null;
   return (
     // Floating Liquid Glass bar: content scrolls underneath; screens pad by the reported height.
     <View

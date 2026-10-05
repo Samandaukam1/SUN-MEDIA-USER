@@ -43,6 +43,7 @@ export const TextField = forwardRef<TextInput, Props>(function TextField(
           secureTextEntry={isSecret && hidden}
           placeholderTextColor={colors.textTertiary}
           selectionColor={colors.accent}
+          underlineColorAndroid="transparent"
           onFocus={(e) => {
             setFocused(true);
             onFocus?.(e);
@@ -88,5 +89,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  input: { flex: 1, fontFamily: fonts.regular, fontSize: 16, height: '100%' },
+  input: { flex: 1, fontFamily: fonts.regular, fontSize: 16, height: '100%', paddingVertical: 0, includeFontPadding: false },
 });

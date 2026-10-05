@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { spacing } from '@/constants/theme';
+import { useKeyboardLift } from '@/hooks/useKeyboard';
 import { useTheme } from '@/hooks/useTheme';
 import { Text } from './Text';
 
@@ -22,6 +23,8 @@ type Props = {
 /** Native iOS page sheet (full-screen slide-up elsewhere) with a title bar. */
 export function Sheet({ visible, onClose, title, children, actionLabel, onAction, actionDisabled, scroll = true, footer }: Props) {
   const { colors } = useTheme();
+  const bodyRef = useRef<View>(null);
+  const lift = useKeyboardLift(bodyRef);
   return (
     <Modal
       visible={visible}
@@ -50,6 +53,7 @@ export function Sheet({ visible, onClose, title, children, actionLabel, onAction
           </View>
         </View>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
+          <View ref={bodyRef} collapsable={false} style={[styles.fill, { paddingBottom: lift }]}>
           {scroll ? (
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
               {children}
@@ -58,6 +62,7 @@ export function Sheet({ visible, onClose, title, children, actionLabel, onAction
             <View style={styles.fill}>{children}</View>
           )}
           {footer ? <View style={[styles.footer, { borderTopColor: colors.border }]}>{footer}</View> : null}
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
