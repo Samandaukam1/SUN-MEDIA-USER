@@ -47,9 +47,9 @@ export function feedback(
       /* Optional audio never interrupts play. */
     }
   }
-  if (reduced || options?.hapticsEnabled === false || Platform.OS === "web" || !["shot", "catch", "criticalSave", "goal", "reward", "achievement"].includes(event)) return;
+  if (reduced || options?.hapticsEnabled === false || Platform.OS === "web" || !["shot", "catch", "fingertip", "criticalSave", "goal", "reward", "achievement"].includes(event)) return;
   const effect =
-    event === "shot"
+    event === "shot" || event === "fingertip"
       ? Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
       : event === "catch"
         ? Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)

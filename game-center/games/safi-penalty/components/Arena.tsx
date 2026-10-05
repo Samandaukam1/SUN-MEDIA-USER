@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
 import { Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import type { GameSession } from "../../../engine/gameSession";
 import { feedback, motion } from "../../../engine/animationUtils";
 import { AnimationQueue } from "../../../engine/animationQueue";
 import type { GameFeedback, GameState } from "../../../engine/types";
 import { safiTheme as t } from "../config";
-import { arenaLayout, eggFlight, goalImpactPoint, KEEPER_FEET, keeperBox, keeperDive, ZONES, zonePoint } from "../physics";
+import { arenaLayout, eggFlight, goalImpactPoint, KEEPER_FEET, keeperBox, keeperDive, ZONES, zonePoint, type Point } from "../physics";
+import { cameraPose, catchVariant, FLIGHT_EASE, SLOWMO_EASE, SLOWMO_START } from "../cinema";
 import { ANGRY_REACTIONS, canShoot, canSkip, HAPPY_REACTIONS, nextStage, pickFrom, REACTION_TIMING, type KeeperEvent, type KeeperStage } from "../reactions";
 import { Egg, EggSplat, Field } from "./Artwork";
 import { KeeperRig, type KeeperRigHandle } from "./KeeperRig";
@@ -48,8 +50,15 @@ export function Arena({
     slide: new Animated.Value(0),
     rise: new Animated.Value(0),
     home: new Animated.Value(0),
+    // Egg meeting the glove (0 → 1: the flying egg settles into the glove), ground contact squash.
+    capture: new Animated.Value(0),
+    squash: new Animated.Value(0),
+    // Camera director: scale + pan, plus two tiny impact shakes (glove/net, landing).
     camera: new Animated.Value(1),
     cameraX: new Animated.Value(0),
+    cameraY: new Animated.Value(0),
+    shake: new Animated.Value(0),
+    thud: new Animated.Value(0),
   }).current;
   const audioRef = useRef(audio);
   audioRef.current = audio;
@@ -58,6 +67,10 @@ export function Arena({
   const [stage, setStage] = useState<KeeperStage>("IDLE");
   const go = (event: KeeperEvent) => setStage((s) => nextStage(s, event));
   const [held, setHeld] = useState(false);
+  // The flying egg is drawn until it has settled into the glove; no frame without an egg in between.
+  const [eggGone, setEggGone] = useState(false);
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
   const [bubble, setBubble] = useState<string | null>(null);
   const [presentation, setPresentation] = useState(INITIAL_PRESENTATION);
   const presentationRef = useRef(INITIAL_PRESENTATION);
@@ -126,28 +139,37 @@ export function Arena({
     } else setMomentLabel(null);
   }, [shot, state.phase, width, reduced, lucky]);
 
+  /** The camera director: a cut to `scale` around `focus` over `ms`; null when motion is reduced or paused. */
+  const cam = (scale: number, focus: Point, ms: number, easing: (x: number) => number = Easing.inOut(Easing.cubic)) => {
+    if (reduced || pausedRef.current) return null;
+    const c = cameraPose(scale, focus, width, layout.height);
+    const to = (v: Animated.Value, n: number) => Animated.timing(v, { toValue: n, duration: ms, easing, useNativeDriver: NATIVE, isInteraction: false });
+    return Animated.parallel([to(values.camera, c.scale), to(values.cameraX, c.x), to(values.cameraY, c.y)]);
+  };
+  const center = { x: width / 2, y: layout.height / 2 };
+  const kick = (value: Animated.Value, ms = 40) => Animated.sequence([motion(value, 1, ms), motion(value, -1, ms * 1.4), motion(value, 0, ms * 1.6)]);
+
+  // CAMERA_GAME / CAMERA_EGG_TRACK entry: a soft push toward the chosen target while the server answers (tighter on
+  // the final shot, with the score going quiet); back to the full frame between shots.
   useEffect(() => {
     if (paused) return;
     if (reduced) {
       values.camera.setValue(1);
       values.cameraX.setValue(0);
+      values.cameraY.setValue(0);
       return;
     }
     const phase = state.phase;
     if (phase === "SHOOTING") {
-      motion(values.camera, 1.015, 250).start();
-    } else if (phase === "RESOLVING") {
-      const impact = shot?.result === "GOAL" ? 1.035 : 1.023;
-      Animated.sequence([motion(values.camera, impact, 160), motion(values.camera, 1.015, 340)]).start();
-      if (!LITE && (specialMoment || shot?.result === "GOAL")) {
-        Animated.sequence([motion(values.cameraX, 2, 65), motion(values.cameraX, -2, 70), motion(values.cameraX, 0, 70)]).start();
-      }
+      const final = (state.pending?.attempt ?? 0) >= (state.session?.attempts ?? 10);
+      cam(final ? 1.06 : 1.03, target, final ? 420 : 260)?.start();
+      if (final) feedback("tension", reduced, audioRef.current);
     } else if (phase === "RESETTING" || phase === "READY" || phase === "FINISHED") {
-      motion(values.camera, 1, 280).start();
-      motion(values.cameraX, 0, 120).start();
+      cam(1, center, 420)?.start();
     }
-    return () => { values.camera.stopAnimation(); values.cameraX.stopAnimation(); };
-  }, [state.phase, shot, specialMoment, reduced, values, paused]);
+    return () => { values.camera.stopAnimation(); values.cameraX.stopAnimation(); values.cameraY.stopAnimation(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.phase, reduced, values, paused]);
 
   const showBubble = (line: string | null, ms: number = REACTION_TIMING.bubbleMs) => {
     setBubble(line);
@@ -170,7 +192,6 @@ export function Arena({
     go("shot");
     setBubble(null);
     rig.current?.focus();
-    feedback("shot", reduced, audioRef.current);
     if (reduced) return;
     const anim = Animated.loop(
       Animated.parallel([
@@ -194,53 +215,100 @@ export function Arena({
   useEffect(() => {
     if (state.phase !== "RESOLVING" || !shot) return;
     const goal = shot.result === "GOAL";
+    const final = shot.attempt >= shot.attempts;
+    const variant = goal ? "STANDARD" : catchVariant(shot.selectedZone, specialMoment);
+    // Selective slow motion: critical/near moments and the last shot; every other shot stays fast.
+    const slowmo = !reduced && (specialMoment !== null || final);
+    const stretch = slowmo ? 1.75 : 1;
+    const flightMs = reduced ? 120 : Math.round(470 * stretch);
+    const diveMs = reduced ? 120 : Math.round(flightMs * 0.93 - 90);
+    let active = true;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const after = (ms: number, fn: () => void) => { timers.push(setTimeout(() => { if (active) fn(); }, ms)); };
+    const keeperFace = (x: number, y: number) => ({ x, y: y - keeperSize * 0.7 });
     go("focused");
-    rig.current?.dive(plan.dir);
+    rig.current?.dive(plan.dir, stretch);
+    feedback("shot", reduced, audioRef.current);
     const timed = (v: Animated.Value, ms: number, easing: (x: number) => number) =>
       Animated.timing(v, { toValue: 1, duration: reduced ? Math.min(ms, 120) : ms, easing, useNativeDriver: NATIVE, isInteraction: false });
-    // Anticipation → push-off from the ground → dive; the egg flies at the same time.
+    // CAMERA_EGG_TRACK: the picture follows the egg; the glove reaches it as it arrives.
+    cam(slowmo ? 1.12 : 1.06, target, flightMs, Easing.inOut(Easing.quad))?.start();
+    if (slowmo) after(flightMs * SLOWMO_START, () => feedback("slowmo", reduced, audioRef.current));
+    if (goal) after(flightMs * 0.78, () => cam(1.1, impactTarget, 240)?.start());
+    // Launch → approach → contact: the egg is fast out of the boot (slow-mo eases the last stretch), the keeper
+    // loads, pushes off and the glove arrives with it.
     const flight = Animated.parallel([
-      motion(values.fly, 1, reduced ? 120 : specialMoment ? 650 : 500),
+      Animated.timing(values.fly, { toValue: 1, duration: flightMs, easing: slowmo ? SLOWMO_EASE : FLIGHT_EASE, useNativeDriver: NATIVE, isInteraction: false }),
       Animated.sequence([
         motion(values.crouch, 1, reduced ? 0 : 90),
-        Animated.parallel([motion(values.crouch, 0, reduced ? 0 : 150), timed(values.dive, 380, Easing.out(Easing.quad))]),
+        Animated.parallel([motion(values.crouch, 0, reduced ? 0 : 150), timed(values.dive, diveMs, Easing.out(Easing.quad))]),
       ]),
     ]);
-    let active = true;
     const run = (anim: Animated.CompositeAnimation, next: () => void) => {
       queue.run(() => anim, () => { if (active) next(); });
     };
+    // The reaction shot: closer on the keeper's face while it reacts.
+    const react = (x: number, y: number) => cam(1.14, keeperFace(x, y), 420)?.start();
     run(flight, () => {
-      feedback(goal ? "goal" : "catch", reduced, audioRef.current);
       if (!goal) {
-        // CATCH → the egg is in the glove, fingers close → a short hold → a happy reaction.
+        // CONTACT → IMPACT → CAPTURE → HOLD. The egg is at the palm now; it stays the flying egg until it has
+        // slowed and shrunk to the size of the one in the glove, so nothing ever snaps into the hand.
+        feedback("release", reduced, audioRef.current);
+        feedback(variant === "FINGERTIP" ? "fingertip" : "catch", reduced, audioRef.current);
         setHeld(true);
-        rig.current?.caught();
+        rig.current?.catchImpact(plan.hand, variant === "FINGERTIP" ? 0.6 : variant === "DOUBLE" ? 1.3 : 1);
         go("caught");
-        run(Animated.parallel([motion(values.impact, 1, reduced ? 0 : 170), timed(values.land, 260, Easing.out(Easing.quad))]), () => {
-          go("secured");
-          run(Animated.delay(REACTION_TIMING.holdMs), () => {
-            go("hold-done");
-            const i = pickFrom(HAPPY_REACTIONS.length, recent.current.happy);
-            recent.current.happy = [...recent.current.happy, i].slice(-4);
-            live.current.showBubble(
-              rig.current?.happy(i, () => {
-                if (!active) return;
-                go("reaction-done");
-                controller.beginReset();
-              }) ?? null,
-            );
-          });
+        if (!reduced) {
+          kick(values.shake).start();
+          cam((slowmo ? 1.12 : 1.06) + 0.03, target, 70, Easing.out(Easing.quad))?.start();
+        }
+        run(timed(values.capture, variant === "FINGERTIP" ? 300 : 140, Easing.out(Easing.quad)), () => {
+          setEggGone(true);
+          rig.current?.caught();
+          react(plan.reach.x, plan.reach.y);
+          run(
+            Animated.parallel([
+              motion(values.impact, 1, reduced ? 0 : 170),
+              timed(values.land, 260, Easing.out(Easing.quad)),
+              Animated.sequence([Animated.delay(reduced ? 0 : 200), motion(values.squash, 1, 60), motion(values.squash, 0, 160)]),
+            ]),
+            () => {
+              go("secured");
+              run(Animated.delay(REACTION_TIMING.holdMs), () => {
+                go("hold-done");
+                const i = pickFrom(HAPPY_REACTIONS.length, recent.current.happy);
+                recent.current.happy = [...recent.current.happy, i].slice(-4);
+                live.current.showBubble(
+                  rig.current?.happy(i, () => {
+                    if (!active) return;
+                    go("reaction-done");
+                    controller.beginReset();
+                  }) ?? null,
+                );
+              });
+            },
+          );
         });
         return;
       }
-      // GOAL → the egg breaks in the net; the keeper hits the ground, slides, looks at the goal, gets up angry.
+      // GOAL → the egg breaks in the net; the camera follows it there, then cuts to the keeper as it hits the
+      // ground, slides, looks at the goal and gets up angry.
+      feedback("release", reduced, audioRef.current);
+      feedback("goal", reduced, audioRef.current);
       feedback("eggBreak", reduced, audioRef.current);
       go("scored");
       rig.current?.fallen(live.current.goalSide);
+      if (!reduced) kick(values.shake).start();
+      const landX = plan.land.x + plan.slide;
+      after(300, () => cam(1.08, keeperFace(landX, home.y + keeperSize * 0.45), 460)?.start());
       run(
         Animated.sequence([
-          Animated.parallel([motion(values.impact, 1, reduced ? 0 : 170), motion(values.burst, 1, reduced ? 0 : 480), timed(values.land, 300, Easing.in(Easing.quad))]),
+          Animated.parallel([
+            motion(values.impact, 1, reduced ? 0 : 170),
+            motion(values.burst, 1, reduced ? 0 : 480),
+            timed(values.land, 300, Easing.in(Easing.quad)),
+            Animated.sequence([Animated.delay(reduced ? 0 : 220), kick(values.thud, 45), motion(values.squash, 1, 60), motion(values.squash, 0, 180)]),
+          ]),
           reduced ? Animated.delay(0) : timed(values.slide, 380, Easing.out(Easing.cubic)),
         ]),
         () => {
@@ -249,6 +317,7 @@ export function Arena({
             rig.current?.standAngry();
             run(timed(values.rise, 340, Easing.out(Easing.back(1.4))), () => {
               go("hold-done");
+              react(landX, home.y);
               const i = pickFrom(ANGRY_REACTIONS.length, recent.current.angry);
               recent.current.angry = [...recent.current.angry, i].slice(-4);
               live.current.showBubble(
@@ -265,8 +334,10 @@ export function Arena({
     });
     return () => {
       active = false;
+      timers.forEach(clearTimeout);
       queue.stop();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controller, reduced, shot, state.phase, values, specialMoment, plan.dir, queue]);
 
   // Tap during a reaction: skip it — only then, never while a shot could collide.
@@ -287,8 +358,9 @@ export function Arena({
       motion(values.home, 1, reduced ? 0 : 420),
     ]);
     queue.run(() => anim, () => {
-        [values.fly, values.impact, values.burst, values.anticipation, values.crouch, values.dive, values.land, values.slide, values.rise, values.home].forEach((v) => v.setValue(0));
+        [values.fly, values.impact, values.burst, values.anticipation, values.crouch, values.dive, values.land, values.slide, values.rise, values.home, values.capture, values.squash, values.shake, values.thud].forEach((v) => v.setValue(0));
         setHeld(false);
+        setEggGone(false);
         setBubble(null);
         rig.current?.reset();
         setStage((s) => nextStage(nextStage(s, "recovered"), "ready"));
@@ -299,8 +371,9 @@ export function Arena({
 
   useEffect(() => {
     if (["READY", "IDLE", "STARTING"].includes(state.phase)) {
-      [values.fly, values.impact, values.burst, values.anticipation, values.crouch, values.dive, values.land, values.slide, values.rise, values.home].forEach((v) => v.setValue(0));
+      [values.fly, values.impact, values.burst, values.anticipation, values.crouch, values.dive, values.land, values.slide, values.rise, values.home, values.capture, values.squash, values.shake, values.thud].forEach((v) => v.setValue(0));
       setHeld(false);
+      setEggGone(false);
       setStage("IDLE");
       rig.current?.idle();
     }
@@ -344,7 +417,11 @@ export function Arena({
     values.dive.interpolate({ inputRange: [0, 0.55, 1], outputRange: [1, 0.55, 1 - airborne] }),
     values.land.interpolate({ inputRange: [0, 1], outputRange: [0, airborne] }),
   );
-  const showEgg = state.phase !== "RESETTING" && state.phase !== "FINISHED" && !held;
+  const showEgg = state.phase !== "RESETTING" && state.phase !== "FINISHED" && !eggGone;
+  const variant = shot?.result === "CATCH" ? catchVariant(shot.selectedZone, specialMoment) : "STANDARD";
+  const fingertip = variant === "FINGERTIP";
+  // The glove's egg is a little under half the size of the flying one: the capture shrinks to match it exactly.
+  const GLOVE_EGG = 0.478;
   const shootable = !paused && !state.paused && state.phase === "READY" && canShoot(stage);
   const talking = stage === "HAPPY_REACTION" || stage === "ANGRY_REACTION" || stage === "IDLE_TAUNT";
   const speakerX = stage === "IDLE_TAUNT" ? home.x : plan.land.x + plan.slide;
@@ -355,7 +432,11 @@ export function Arena({
         height: layout.height,
         borderRadius: 28,
         overflow: "hidden",
-        transform: [{ translateX: values.cameraX }, { scale: values.camera }],
+        transform: [
+          { translateX: Animated.add(values.cameraX, Animated.multiply(values.shake, width * 0.006)) },
+          { translateY: Animated.add(values.cameraY, Animated.multiply(values.thud, width * 0.007)) },
+          { scale: values.camera },
+        ],
       }}
     >
       <Field width={width} arena={arena} />
@@ -370,6 +451,13 @@ export function Arena({
           top: width * 0.026,
           left: width * 0.4425,
         }}
+      />
+      {/* Lighting: the edges fall away so the eye stays on the goal, the keeper and the egg */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={["rgba(6,14,10,0.42)", "rgba(6,14,10,0)", "rgba(6,14,10,0)", "rgba(6,14,10,0.46)"]}
+        locations={[0, 0.26, 0.7, 1]}
+        style={StyleSheet.absoluteFill}
       />
       <View style={[StyleSheet.absoluteFill, { pointerEvents: "box-none" }]}>
         {ZONES.map((z) => (
@@ -433,7 +521,7 @@ export function Arena({
             },
             // Crouch / push-off squash about the feet (breathing lives in the rig).
             { scaleX: Animated.add(1, Animated.multiply(values.crouch, 0.08)) },
-            { scaleY: Animated.add(1, Animated.multiply(values.crouch, -0.15)) },
+            { scaleY: Animated.add(Animated.add(1, Animated.multiply(values.crouch, -0.15)), Animated.multiply(values.squash, -0.08)) },
           ],
         }}
       >
@@ -457,35 +545,42 @@ export function Arena({
                 : 1,
             transform: [
               {
-                translateX: values.fly.interpolate({
-                  inputRange: inputs,
-                  outputRange: path.map((p) => p.x - layout.shooter.x),
-                }),
-              },
-              {
-                translateY: values.fly.interpolate({
-                  inputRange: inputs,
-                  outputRange: path.map((p) => p.y - layout.shooter.y),
-                }),
-              },
-              {
-                scale: Animated.multiply(
-                  values.fly.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [1, goal ? .54 : .65],
-                  }),
-                  values.anticipation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [1, 0.9],
-                  }),
+                // Flight, then the contact: a fingertip knocks it sideways and up before the glove takes it.
+                translateX: Animated.add(
+                  values.fly.interpolate({ inputRange: inputs, outputRange: path.map((p) => p.x - layout.shooter.x) }),
+                  values.capture.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, fingertip ? direction * width * 0.035 : 0, 0] }),
                 ),
               },
               {
+                // The egg slows into the palm (a little way past the contact point), or pops up off a fingertip.
+                translateY: Animated.add(
+                  values.fly.interpolate({ inputRange: inputs, outputRange: path.map((p) => p.y - layout.shooter.y) }),
+                  values.capture.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, fingertip ? -width * 0.045 : -width * 0.008, 0] }),
+                ),
+              },
+              {
+                scale: Animated.multiply(
+                  Animated.multiply(
+                    values.fly.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, goal ? .54 : .65],
+                    }),
+                    values.anticipation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 0.9],
+                    }),
+                  ),
+                  values.capture.interpolate({ inputRange: [0, 1], outputRange: [1, GLOVE_EGG] }),
+                ),
+              },
+              {
+                // Tumbling in flight (a visible spin), steadied by the glove.
                 rotate: values.fly.interpolate({
                   inputRange: [0, 1],
-                  outputRange: ["-12deg", `${direction * 28}deg`],
+                  outputRange: ["-20deg", `${direction * 150}deg`],
                 }),
               },
+              { rotate: values.capture.interpolate({ inputRange: [0, 1], outputRange: ["0deg", `${direction * -(fingertip ? 40 : 14)}deg`] }) },
             ],
           }}
         >

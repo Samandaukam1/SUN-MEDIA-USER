@@ -9,6 +9,8 @@ export function GameSettings({ value, update, storageError }: {
     <Toggle label="OVOZ" value={value.master} onChange={(master) => update((p) => ({ ...p, master }))} />
     <Toggle label="MUSIQA" value={value.channels.music.enabled} onChange={(enabled) => update((p) => ({ ...p, channels: { ...p.channels, music: { ...p.channels.music, enabled } } }))} />
     <Toggle label="O‘YIN OVOZLARI" value={value.channels.sfx.enabled} onChange={(enabled) => update((p) => ({ ...p, channels: { ...p.channels, sfx: { ...p.channels.sfx, enabled } } }))} />
+    <Toggle label="MUXLISLAR" value={value.channels.crowd.enabled} onChange={(enabled) => update((p) => ({ ...p, channels: { ...p.channels, crowd: { ...p.channels.crowd, enabled } } }))} />
+    <Toggle label="SAFI OVOZI" value={value.channels.chicken.enabled} onChange={(enabled) => update((p) => ({ ...p, channels: { ...p.channels, chicken: { ...p.channels.chicken, enabled } } }))} />
     <Toggle label="TITRASH" value={value.haptics} onChange={(haptics) => update((p) => ({ ...p, haptics }))} />
     <Toggle label="HARAKATNI KAMAYTIRISH" value={value.reduceMotion} onChange={(reduceMotion) => update((p) => ({ ...p, reduceMotion }))} />
     {storageError ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>Sozlamalar saqlanmadi. Qayta urinib ko‘ring.</Text> : null}

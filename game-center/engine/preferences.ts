@@ -10,8 +10,8 @@ export type GamePreferences = {
 export const DEFAULT_PREFERENCES: GamePreferences = {
   master: true, masterVolume: 100, haptics: true, reduceMotion: false,
   channels: {
-    music: { enabled: true, volume: 45 }, sfx: { enabled: true, volume: 75 },
-    crowd: { enabled: true, volume: 25 }, chicken: { enabled: true, volume: 80 },
+    music: { enabled: true, volume: 42 }, sfx: { enabled: true, volume: 75 },
+    crowd: { enabled: true, volume: 20 }, chicken: { enabled: true, volume: 70 },
   },
 };
 const volume = (v: unknown, fallback: number) => typeof v === "number" && Number.isFinite(v) ? Math.round(Math.max(0, Math.min(100, v))) : fallback;
@@ -28,7 +28,9 @@ export function readPreferences(value: unknown): GamePreferences {
     }])) as GamePreferences["channels"],
   };
 }
-export function channelGain(p: GamePreferences, channel: AudioChannel, ducked = false): number {
+/** `duck` is the current 0…1 level of the ambient layers (music, crowd), ramped smoothly by the mixer. */
+export function channelGain(p: GamePreferences, channel: AudioChannel, duck = 1): number {
   const c = p.channels[channel];
-  return p.master && c.enabled ? p.masterVolume / 100 * c.volume / 100 * (channel === "music" && ducked ? 0.35 : 1) : 0;
+  const bed = channel === "music" || channel === "crowd" ? duck : 1;
+  return p.master && c.enabled ? p.masterVolume / 100 * c.volume / 100 * bed : 0;
 }

@@ -75,7 +75,8 @@ export type GameState = {
 };
 export type SoundEvent = "shot" | "catch" | "eggBreak" | "goal" | "reward"
   | "combo" | "hotStreak" | "nearMiss" | "criticalSave" | "achievement"
-  | "personalBest" | "luckyEgg" | "bossEntrance" | "cosmeticEquip" | "shopPurchase" | "taunt";
+  | "personalBest" | "luckyEgg" | "bossEntrance" | "cosmeticEquip" | "shopPurchase" | "taunt"
+  | "fingertip" | "slowmo" | "tension" | "release";
 export type GameFeedback = {
   soundEnabled: boolean;
   hapticsEnabled?: boolean;

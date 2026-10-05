@@ -39,8 +39,10 @@ export type KeeperRigHandle = {
   idle: () => void;
   /** The player shot: cancel whatever is playing, face the ball, gloves ready. */
   focus: () => void;
-  /** Arms stretch for the dive. */
-  dive: (direction?: number) => void;
+  /** Load the legs, push off, lean and reach; `stretch` > 1 plays the same dive slower (selective slow motion). */
+  dive: (direction?: number, stretch?: number) => void;
+  /** The egg meets the glove: the hand and arm recoil and the body takes the force (`strength` 1 = normal). */
+  catchImpact: (hand: "l" | "r", strength?: number) => void;
   /** Egg secured: fingers close round it, gloves to the chest. */
   caught: () => void;
   /** Beaten: sprawled on the grass, surprised, then annoyed and looking at the goal. */
@@ -292,14 +294,28 @@ export const KeeperRig = forwardRef<KeeperRigHandle, Props>(function KeeperRig({
         onTauntRef.current?.(false, null);
         enter("focus", 110);
       },
-      dive(direction = 0) {
-        enter("dive", 220);
-        // Read the target first with the head; the wings extend a beat later.
-        play({ duration: 280, tracks: {
-          headYaw: [[55, direction * 20], [280, 0]], headRot: [[80, direction * 5], [280, 0]],
-          lSh: [[65, BASES.READY.lSh], [230, BASES.DIVE.lSh]],
-          rSh: [[90, BASES.READY.rSh], [260, BASES.DIVE.rSh]],
-          legL: [[90, -direction * 8], [280, 0]], legR: [[110, -direction * 8], [280, 0]],
+      dive(direction = 0, stretch = 1) {
+        const k = stretch;
+        enter("dive", 220 * k);
+        // Load the legs and push off, lean into it, read the target with the head; the wings extend a beat later.
+        play({ duration: 280 * k, tracks: {
+          stomp: [[40 * k, 3.5], [120 * k, 0]],
+          lean: [[60 * k, direction * 5], [200 * k, direction * 9], [280 * k, 0]],
+          headYaw: [[55 * k, direction * 20], [280 * k, 0]], headRot: [[80 * k, direction * 5], [280 * k, 0]],
+          lSh: [[65 * k, BASES.READY.lSh], [230 * k, BASES.DIVE.lSh]],
+          rSh: [[90 * k, BASES.READY.rSh], [260 * k, BASES.DIVE.rSh]],
+          legL: [[90 * k, -direction * 12], [280 * k, 0]], legR: [[110 * k, -direction * 12], [280 * k, 0]],
+        }, faces: [[0, "FOCUSED"]] });
+      },
+      catchImpact(hand, strength = 1) {
+        const sh: Joint = hand === "l" ? "lSh" : "rSh";
+        const el: Joint = hand === "l" ? "lEl" : "rEl";
+        play({ duration: 150, tracks: {
+          bodyY: [[40, 3 * strength], [150, 0]],
+          puff: [[40, 0.4 * strength], [150, 0]],
+          [sh]: [[40, BASES.DIVE[sh] - 9 * strength], [150, BASES.DIVE[sh]]],
+          [el]: [[40, BASES.DIVE[el] + 20 * strength], [150, BASES.DIVE[el]]],
+          headRot: [[50, -3 * strength], [150, 0]],
         }, faces: [[0, "FOCUSED"]] });
       },
       caught() {

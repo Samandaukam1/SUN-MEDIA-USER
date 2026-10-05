@@ -7,15 +7,15 @@ test("master mute preserves channel preferences, all channels mute and music duc
   for (const c of ["music", "sfx", "crowd", "chicken"]) assert.equal(channelGain(p, c), 0);
   p.master = true;
   assert.equal(channelGain(p, "music"), .67);
-  assert.ok(Math.abs(channelGain(p, "music", true) - .67 * .35) < 1e-10);
+  assert.ok(Math.abs(channelGain(p, "music", .35) - .67 * .35) < 1e-10);
   assert.equal(channelGain(p, "chicken"), 0);
   assert.equal(p.channels.chicken.volume, 80);
 });
 test("corrupt stored settings normalize safely, volumes remain within 0–100", () => {
-  assert.equal(readPreferences(null).channels.music.volume, 45);
+  assert.equal(readPreferences(null).channels.music.volume, 42);
   const p = readPreferences({ master: "false", masterVolume: Infinity, channels: { music: { volume: -20 }, sfx: { volume: 200 }, crowd: { volume: NaN } } });
   assert.equal(p.master, true); assert.equal(p.masterVolume, 100);
-  assert.equal(p.channels.music.volume, 0); assert.equal(p.channels.sfx.volume, 100); assert.equal(p.channels.crowd.volume, 25);
+  assert.equal(p.channels.music.volume, 0); assert.equal(p.channels.sfx.volume, 100); assert.equal(p.channels.crowd.volume, 20);
 });
 test("all 15 catch targets meet the visible glove palm at different screen sizes", () => {
   for (const width of [288,343,480]) {

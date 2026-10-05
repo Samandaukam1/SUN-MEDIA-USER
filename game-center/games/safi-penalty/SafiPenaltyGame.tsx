@@ -103,7 +103,14 @@ export function SafiPenaltyGame({
   }, []);
   const paused = !foreground || sheet !== null || restoring;
   useEffect(() => { controller.setPaused(paused); }, [controller, paused]);
-  const audio = useGameAudio(preferences, state.phase, state.session?.attemptsUsed ?? 0, !paused, loaded, externalAudio);
+  const audio = useGameAudio(preferences, state.phase, state.session?.attemptsUsed ?? 0, !paused, loaded, externalAudio, state.finish ? state.finish.score >= 5 : undefined);
+  // Entering SAFI: the scene fades up out of the dark while the score and ambience come in.
+  const enter = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = motion(enter, 1, 700);
+    anim.start();
+    return () => anim.stop();
+  }, [enter]);
   const refreshWallet = () => void wallet.refetch();
   const start = (mode: GameMode) => {
     setSheet(null);
@@ -161,10 +168,14 @@ export function SafiPenaltyGame({
             ? "GOL!"
             : "Ushladi!"
           : "";
+  // While a round is on, the page goes dark so the goal, the keeper and the egg are all there is.
+  const immersive = !starting && state.phase !== "FINISHED";
+  const ink = immersive ? "#FFFFFF" : t.foreground;
   return (
+    <Animated.View style={{ flex: 1, backgroundColor: immersive ? t.arenaDeep : t.background, opacity: enter, transform: [{ scale: enter.interpolate({ inputRange: [0, 1], outputRange: [0.985, 1] }) }] }}>
     <ScrollView
       onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
-      style={s.page}
+      style={[s.page, immersive && { backgroundColor: t.arenaDeep }]}
       contentContainerStyle={[
         s.content,
         {
@@ -178,18 +189,18 @@ export function SafiPenaltyGame({
           onPress={() => (starting ? onBack() : setSheet("pause"))}
           accessibilityRole="button"
           accessibilityLabel={starting ? "Orqaga" : "O‘yinni pauza qilish"}
-          style={s.back}
+          style={[s.back, immersive && s.backDark]}
         >
-          <Text style={s.backText}>{starting ? "‹" : "Ⅱ"}</Text>
+          <Text style={[s.backText, { color: ink }]}>{starting ? "‹" : "Ⅱ"}</Text>
         </Pressable>
         <SunCoinHud balance={wallet.data?.balance} animated={!reduced && !paused} onPress={() => setSheet("shop")} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Ovoz va sozlamalar"
           onPress={() => setSheet("settings")}
-          style={s.back}
+          style={[s.back, immersive && s.backDark]}
         >
-          <Text style={[s.backText, { fontSize: 20, opacity: preferences.master ? 1 : 0.4 }]}>♪</Text>
+          <Text style={[s.backText, { color: ink, fontSize: 20, opacity: preferences.master ? 1 : 0.4 }]}>♪</Text>
         </Pressable>
       </View>
       {state.phase !== "FINISHED" ? (
@@ -223,15 +234,15 @@ export function SafiPenaltyGame({
           ) : (
             <View style={[s.hud, { width: arenaWidth }]}>
               <View>
-                <Text style={s.statLabel}>GOL</Text>
-                <ScoreValue score={state.session?.score ?? 0} reduced={reduced} />
+                <Text style={[s.statLabel, immersive && { color: "#9FB09A" }]}>GOL</Text>
+                <ScoreValue score={state.session?.score ?? 0} reduced={reduced} color={ink} />
               </View>
-              <Text accessibilityLiveRegion="polite" style={s.instruction}>
+              <Text accessibilityLiveRegion="polite" style={[s.instruction, { color: ink }]}>
                 {message}
               </Text>
               <View style={s.scoreRight}>
-                <Text style={s.statLabel}>URINISH</Text>
-                <Text style={s.stat}>
+                <Text style={[s.statLabel, immersive && { color: "#9FB09A" }]}>URINISH</Text>
+                <Text style={[s.stat, { color: ink }]}>
                   {String(Math.max(0, (state.session?.attempts ?? 10) - (state.session?.attemptsUsed ?? 0))).padStart(2, "0")}
                   <Text style={s.statSuffix}> qoldi</Text>
                 </Text>
@@ -379,9 +390,10 @@ export function SafiPenaltyGame({
         ) : null}
       </GlassSheet>
     </ScrollView>
+    </Animated.View>
   );
 }
-function ScoreValue({ score, reduced }: { score: number; reduced: boolean }) {
+function ScoreValue({ score, reduced, color }: { score: number; reduced: boolean; color: string }) {
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (reduced) return;
@@ -395,7 +407,7 @@ function ScoreValue({ score, reduced }: { score: number; reduced: boolean }) {
       style={[
         s.stat,
         {
-          color: t.arena,
+          color,
           opacity: pulse.interpolate({
             inputRange: [0, 1],
             outputRange: [0.6, 1],
@@ -465,6 +477,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  backDark: { backgroundColor: "rgba(255,255,255,0.1)" },
   backText: { fontSize: 28, lineHeight: 32, color: t.foreground },
   eyebrow: {
     fontSize: 10,
