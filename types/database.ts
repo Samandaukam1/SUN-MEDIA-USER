@@ -4270,6 +4270,104 @@ export type Database = {
           },
         ]
       }
+      prospect_analyses: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          input: Json
+          kind: string
+          model: string | null
+          prospect_id: string
+          result: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          input?: Json
+          kind: string
+          model?: string | null
+          prospect_id: string
+          result?: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          input?: Json
+          kind?: string
+          model?: string | null
+          prospect_id?: string
+          result?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospect_analyses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospect_analyses_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospects: {
+        Row: {
+          answers: Json
+          company: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          instagram: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          status: Database["public"]["Enums"]["prospect_status"]
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          company?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instagram?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          status?: Database["public"]["Enums"]["prospect_status"]
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          company?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instagram?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          status?: Database["public"]["Enums"]["prospect_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_tokens: {
         Row: {
           app_version: string | null
@@ -7225,6 +7323,26 @@ export type Database = {
         Returns: Json
       }
       configure_safi: { Args: { p_config: Json }; Returns: Json }
+      create_custom_role: {
+        Args: { p_base_key: string; p_name: string }
+        Returns: {
+          created_at: string
+          description: string | null
+          id: string
+          is_system: boolean
+          key: string
+          name: string
+          rank: number
+          scope: Database["public"]["Enums"]["user_kind"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "roles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_file_upload: {
         Args: {
           p_chat_room_id?: string
@@ -7278,6 +7396,7 @@ export type Database = {
         Args: { p_reason?: string; p_user_id: string }
         Returns: undefined
       }
+      delete_custom_role: { Args: { p_role_id: string }; Returns: undefined }
       deliver_leads: {
         Args: { p_client: string; p_lead_ids?: string[] }
         Returns: Json
@@ -7874,6 +7993,26 @@ export type Database = {
       }
       remove_file: { Args: { p_file_id: string }; Returns: undefined }
       remove_report_file: { Args: { p_file_id: string }; Returns: string }
+      rename_role: {
+        Args: { p_description?: string; p_name: string; p_role_id: string }
+        Returns: {
+          created_at: string
+          description: string | null
+          id: string
+          is_system: boolean
+          key: string
+          name: string
+          rank: number
+          scope: Database["public"]["Enums"]["user_kind"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "roles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       request_access: { Args: never; Returns: Json }
       request_pro_upgrade: { Args: { p_feature?: string }; Returns: undefined }
       request_sun_coin_purchase: { Args: { p_pack: string }; Returns: Json }
@@ -8257,6 +8396,7 @@ export type Database = {
         | "on_hold"
         | "completed"
         | "cancelled"
+      prospect_status: "new" | "analyzed" | "won" | "lost"
       publication_status:
         | "planned"
         | "scheduled"
@@ -8540,6 +8680,7 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
+      prospect_status: ["new", "analyzed", "won", "lost"],
       publication_status: [
         "planned",
         "scheduled",
