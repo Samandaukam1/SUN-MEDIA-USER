@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AnimatedSplash } from '@/components/brand/AnimatedSplash';
 import { OfflineBanner, ToastProvider } from '@/components/ui';
 import { ConfigErrorScreen } from '@/components/navigation/ConfigErrorScreen';
+import { AssistantFab } from '@/features/assistant/AssistantFab';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { RealtimeSync } from '@/features/auth/RealtimeSync';
 import { UploadWatcher } from '@/features/files/UploadWatcher';
@@ -92,6 +93,7 @@ function RootNavigator() {
       <UploadWatcher />
       <PushManager />
       <OfflineBanner />
+      {ready && !splashVisible ? <AssistantFab /> : null}
       {splashVisible ? <AnimatedSplash ready={status !== 'loading'} onFinish={hideSplash} /> : null}
     </View>
   );
