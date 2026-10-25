@@ -38,7 +38,8 @@ export async function speechUri(text: string): Promise<string | null> {
   if (!res || res.status !== 200) return null;
   if (Platform.OS === 'web') return URL.createObjectURL(await res.blob());
   const { File, Paths } = await import('expo-file-system');
-  const file = new File(Paths.cache, `sunny-${Date.now()}.mp3`);
+  const ext = (res.headers.get('content-type') ?? '').includes('wav') ? 'wav' : 'mp3';
+  const file = new File(Paths.cache, `sunny-${Date.now()}.${ext}`);
   file.create({ overwrite: true });
   file.write(new Uint8Array(await res.arrayBuffer()));
   return file.uri;
